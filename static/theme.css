@@ -15,3 +15,21 @@ header { box-shadow:0 1px 10px rgb(15 23 42 / 4%); }
 dialog::backdrop { background:rgb(15 23 42 / 30%); backdrop-filter:blur(3px); }
 input[type="checkbox"], progress { accent-color:#0369a1; }
 :focus-visible { outline:2px solid #0284c7; outline-offset:3px; }
+/* Severity colors are paired with explicit labels, never color alone. */
+.severity-info { --level:#2563eb; --level-ink:#1d4ed8; --level-label:#fff; --level-tint:#eff6ff; --level-hover:#dbeafe; }
+.severity-notice { --level:#0f766e; --level-ink:#115e59; --level-label:#fff; --level-tint:#f0fdfa; --level-hover:#ccfbf1; }
+.severity-warn { --level:#f59e0b; --level-ink:#92400e; --level-label:#422006; --level-tint:#fffbeb; --level-hover:#fef3c7; }
+.severity-error { --level:#dc2626; --level-ink:#b91c1c; --level-label:#fff; --level-tint:#fff1f2; --level-hover:#ffe4e6; }
+.severity-critical { --level:#9f1239; --level-ink:#9f1239; --level-label:#fff; --level-tint:#fdf2f8; --level-hover:#fce7f3; }
+.severity-debug { --level:#475569; --level-ink:#475569; --level-label:#fff; --level-tint:#f8fafc; --level-hover:#e2e8f0; }
+.level-badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:6px; background:var(--level); color:var(--level-label); border:1px solid var(--level-ink); font-size:11px; line-height:1.4; font-weight:750; letter-spacing:.035em; white-space:nowrap; }
+.log-row td { background:var(--level-tint); }
+.log-row td:first-child { box-shadow:inset 4px 0 var(--level); }
+.log-row:hover td { background:var(--level-hover); }
+.severity-card { background:var(--level-tint); border-left:4px solid var(--level); }
+.severity-card:hover { background:var(--level-hover); }
+.level-caption { color:var(--level-ink); }
+.dashboard-card.metric-blue { background:#eff6ff; border-top:4px solid #2563eb; }
+.dashboard-card.metric-teal { background:#f0fdfa; border-top:4px solid #0d9488; }
+.dashboard-card.metric-red { background:#fff1f2; border-top:4px solid #dc2626; }
+.dashboard-card.metric-amber { background:#fffbeb; border-top:4px solid #f59e0b; }
