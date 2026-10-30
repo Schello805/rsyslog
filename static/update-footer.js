@@ -9,9 +9,17 @@
     dialog.style.cssText = 'width:min(92vw,440px);border:1px solid #cbd5e1;border-radius:16px;padding:24px;background:#ffffff;color:#0f172a';
     dialog.innerHTML = `<form method="dialog"><h2 style="font-size:18px;font-weight:600">App aktualisieren</h2>
         <p id="update-dialog-description" style="font-size:14px;color:#475569;margin:12px 0"></p>
+        <div id="update-auth">
         <p style="font-size:13px;color:#475569">Die App wird kurz neu gestartet. Logs und Einstellungen werden gesichert.</p>
         <label for="web-update-key" style="display:block;margin-top:16px;font-size:14px">Update-Schlüssel</label>
         <input id="web-update-key" type="password" autocomplete="off" required style="width:100%;box-sizing:border-box;margin:8px 0;padding:10px;background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;border-radius:8px">
+        </div>
+        <div id="update-setup" hidden style="font-size:13px;color:#475569">
+            <p>Die Update-Prüfung ist aktiv, aber der Update-Dienst fehlt noch. Für die Debian-Installation einmal als root auf dem Server ausführen:</p>
+            <pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f5f9;padding:12px;border-radius:8px;margin:12px 0">bash /opt/rsyslog-web/scripts/setup-web-updates.sh
+systemctl restart rsyslog-web</pre>
+            <p>Danach die Seite neu laden. Den Schlüssel zeigt <code>cat /etc/rsyslog-web-update.key</code>. Docker- und manuelle Installationen weiter über ihren Installationsweg aktualisieren.</p>
+        </div>
         <p id="update-dialog-error" role="alert" style="font-size:13px;color:#be123c"></p>
         <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:16px">
             <button type="button" id="update-cancel">Abbrechen</button>
@@ -73,12 +81,14 @@
             if (!response.ok) throw new Error('Update-Prüfung fehlgeschlagen');
             updateInfo = await response.json();
             if (showJob(updateInfo.job)) return;
-            button.hidden = !updateInfo.available || !updateInfo.can_start;
+            button.hidden = !updateInfo.available && updateInfo.can_start;
+            button.textContent = updateInfo.can_start ? 'Update starten' : 'Web-Updates einrichten';
+            button.title = updateInfo.can_start ? 'Neue Version installieren' : 'Einmalige Einrichtung auf dem Server anzeigen';
             if (updateInfo.job.state === 'failed') return;
             status.title = '';
             if (updateInfo.available) {
                 status.textContent = `Update auf v${updateInfo.latest_version} verfügbar`;
-                if (!updateInfo.can_start) status.title = 'Web-Updates einmalig mit dem Debian-Installer oder Updater einrichten.';
+                if (!updateInfo.can_start) status.title = 'Update verfügbar; der Update-Dienst ist noch nicht eingerichtet.';
             } else if (updateInfo.check_state === 'current') status.textContent = 'Auf aktuellem Stand';
             else if (updateInfo.check_state === 'manual') status.textContent = 'Git-Stand manuell prüfen';
             else status.textContent = 'Update-Prüfung derzeit nicht möglich';
@@ -86,11 +96,18 @@
     }
 
     button.addEventListener('click', () => {
-        dialog.querySelector('#update-dialog-description').textContent = `Neue Version: v${updateInfo.latest_version}`;
+        if (!updateInfo) return;
+        const setup = !updateInfo.can_start;
+        dialog.querySelector('#update-dialog-description').textContent = setup ? 'Web-Updates einmalig aktivieren' : `Neue Version: v${updateInfo.latest_version}`;
+        dialog.querySelector('#update-auth').hidden = setup;
+        dialog.querySelector('#update-setup').hidden = !setup;
+        dialog.querySelector('#update-confirm').hidden = setup;
+        field.required = !setup;
         dialog.showModal();
     });
     dialog.querySelector('form').addEventListener('submit', async event => {
         event.preventDefault();
+        if (!updateInfo?.can_start) return;
         const confirm = dialog.querySelector('#update-confirm');
         confirm.disabled = true;
         try {
