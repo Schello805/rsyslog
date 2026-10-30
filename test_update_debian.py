@@ -78,6 +78,30 @@ fi
             self.assertEqual(len(snapshots), 1)
             self.assertTrue((snapshots[0] / 'data/syslog.db').exists())
 
+    def test_installer_migrates_legacy_configuration_and_database(self):
+        import sqlite3
+        import sys
+        from dotenv import dotenv_values
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app = root / 'app'
+            app.mkdir()
+            (app / '.env').write_text('WEB_PORT=8080\nDATABASE_PATH=syslog.db\nNTFY_TOPIC=my-topic\n')
+            with sqlite3.connect(app / 'syslog.db') as connection:
+                connection.execute('CREATE TABLE logs (message TEXT)')
+                connection.execute("INSERT INTO logs VALUES ('preserved')")
+            script = Path('scripts/install-debian.sh').read_text().split("<<'PYTHON'\n", 1)[1].split('\nPYTHON', 1)[0]
+            script = script.replace('/var/lib/rsyslog-web/syslog.db', str(root / 'installed.db'))
+            script = script.replace('/etc/rsyslog-web.env', str(root / 'installed.env'))
+            result = subprocess.run([sys.executable, '-', str(app)], input=script, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            values = dotenv_values(root / 'installed.env')
+            self.assertEqual(values['WEB_PORT'], '8080')
+            self.assertEqual(values['NTFY_TOPIC'], 'my-topic')
+            self.assertEqual(values['DATABASE_PATH'], str(root / 'installed.db'))
+            with sqlite3.connect(root / 'installed.db') as connection:
+                self.assertEqual(connection.execute('SELECT message FROM logs').fetchone()[0], 'preserved')
+
     def test_successful_update_keeps_backup(self):
         self.run_update(False)
 

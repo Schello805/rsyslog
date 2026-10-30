@@ -10,25 +10,44 @@ mit dem optionalen Monitoring-Skript überwachen.
 Für **Debian 12 oder neuer mit systemd**, auch in einer Debian-VM oder einem
 entsprechenden Container. Auf dem Rechner ausführen, auf dem die Webapp laufen soll:
 
+Als root auf dem Debian-Rechner:
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Schello805/rsyslog/main/scripts/install-debian.sh | sudo bash
+apt update && apt install -y git
+git clone https://github.com/Schello805/rsyslog.git /opt/rsyslog-web
+cd /opt/rsyslog-web
+bash scripts/install-debian.sh
 ```
 
-Falls `curl` fehlt: `sudo apt update && sudo apt install -y curl`.
-In einer Root-Shell kannst du `sudo` weglassen.
+Wenn das Repository bereits unter `/opt/rsyslog-web` liegt:
+
+```bash
+cd /opt/rsyslog-web
+git pull --ff-only
+bash scripts/install-debian.sh
+```
+
+Der Installer kann damit auch eine unvollständige Installation einrichten.
+Eine vorhandene `.env` und lokale `syslog.db` werden bei der ersten Einrichtung
+des Dienstes übernommen, sofern im Datenverzeichnis noch keine Datenbank liegt.
+Einen zuvor manuell gestarteten Server vor Ausführen des Installers beenden, damit die Ports frei sind.
 
 Öffne anschließend **`http://SERVER-IP:8000`**.
 
 Der [Installer](scripts/install-debian.sh) richtet einen eigenen Systembenutzer und
-den Dienst `rsyslog-web` ein. Er überschreibt keine vorhandene Installation.
+den Dienst `rsyslog-web` ein. Vorhandener Quellcode wird beim erneuten Ausführen nicht überschrieben.
 
 ## Update
 
-Auf dem Rechner mit der Debian-Installation ausführen:
+Im installierten Git-Projekt als root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Schello805/rsyslog/main/scripts/update-debian.sh | sudo bash
+cd /opt/rsyslog-web
+bash scripts/update-debian.sh
 ```
+
+Der Updater holt `main` von GitHub. Wurde die App bisher nur mit `start.sh` betrieben,
+zuerst den Installer wie oben ausführen, um den systemd-Dienst einzurichten.
 
 Das [Update-Skript](scripts/update-debian.sh) lädt den aktuellen Stand, sichert App,
 Datenbank und Konfiguration, startet den Dienst neu und prüft die neue Revision.
@@ -36,12 +55,6 @@ Bei einem Fehler nach dem Wechsel stellt es App und Datenbank automatisch wieder
 Sicherungen liegen unter `/var/backups/rsyslog-web-*` und werden nicht automatisch gelöscht.
 Die Dienst-Konfiguration bleibt erhalten. Eigene Datenbankpfade werden vor dem Update
 abgelehnt; dieses Skript unterstützt die Standardinstallation des Installers.
-
-Nach der ersten Installation dieses Update-Skripts geht es auch lokal:
-
-```bash
-sudo bash /opt/rsyslog-web/scripts/update-debian.sh
-```
 
 ## Erste Schritte
 
