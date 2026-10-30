@@ -6,12 +6,12 @@ set -euo pipefail
 app=/opt/rsyslog-web
 repo=https://github.com/Schello805/rsyslog.git
 ref=${RSYSLOG_REF:-main}
+[[ ! -e $app ]] || { echo "$app existiert bereits; Bitte scripts/update-debian.sh verwenden." >&2; exit 1; }
 apt-get update
-apt-get install -y python3 python3-venv git ca-certificates
+apt-get install -y python3 python3-venv git ca-certificates util-linux
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 git clone --branch "$ref" "$repo" "$work/source"
-[[ ! -e $app ]] || { echo "$app existiert bereits; Installation abgebrochen, Daten unverändert." >&2; exit 1; }
 id rsyslog-web >/dev/null 2>&1 || useradd --system --home-dir /var/lib/rsyslog-web --shell /usr/sbin/nologin rsyslog-web
 install -d -o rsyslog-web -g rsyslog-web -m 0750 /var/lib/rsyslog-web
 install -d -m 0755 "$app"
@@ -19,7 +19,7 @@ cp -a "$work/source/." "$app/"
 git -C "$app" rev-parse --short HEAD > "$app/REVISION"
 git -C "$app" rev-list --count HEAD > "$app/REVISION_NUMBER"
 python3 -m venv "$app/.venv"
-"$app/.venv/bin/pip" install -r "$app/requirements.txt"
+"$app/.venv/bin/python" -m pip install -r "$app/requirements.txt"
 if [[ ! -e /etc/rsyslog-web.env ]]; then
     cat > /etc/rsyslog-web.env <<'ENV'
 WEB_HOST=0.0.0.0
@@ -63,3 +63,4 @@ sleep 2
 systemctl is-active --quiet rsyslog-web || { journalctl -u rsyslog-web -n 30 --no-pager; exit 1; }
 echo 'Installiert. Dashboard: http://SERVER-IP:8000 | Syslog UDP/TCP: 5514'
 echo 'Konfiguration: /etc/rsyslog-web.env | Daten: /var/lib/rsyslog-web'
+echo 'Updates: sudo bash /opt/rsyslog-web/scripts/update-debian.sh'
