@@ -15,7 +15,9 @@ if [[ -e $app && ! -d $app/.git ]]; then
     exit 1
 fi
 apt-get update
-apt-get install -y python3 python3-venv git ca-certificates util-linux
+apt-get install -y python3 python3-venv git ca-certificates util-linux rsyslog
+rsyslogd -N1
+systemctl enable --now rsyslog
 if [[ ! -d $app/.git ]]; then
     git clone --no-hardlinks "$source_dir" "$app"
     git -C "$app" remote set-url origin "$repo"

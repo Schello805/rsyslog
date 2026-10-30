@@ -7,7 +7,7 @@ import unittest
 
 
 class UpdaterTests(unittest.TestCase):
-    def run_update(self, fail, reuse=False, current=False):
+    def run_update(self, fail, reuse=False, current=False, missing_syslog=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             app = root / 'app'
@@ -28,6 +28,7 @@ class UpdaterTests(unittest.TestCase):
             old_python.chmod(0o755)
             stubs = {
                 'systemctl': '#!/bin/sh\nexit 0\n',
+                'rsyslogd': '#!/bin/sh\nexit 0\n',
                 'git': '''#!/bin/bash
 if [[ $1 == clone ]]; then
     target=${@: -1}
@@ -58,6 +59,9 @@ STUB
 fi
 ''',
             }
+            if missing_syslog:
+                del stubs['rsyslogd']
+                stubs['apt-get'] = '#!/bin/sh\nif [ "$1" = install ]; then printf "#!/bin/sh\\nexit 0\\n" > "$(dirname "$0")/rsyslogd"; chmod +x "$(dirname "$0")/rsyslogd"; fi\n'
             for name, body in stubs.items():
                 path = commands / name
                 path.write_text(body)
@@ -77,6 +81,9 @@ fi
             environment = dict(os.environ, PATH=f'{commands}:/usr/bin:/bin', FAIL_HEALTH=str(int(fail)), ALREADY_CURRENT=str(int(current)))
             result = subprocess.run(['bash', str(isolated)], env=environment, text=True, capture_output=True)
             self.assertEqual(result.returncode != 0, fail, result.stdout + result.stderr)
+            if missing_syslog:
+                self.assertTrue((commands / 'rsyslogd').exists())
+                self.assertIn('Installiere fehlenden rsyslog-Dienst', result.stdout)
             self.assertEqual((data / 'syslog.db').read_text(), 'original database')
             self.assertEqual(config.read_text(), 'original configuration')
             self.assertEqual((app / 'old-marker').exists(), fail or current)
@@ -97,6 +104,9 @@ fi
 
     def test_current_revision_skips_restart(self):
         self.run_update(False, current=True)
+
+    def test_missing_rsyslog_is_installed_even_without_app_update(self):
+        self.run_update(False, current=True, missing_syslog=True)
 
     def test_installer_migrates_legacy_configuration_and_database(self):
         import sqlite3

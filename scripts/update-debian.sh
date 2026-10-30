@@ -8,6 +8,14 @@ app=/opt/rsyslog-web
 # Prevent concurrent updates.
 exec 9>/run/lock/rsyslog-web-update.lock
 flock -n 9 || { echo 'Ein Update läuft bereits.' >&2; exit 1; }
+# Repair older installations as well, even when the app is already current.
+if ! command -v rsyslogd >/dev/null 2>&1; then
+    echo 'Installiere fehlenden rsyslog-Dienst …'
+    apt-get update
+    apt-get install -y rsyslog
+fi
+rsyslogd -N1
+systemctl enable --now rsyslog
 ref=${RSYSLOG_REF:-main}
 work=$(mktemp -d)
 backup=''

@@ -233,15 +233,15 @@
                     </div>
                     <div>
                         <h3 class="text-base font-semibold text-white">Linux Server (rsyslog)</h3>
-                        <p class="text-xs text-slate-400">Debian, Ubuntu, Proxmox, Raspberry Pi, Rocky Linux.</p>
+                        <p class="text-xs text-slate-400">Debian, Ubuntu, Proxmox VE/PBS und Raspberry Pi OS.</p>
                     </div>
                 </div>
 
                 <div class="space-y-3 text-xs text-slate-300">
-                    <p>Führe diesen 1-Zeiler auf deinem Linux-Server aus. Auf Proxmox VE/PBS zuerst als root <code>apt update &amp;&amp; apt install -y rsyslog</code> ausführen; in der Root-Shell <code>sudo</code> weglassen.</p>
+                    <p>Dieser Befehl installiert rsyslog, richtet die Weiterleitung ein und startet den Dienst. Er funktioniert als root oder mit sudo auf Debian-basierten Systemen.</p>
 
                     <div class="relative group">
-                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs font-mono text-purple-300 overflow-x-auto"><code id="code-linux-rsyslog">echo "*.* @192.168.1.191:5514" | sudo tee /etc/rsyslog.d/99-remote.conf && sudo systemctl restart rsyslog</code></pre>
+                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs font-mono text-purple-300 overflow-x-auto"><code id="code-linux-rsyslog">RSYSLOG_SUDO=; [ "$(id -u)" -eq 0 ] || RSYSLOG_SUDO=sudo; $RSYSLOG_SUDO apt-get update &amp;&amp; $RSYSLOG_SUDO apt-get install -y rsyslog &amp;&amp; printf '%s\n' '*.* @192.168.1.191:5514' | $RSYSLOG_SUDO tee /etc/rsyslog.d/99-remote.conf &amp;&amp; $RSYSLOG_SUDO rsyslogd -N1 &amp;&amp; $RSYSLOG_SUDO systemctl enable rsyslog &amp;&amp; $RSYSLOG_SUDO systemctl restart rsyslog</code></pre>
                         <button onclick="copyCode('code-linux-rsyslog')" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 border border-slate-700">
                             Kopieren
                         </button>
@@ -486,7 +486,7 @@
                 `logger -n ${activeIP} -P ${udpPort} -t test-dienst "Hallo von meinem Terminal an den Syslog-Server!"`;
 
             document.getElementById('code-linux-rsyslog').innerText = 
-                `echo "*.* @${activeIP}:${udpPort}" | sudo tee /etc/rsyslog.d/99-remote.conf && sudo systemctl restart rsyslog`;
+                `RSYSLOG_SUDO=; [ "$(id -u)" -eq 0 ] || RSYSLOG_SUDO=sudo; $RSYSLOG_SUDO apt-get update && $RSYSLOG_SUDO apt-get install -y rsyslog && printf '%s\\n' '*.* @${activeIP}:${udpPort}' | $RSYSLOG_SUDO tee /etc/rsyslog.d/99-remote.conf && $RSYSLOG_SUDO rsyslogd -N1 && $RSYSLOG_SUDO systemctl enable rsyslog && $RSYSLOG_SUDO systemctl restart rsyslog`;
 
             document.getElementById('code-docker-compose').innerText = 
 `logging:

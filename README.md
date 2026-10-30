@@ -35,7 +35,7 @@ Einen zuvor manuell gestarteten Server vor Ausführen des Installers beenden, da
 Öffne anschließend **`http://SERVER-IP:8000`**.
 
 Der [Installer](scripts/install-debian.sh) richtet einen eigenen Systembenutzer und
-den Dienst `rsyslog-web` ein. Vorhandener Quellcode wird beim erneuten Ausführen nicht überschrieben.
+die Dienste `rsyslog-web` und `rsyslog` ein. Der Linux-Syslog-Dienst wird automatisch mitinstalliert und gestartet. Vorhandener Quellcode wird beim erneuten Ausführen nicht überschrieben.
 
 ## Update
 
@@ -46,7 +46,8 @@ cd /opt/rsyslog-web
 bash scripts/update-debian.sh
 ```
 
-Der Updater holt nur neue Git-Objekte von `main`. Ist der Stand bereits aktuell,
+Der Updater installiert außerdem einen fehlenden `rsyslog`-Dienst nach.
+Er holt nur neue Git-Objekte von `main`. Ist der Stand bereits aktuell,
 beendet er sich ohne Neustart. Bei unveränderten und konsistenten Abhängigkeiten
 wird die Python-Umgebung ohne erneute Paketinstallation übernommen. Wurde die App bisher nur mit `start.sh` betrieben,
 zuerst den Installer wie oben ausführen, um den systemd-Dienst einzurichten.
