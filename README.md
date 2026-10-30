@@ -140,6 +140,10 @@ Vorhandene Weiterleitungen zum gleichen Ziel können doppelte Meldungen erzeugen
 | Dienst neu starten | `sudo systemctl restart rsyslog-web` |
 | Servermeldungen anzeigen | `sudo journalctl -u rsyslog-web -n 50 --no-pager` |
 
+HTTP-Zugriffslogs der Webapp sind deaktiviert, damit die Weiterleitung der eigenen
+Systemlogs keinen Kreislauf im Live-Dashboard erzeugt. Eine IP vor `GET /api/...`
+in älteren Meldungen bezeichnet den HTTP-Client, nicht das Syslog-Ziel.
+
 Die Aufbewahrungsfrist stellst du in der Weboberfläche ein. Alte Logs werden beim
 Start und stündlich bereinigt; **0** deaktiviert die automatische Bereinigung.
 Die Revision im Footer steigt mit jedem Commit. Ein Push auf GitHub aktualisiert

@@ -501,6 +501,7 @@
         let searchDebounceTimeout = null;
         let ws = null;
         let activeModalLog = null;
+        let pendingLogRefresh = false;
 
         // Level Styling mapping
         function getLevelBadge(level) {
@@ -731,15 +732,15 @@
                 if (!isLiveStreamActive) return;
                 try {
                     const newLog = JSON.parse(event.data);
-                    // Refresh stats immediately
-                    fetchStats();
-                    fetchFilters();
+                    // Metadata refresh is periodic, independent of incoming log volume.
 
                     // If currently on page 1 and no restrictive search filter, prepend new row
                     const currentSearch = document.getElementById('filter-search').value;
                     const currentLevel = document.getElementById('filter-level').value;
+                    const currentHost = document.getElementById('filter-host').value;
+                    const currentApp = document.getElementById('filter-app').value;
                     
-                    if (currentPage === 1 && !currentSearch && currentLevel === 'ALL') {
+                    if (currentPage === 1 && !currentSearch && currentLevel === 'ALL' && currentHost === 'ALL' && currentApp === 'ALL') {
                         const tbody = document.getElementById('logs-table-body');
                         const tempRow = document.createElement('tr');
                         tempRow.className = "hover:bg-slate-800/50 transition cursor-pointer bg-sky-950/20";
@@ -751,19 +752,22 @@
                             <td class="py-2.5 px-4 text-slate-300 whitespace-nowrap truncate max-w-[140px]">${escapeHtml(newLog.app)}</td>
                             <td class="py-2.5 px-4 text-slate-200 truncate max-w-md">${escapeHtml(newLog.message)}</td>
                             <td class="py-2.5 px-4 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                                <button onclick='openDetailModal(${JSON.stringify(newLog)})' class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition">
+                                <button onclick='openDetailModal(${escapeHtml(JSON.stringify(newLog))})' class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition">
                                     <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                                 </button>
                             </td>
                         `;
-                        if (tbody.firstChild && tbody.firstChild.innerText && tbody.firstChild.innerText.includes('Keine Logs')) {
+                        if (!tbody.querySelector('tr[data-live-row]') && tbody.querySelector('td[colspan]')) {
                             tbody.innerHTML = '';
                         }
+                        tempRow.dataset.liveRow = 'true';
                         tbody.insertBefore(tempRow, tbody.firstChild);
+                        const limit = Number(document.getElementById('filter-limit').value);
+                        while (tbody.children.length > limit) tbody.lastElementChild.remove();
                         lucide.createIcons();
                     } else {
-                        // Otherwise refresh table quietly
-                        fetchLogs(currentPage);
+                        // Coalesce filtered-table refreshes; never request once per message.
+                        pendingLogRefresh = true;
                     }
                 } catch (e) {
                     console.error('WS parse error:', e);
@@ -1038,8 +1042,17 @@
             fetchFilters();
             initWebSocket();
 
-            // Periodic stats refresh every 10 seconds
-            setInterval(fetchStats, 10000);
+            // Fixed refresh rate prevents access-log feedback and request amplification.
+            setInterval(() => {
+                if (document.hidden) return;
+                fetchStats();
+                fetchFilters();
+            }, 10000);
+            setInterval(() => {
+                if (!pendingLogRefresh || document.hidden || !isLiveStreamActive || location.hash !== '#logs') return;
+                pendingLogRefresh = false;
+                fetchLogs(currentPage);
+            }, 2000);
         });
     </script>
 </body>

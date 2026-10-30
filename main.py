@@ -59,6 +59,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("rsyslog.main")
+# HTTP access messages forwarded back through local syslog can trigger a live-feed loop.
+# Keep application/error logging, but suppress per-request access logs for all launch modes.
+logging.getLogger("uvicorn.access").disabled = True
 
 # Each browser has its own bounded queue and sender.
 _active_websockets = {}
@@ -432,4 +435,5 @@ if __name__ == "__main__":
         host=config.WEB_HOST,
         port=config.WEB_PORT,
         reload=False,
+        access_log=False,
     )
