@@ -224,7 +224,7 @@ async def api_clear_logs():
 
 @app.get("/api/logs/export")
 async def api_export_logs(
-    format: str = Query("csv", regex="^(csv|json)$"),
+    format: str = Query("csv", pattern="^(csv|json)$"),
     level: Optional[str] = Query(None),
     host: Optional[str] = Query(None),
     app: Optional[str] = Query(None),
