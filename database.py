@@ -4,6 +4,7 @@ Provides thread-safe connections, WAL mode for high performance,
 indices for filtering/search, and log query aggregation.
 """
 
+import json
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -48,6 +49,9 @@ def init_db() -> None:
             )
             """
         )
+        columns = {row['name'] for row in conn.execute('PRAGMA table_info(logs)')}
+        if 'metadata' not in columns:
+            conn.execute("ALTER TABLE logs ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'")
         # Performance indexes for dashboard filtering and sorting
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)")
@@ -168,11 +172,20 @@ def insert_log(
     facility: Optional[str] = "user",
     raw: Optional[str] = None,
     timestamp: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Inserts a new log entry and returns the inserted record as a dict."""
     if not timestamp:
         timestamp = datetime.now(timezone.utc).isoformat()
 
+    # Structured HTTP clients may place a complete CEF packet in message as well.
+    if isinstance(message, str) and message.lstrip('\ufeff').startswith(('CEF:0|', 'CEF:1|')) and not metadata:
+        from syslog_parser import parse_syslog_message
+        parsed = parse_syslog_message(message, client_ip=host)
+        if parsed.get('metadata'):
+            raw = raw or parsed['raw']
+            host, app, level, message = parsed['host'], parsed['app'], parsed['level'], parsed['message']
+            metadata = parsed['metadata']
     normalized_level = level.upper().strip()
     clean_host = (host or "unknown").strip()
     clean_app = (app or "syslog").strip()
@@ -183,8 +196,8 @@ def insert_log(
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO logs (timestamp, host, app, level, facility, message, raw)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO logs (timestamp, host, app, level, facility, message, raw, metadata)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 timestamp,
@@ -194,6 +207,7 @@ def insert_log(
                 facility or "user",
                 clean_msg,
                 raw or clean_msg,
+                json.dumps(metadata or {}, ensure_ascii=False),
             ),
         )
         log_id = cursor.lastrowid
@@ -207,6 +221,7 @@ def insert_log(
         "facility": facility or "user",
         "message": clean_msg,
         "raw": raw or clean_msg,
+        "metadata": metadata or {},
     }
 
 
@@ -261,7 +276,7 @@ def get_logs(
     # 2. Paginated data query
     offset = max(0, (page - 1) * per_page)
     data_sql = f"""
-        SELECT id, timestamp, host, app, level, facility, message, raw
+        SELECT id, timestamp, host, app, level, facility, message, raw, metadata
         FROM logs
         {where_clause}
         ORDER BY id DESC
@@ -271,6 +286,11 @@ def get_logs(
     rows = cursor.fetchall()
 
     logs = [dict(row) for row in rows]
+    for log in logs:
+        try:
+            log['metadata'] = json.loads(log['metadata'])
+        except (ValueError, TypeError):
+            log['metadata'] = {}
     return logs, total_count
 
 

@@ -280,6 +280,7 @@ async def api_post_log(request: Request):
             message=parsed["message"],
             raw=parsed["raw"],
             timestamp=parsed["timestamp"],
+            metadata=parsed.get("metadata"),
         )
 
     # Trigger alerts and realtime broadcast

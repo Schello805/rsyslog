@@ -68,6 +68,28 @@ abgelehnt; dieses Skript unterstützt die Standardinstallation des Installers.
 Empfang: **UDP/TCP Port 5514**. Die Firewall muss diesen Port für deine Geräte
 freigeben. Die Weboberfläche hat derzeit keine Anmeldung; betreibe sie im vertrauenswürdigen Netz.
 
+## UniFi-Ereignisse auswerten
+
+In UniFi Network unter **Integration → System Logging / SIEM** den RSyslog-Server
+als Ziel mit Port **5514** eintragen. UniFi-CEF wird für neue Meldungen automatisch
+ausgewertet: betroffenes Gerät, Ereignisname und ID, Kategorie und Schweregrad.
+In „Logs prüfen“ nach Host oder Dienst (z. B. `UniFi / System / Devices`) filtern;
+Ereignisnamen und IDs lassen sich über die Suche finden. Weitere Felder und der
+meldende Controller stehen in den Log-Details. Originalmeldungen bleiben erhalten.
+
+| CEF-Schweregrad | RSyslog-Level |
+|---|---|
+| 0–3 / Low / Unknown | INFO |
+| 4–6 / Medium | WARN |
+| 7–8 / High | ERROR |
+| 9–10 / Very-High | CRITICAL |
+
+CEF-Level haben Vorrang vor dem äußeren Syslog-Level. Ungültige Level behalten
+den bisherigen Level bei. Ist kein betroffenes Gerät angegeben, wird der meldende
+Controller bzw. der Syslog-Absender verwendet. Vorhandene Logs werden nicht
+rückwirkend geändert. Quellen: [UniFi-Export](https://help.ui.com/hc/en-us/articles/33349041044119-UniFi-System-Logs-SIEM-Integration),
+[CEF-Standard](https://docs.microfocus.com/doc/2097/25.4/siemcefimplementationstandard).
+
 ## CPU, RAM und Speicherplatz überwachen
 
 Auf jedem Linux-Gerät bzw. Proxmox-VE-/PBS-Host separat ausführen:

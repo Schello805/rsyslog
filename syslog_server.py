@@ -51,6 +51,7 @@ def handle_incoming_log_sync(raw_data: str, client_ip: str) -> Dict[str, Any]:
         message=parsed["message"],
         raw=parsed["raw"],
         timestamp=parsed["timestamp"],
+        metadata=parsed.get("metadata"),
     )
     return saved
 

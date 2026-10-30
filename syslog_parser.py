@@ -72,7 +72,7 @@ RFC3164_REGEX = re.compile(
 )
 
 
-def parse_syslog_message(raw_data: str, client_ip: str = "unknown") -> Dict[str, Any]:
+def _parse_syslog_message(raw_data: str, client_ip: str = "unknown") -> Dict[str, Any]:
     """
     Parses a raw syslog packet string into a structured dictionary.
     Guarantees non-empty host, app, level, and message.
@@ -101,12 +101,13 @@ def parse_syslog_message(raw_data: str, client_ip: str = "unknown") -> Dict[str,
         rest = m5424.group("rest").strip()
         # Handle structured data if present: [exampleSDID@32473 ...] MSG
         message = rest
-        if rest.startswith("["):
-            closing_bracket = rest.find("]")
-            if closing_bracket != -1:
-                # Keep message after structured data, or whole rest if empty
-                sub_msg = rest[closing_bracket + 1 :].strip()
-                message = sub_msg if sub_msg else rest
+        if rest.startswith("- "):
+            message = rest[2:].lstrip()
+        elif rest.startswith("["):
+            # Multiple adjacent SD elements and escaped closing brackets are valid.
+            structured = re.match(r'^(?:\[(?:\\.|[^\]\\])*\])+(?:\s+|$)', rest)
+            if structured:
+                message = rest[structured.end():].strip() or rest
 
         return {
             "timestamp": timestamp,
@@ -191,3 +192,8 @@ def parse_syslog_message(raw_data: str, client_ip: str = "unknown") -> Dict[str,
         "message": data,
         "raw": data,
     }
+
+
+def parse_syslog_message(raw_data: str, client_ip: str = "unknown") -> Dict[str, Any]:
+    from cef_parser import enrich_unifi
+    return enrich_unifi(_parse_syslog_message(raw_data, client_ip))
