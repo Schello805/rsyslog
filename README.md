@@ -168,7 +168,7 @@ in älteren Meldungen bezeichnet den HTTP-Client, nicht das Syslog-Ziel.
 
 Die Aufbewahrungsfrist stellst du in der Weboberfläche ein. Alte Logs werden beim
 Start und stündlich bereinigt; **0** deaktiviert die automatische Bereinigung.
-Die Revision im Footer steigt mit jedem Commit. Ein Push auf GitHub aktualisiert
+Version und Revision steigen mit jedem Commit, z. B. `v1.0.15 · Rev. 15`. Ein Push auf GitHub aktualisiert
 bestehende Installationen erst nach Ausführen des Updates.
 
 ## Alternativen
@@ -191,3 +191,11 @@ Diese Installationen werden nicht vom Debian-Update-Skript verwaltet.
 
 Von **Michael Schellenberger**. Nutzung unter [CC BY-NC 4.0](LICENSE)
 mit Namensnennung und für nichtkommerzielle Zwecke.
+
+
+Die Startseite zeigt Meldungen, Warnungen und Fehler der letzten 24 Stunden,
+die letzten Ereignisse und alle bekannten Absender. „Aktiv“ bedeutet hier:
+mindestens eine Meldung in 15 Minuten. Nur ein empfangenes Heartbeat-Signal erlaubt
+eine Aussage zur Erreichbarkeit; reine Syslog-Absender erhalten keinen erfundenen
+Online-/Offline-Status. Die Zeitfenster neuer Meldungen verwenden die Empfangszeit,
+damit eine falsche Uhr am sendenden Gerät die Übersicht nicht verfälscht.

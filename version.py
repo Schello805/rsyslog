@@ -44,9 +44,11 @@ def get_revision_number() -> int:
 def get_version_info() -> dict:
     revision = get_git_revision()
     number = get_revision_number()
+    major, minor, _ = VERSION.split('.')
+    version = f'{major}.{minor}.{number}'
     return {
-        'version': VERSION,
+        'version': version,
         'revision': revision,
         'revision_number': number,
-        'display': f'v{VERSION} · Rev. {number} ({revision})',
+        'display': f'v{version} · Rev. {number} ({revision})',
     }

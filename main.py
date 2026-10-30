@@ -197,6 +197,7 @@ async def api_get_logs(
     host: Optional[str] = Query(None),
     app: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    hours: Optional[int] = Query(None, ge=1, le=8760),
 ):
     """Retrieves paginated and filtered logs."""
     logs, total = get_logs(
@@ -206,6 +207,7 @@ async def api_get_logs(
         host=host,
         app=app,
         search=search,
+        hours=hours,
     )
     return {
         "logs": logs,
@@ -219,6 +221,14 @@ async def api_get_logs(
 async def api_hosts():
     from database import get_monitored_hosts
     return {"hosts": get_monitored_hosts(), "udp_dropped": server_manager.dropped}
+
+
+@app.get("/api/dashboard")
+async def api_dashboard():
+    from database import get_dashboard_summary
+    summary = await asyncio.to_thread(get_dashboard_summary)
+    summary["udp_dropped"] = server_manager.dropped
+    return summary
 
 
 @app.get("/api/stats")
@@ -306,6 +316,7 @@ async def api_export_logs(
     host: Optional[str] = Query(None),
     app: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    hours: Optional[int] = Query(None, ge=1, le=8760),
 ):
     """Exports matching logs as a downloadable CSV or JSON file."""
     # Retrieve all matching rows (up to 10,000 for export)
@@ -316,6 +327,7 @@ async def api_export_logs(
         host=host,
         app=app,
         search=search,
+        hours=hours,
     )
 
     if format == "json":

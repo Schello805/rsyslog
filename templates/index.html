@@ -50,6 +50,10 @@
             70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
+        .dashboard-card { display:block; background:#0f172a; border:1px solid #1e293b; border-radius:1rem; padding:1.25rem; }
+        .dashboard-card:hover { border-color:#0369a1; }
+        .dashboard-label { font-size:.75rem; color:#94a3b8; }
+        .dashboard-number { font-size:1.875rem; font-weight:600; margin-top:.65rem; }
         [hidden] { display: none !important; }
         .workflow-link { padding: .65rem 1rem; border-radius: .65rem; font-size: .875rem; white-space: nowrap; color: #94a3b8; }
         .workflow-link[aria-current="page"] { background: #0c4a6e; color: #e0f2fe; }
@@ -71,7 +75,7 @@
                     <div>
                         <div class="flex items-center space-x-2">
                             <h1 class="text-lg font-bold tracking-tight text-white">RSyslog <span class="text-sky-400">Web</span></h1>
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">v1.0.0</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">Version …</span>
                         </div>
                         <p class="text-xs text-slate-400">Deine Systeme im Blick</p>
                     </div>
@@ -141,90 +145,37 @@
             <a href="#devices" data-workflow="devices" class="workflow-link">Gerätestatus <span id="offline-badge"></span></a>
         </nav>
         <section data-panel="overview" class="space-y-6">
-            <div class="grid gap-4 sm:grid-cols-2">
-                <a href="#devices" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-sky-700 transition">
-                    <p class="text-xs text-slate-400">Erreichbarkeit</p><p id="overview-host-status" class="text-xl font-semibold mt-3">Status wird geladen …</p>
-                    <p class="text-sm text-slate-400 mt-3">Gerätestatus prüfen <span aria-hidden="true">→</span></p>
-                </a>
-                <a href="#logs" onclick="document.getElementById('filter-level').value='ERROR_CRITICAL'; fetchLogs(1)" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-sky-700 transition">
-                    <p class="text-xs text-slate-400">Gespeicherte Fehlermeldungen</p><p id="overview-error-count" class="text-xl font-semibold mt-3">…</p>
-                    <p class="text-sm text-slate-400 mt-3">Fehler untersuchen <span aria-hidden="true">→</span></p>
-                </a>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <a href="#devices" class="dashboard-card"><p class="dashboard-label">Bekannte Absender</p><p id="overview-known" class="dashboard-number">…</p><p id="overview-recent" class="dashboard-label mt-2">Aktivität wird geladen</p></a>
+                <a href="#logs" class="dashboard-card"><p class="dashboard-label">Meldungen · 24 Stunden</p><p id="overview-volume" class="dashboard-number">…</p><p class="dashboard-label mt-2">Seit Empfang auf diesem Server</p></a>
+                <button type="button" onclick="openLogFilter('ERROR_CRITICAL', 'ALL', '24')" class="dashboard-card text-left"><p class="dashboard-label">Fehler · 24 Stunden</p><p id="overview-errors" class="dashboard-number text-rose-400">…</p><p class="dashboard-label mt-2">Fehler untersuchen →</p></button>
+                <button type="button" onclick="openLogFilter('WARN', 'ALL', '24')" class="dashboard-card text-left"><p class="dashboard-label">Warnungen · 24 Stunden</p><p id="overview-warnings" class="dashboard-number text-amber-400">…</p><p class="dashboard-label mt-2">Warnungen prüfen →</p></button>
             </div>
+            <div id="overview-monitoring" class="rounded-xl border border-slate-800 bg-slate-900/50 px-5 py-3 text-sm text-slate-300">Überwachung wird geladen …</div>
             <div id="onboarding-hint" hidden class="rounded-2xl border border-sky-900 bg-sky-950/20 p-6">
-                <h3 class="font-semibold">Starte mit deinem ersten Gerät</h3>
-                <p class="text-sm text-slate-400 mt-2">Wähle dein System, richte die Weiterleitung ein und prüfe den Eingang der ersten Meldung.</p>
-                <a href="/guide" class="inline-block mt-4 text-sky-400 text-sm">Einrichtung starten →</a>
+                <h3 class="font-semibold">Noch keine Meldungen eingegangen</h3>
+                <a href="/guide" class="inline-block mt-3 text-sky-400 text-sm">Erstes Gerät anbinden →</a>
             </div>
-            <details class="space-y-4"><summary class="cursor-pointer text-sm text-slate-400">Ereignisstatistik anzeigen</summary>
-        <!-- Stat Cards -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <!-- Total Logs -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium text-slate-400">Gesamte Logs</p>
-                        <p id="stat-total" class="text-2xl font-bold text-white mt-1">0</p>
-                    </div>
-                    <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300">
-                        <i data-lucide="list" class="w-5 h-5"></i>
-                    </div>
-                </div>
-                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-sky-500 to-indigo-500"></div>
+            <div class="grid lg:grid-cols-2 gap-6">
+                <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <h3 class="font-semibold">Warnungen & Fehler</h3><p class="text-xs text-slate-400 mt-1 mb-4">Letzte Ereignisse aus 24 Stunden · keine Liste offener Vorfälle</p>
+                    <div id="overview-attention" class="space-y-2"></div>
+                </section>
+                <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <h3 class="font-semibold">Zuletzt eingegangen</h3><p class="text-xs text-slate-400 mt-1 mb-4">Die neuesten Meldungen deiner Geräte</p>
+                    <div id="overview-latest" class="space-y-2"></div>
+                </section>
             </div>
-
-            <!-- Critical & Errors -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium text-rose-400">Kritisch & Fehler</p>
-                        <div class="flex items-baseline space-x-2 mt-1">
-                            <p id="stat-critical" class="text-2xl font-bold text-rose-400">0</p>
-                            <span id="stat-error" class="text-xs text-rose-500/80 font-mono">(0 Fehler)</span>
-                        </div>
-                    </div>
-                    <div class="w-10 h-10 rounded-lg bg-rose-950/50 border border-rose-900/50 flex items-center justify-center text-rose-400">
-                        <i data-lucide="alert-octagon" class="w-5 h-5"></i>
-                    </div>
-                </div>
-                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-500"></div>
-            </div>
-
-            <!-- Warnings -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium text-amber-400">Warnungen</p>
-                        <p id="stat-warn" class="text-2xl font-bold text-amber-400 mt-1">0</p>
-                    </div>
-                    <div class="w-10 h-10 rounded-lg bg-amber-950/50 border border-amber-900/50 flex items-center justify-center text-amber-400">
-                        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-                    </div>
-                </div>
-                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"></div>
-            </div>
-
-            <!-- Active Hosts -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-medium text-emerald-400">Hosts in gespeicherten Logs</p>
-                        <p id="stat-hosts" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
-                    </div>
-                    <div class="w-10 h-10 rounded-lg bg-emerald-950/50 border border-emerald-900/50 flex items-center justify-center text-emerald-400">
-                        <i data-lucide="network" class="w-5 h-5"></i>
-                    </div>
-                </div>
-                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500"></div>
-            </div>
-        </div>
-
-            </details>
+            <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <div class="flex justify-between gap-4 mb-4"><h3 class="font-semibold">Absender & Aktivität</h3><a href="#devices" class="text-sm text-sky-400">Alle Absender →</a></div>
+                <div id="overview-devices" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+            </section>
+            <p id="dashboard-updated" role="status" class="text-xs text-slate-500"></p>
         </section>
         <section data-panel="devices" hidden class="space-y-4">
         <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
-            <h2 class="text-sm font-semibold text-white">Geräte mit Lebenszeichen</h2>
-            <p class="text-xs text-slate-400 mt-1">Mit Monitoring-Skript: Ausfall nach 5 Minuten ohne Lebenszeichen.</p>
+            <h2 class="text-sm font-semibold text-white">Alle bekannten Absender</h2>
+            <p class="text-xs text-slate-400 mt-1">Syslog zeigt Meldungsaktivität. Nur Geräte mit Lebenszeichen können als online oder offline eingestuft werden.</p>
             <div id="monitored-hosts" class="text-xs text-slate-300 mt-3 space-y-2">Noch keine Lebenszeichen.</div>
             <p id="udp-dropped" class="text-xs text-amber-400 mt-2"></p>
         </section>
@@ -244,7 +195,7 @@
 
                 <details class="sm:col-span-8" id="advanced-filters">
                     <summary class="cursor-pointer text-sm text-slate-300 py-2">Filter verfeinern <span id="active-filter-count" class="text-sky-400"></span></summary>
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
                 <!-- Level Dropdown -->
                 <div class="sm:col-span-1">
                     <select aria-label="Schweregrad" id="filter-level" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
@@ -273,6 +224,11 @@
                     </select>
                 </div>
 
+                <div>
+                    <select id="filter-period" aria-label="Zeitraum" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm">
+                        <option value="ALL">Gesamter Zeitraum</option><option value="24">Letzte 24 Stunden</option>
+                    </select>
+                </div>
                 <!-- Page Size -->
                 <div class="sm:col-span-1">
                     <select aria-label="Einträge pro Seite" id="filter-limit" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
@@ -488,7 +444,7 @@
                 <!-- Rev. Nr. Badge (dynamisch) -->
                 <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300 font-mono">
                     <i data-lucide="git-commit" class="w-3.5 h-3.5 text-sky-400"></i>
-                    <span id="footer-rev-text">Rev. v1.0.0</span>
+                    <span id="footer-rev-text">Version wird geladen …</span>
                 </div>
 
                 <!-- GitHub Link with GitHub Icon -->
@@ -555,7 +511,7 @@
         // Fetch logs from backend
         async function fetchLogs(page = 1) {
             currentPage = page;
-            const activeFilters = ['filter-level', 'filter-host', 'filter-app'].filter(id => document.getElementById(id).value !== 'ALL').length;
+            const activeFilters = ['filter-level', 'filter-host', 'filter-app', 'filter-period'].filter(id => document.getElementById(id).value !== 'ALL').length;
             document.getElementById('active-filter-count').textContent = activeFilters ? `(${activeFilters} aktiv)` : '';
             const search = document.getElementById('filter-search').value;
             const level = document.getElementById('filter-level').value;
@@ -572,6 +528,8 @@
                 app: app
             });
 
+            const period = document.getElementById('filter-period').value;
+            if (period !== 'ALL') params.set('hours', period);
             try {
                 const res = await fetch(`/api/logs?${params.toString()}`);
                 const data = await res.json();
@@ -650,54 +608,80 @@
             }
         }
 
-        // Fetch Stats
+        function openLogFilter(level = 'ALL', host = 'ALL', hours = 'ALL') {
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-app').value = 'ALL';
+            document.getElementById('filter-level').value = level;
+            document.getElementById('filter-period').value = hours;
+            const select = document.getElementById('filter-host');
+            if (![...select.options].some(option => option.value === host)) select.add(new Option(host, host));
+            select.value = host;
+            document.getElementById('advanced-filters').open = level !== 'ALL' || host !== 'ALL';
+            location.hash = 'logs';
+            fetchLogs(1);
+        }
+
+        function deviceCard(host) {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'text-left p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-sky-700 min-w-0';
+            const name = document.createElement('p');
+            name.className = 'text-sm font-medium truncate'; name.textContent = host.host;
+            const status = document.createElement('p');
+            status.className = 'text-xs mt-1 ' + (host.status === 'offline' ? 'text-rose-400' : host.status === 'online' ? 'text-emerald-400' : 'text-slate-400');
+            status.textContent = host.status === 'offline' ? 'Offline · Lebenszeichen fehlt' : host.status === 'online' ? 'Online · Lebenszeichen empfangen' : 'Syslog-Absender · Erreichbarkeit unbekannt';
+            const activity = document.createElement('p');
+            activity.className = 'text-xs text-slate-500 mt-2';
+            activity.textContent = host.last_message ? `Letzte Meldung: ${formatTimestamp(host.last_message)} · ${host.errors_24h} Fehler / 24 h` : 'Noch keine gespeicherten Meldungen';
+            card.append(name, status, activity);
+            card.addEventListener('click', () => openLogFilter('ALL', host.host));
+            return card;
+        }
+
+        function renderOverviewEvents(id, logs, empty) {
+            const container = document.getElementById(id);
+            container.replaceChildren();
+            if (!logs.length) { const text = document.createElement('p'); text.className = 'text-sm text-slate-400 py-4'; text.textContent = empty; container.append(text); }
+            logs.forEach(log => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'block w-full text-left rounded-xl p-3 bg-slate-950/50 hover:bg-slate-800';
+                const meta = document.createElement('p');
+                meta.className = 'text-xs ' + (['ERROR','CRITICAL','EMERGENCY','ALERT'].includes(log.level) ? 'text-rose-400' : log.level === 'WARN' ? 'text-amber-400' : 'text-sky-400');
+                meta.textContent = `${log.level} · ${log.host} · ${formatTimestamp(log.timestamp)}`;
+                const message = document.createElement('p');
+                message.className = 'text-sm text-slate-300 mt-1 truncate'; message.textContent = log.message;
+                button.append(meta, message); button.addEventListener('click', () => openDetailModal(log)); container.append(button);
+            });
+        }
+
+        let dashboardRequestActive = false;
         async function fetchStats() {
+            if (dashboardRequestActive) return;
+            dashboardRequestActive = true;
             try {
-                const res = await fetch('/api/stats');
-                const data = await res.json();
-                document.getElementById('stat-total').innerText = data.total;
-                document.getElementById('stat-critical').innerText = data.critical;
-                document.getElementById('stat-error').innerText = `(${data.error} Fehler)`;
-                document.getElementById('stat-warn').innerText = data.warn;
-                document.getElementById('stat-hosts').innerText = data.active_hosts;
-                const hostsResponse = await fetch('/api/hosts');
-                const status = await hostsResponse.json();
-                const offline = status.hosts.filter(host => host.offline).length;
-                document.getElementById('overview-host-status').textContent = !status.hosts.length ? 'Noch keine Geräte überwacht' : offline ? `${offline} von ${status.hosts.length} Geräten offline` : `${status.hosts.length} Geräte erreichbar`;
-                document.getElementById('overview-host-status').className = `text-xl font-semibold mt-3 ${offline ? 'text-rose-400' : 'text-slate-100'}`;
-                document.getElementById('offline-badge').textContent = offline ? `(${offline} offline)` : '';
-                document.getElementById('overview-error-count').textContent = `${data.critical + data.error} Fehler und kritische Meldungen`;
-                document.getElementById('onboarding-hint').hidden = data.total > 0;
-                const list = document.getElementById('monitored-hosts');
-                list.replaceChildren();
-                if (!status.hosts.length) list.textContent = 'Noch keine Lebenszeichen.';
-                status.hosts.forEach(host => {
-                    const row = document.createElement('div');
-                    row.textContent = `${host.host}: ${host.offline ? 'OFFLINE' : 'Online'} · zuletzt ${new Date(host.last_seen * 1000).toLocaleString()}`;
-                    row.className = host.offline ? 'text-rose-400' : 'text-emerald-400';
-                    const action = document.createElement('button');
-                    action.type = 'button';
-                    action.textContent = 'Logs ansehen →';
-                    action.className = 'ml-4 text-sky-400 hover:underline';
-                    action.addEventListener('click', () => {
-                        const select = document.getElementById('filter-host');
-                        if (![...select.options].some(option => option.value === host.host)) select.add(new Option(host.host, host.host));
-                        document.getElementById('filter-search').value = '';
-                        document.getElementById('filter-app').value = 'ALL';
-                        document.getElementById('filter-level').value = 'ALL';
-                        select.value = host.host;
-                        document.getElementById('advanced-filters').open = true;
-                        location.hash = 'logs';
-                        fetchLogs(1);
-                    });
-                    row.appendChild(action);
-                    list.appendChild(row);
-                });
-                document.getElementById('udp-dropped').textContent = status.udp_dropped
-                    ? `Wegen Überlast verworfene UDP-Meldungen seit Start: ${status.udp_dropped}` : '';
-            } catch (err) {
-                console.error('Stats error:', err);
-            }
+                const response = await fetch('/api/dashboard');
+                if (!response.ok) throw new Error('Dashboard konnte nicht geladen werden');
+                const data = await response.json();
+                document.getElementById('overview-known').textContent = data.known_hosts;
+                document.getElementById('overview-recent').textContent = `${data.recent_hosts} mit Meldungen in den letzten 15 Minuten`;
+                document.getElementById('overview-volume').textContent = data.logs_24h.toLocaleString('de-DE');
+                document.getElementById('overview-errors').textContent = data.errors_24h;
+                document.getElementById('overview-warnings').textContent = data.warnings_24h;
+                document.getElementById('overview-monitoring').textContent = `${data.known_hosts} bekannte Absender · ${data.heartbeat_hosts} mit Lebenszeichen-Überwachung · ${data.offline_hosts} davon offline`;
+                document.getElementById('offline-badge').textContent = data.offline_hosts ? `(${data.offline_hosts} offline)` : '';
+                document.getElementById('onboarding-hint').hidden = data.known_hosts > 0;
+                document.getElementById('udp-dropped').textContent = data.udp_dropped ? `${data.udp_dropped} UDP-Meldungen seit Start wegen Überlast verworfen` : '';
+                renderOverviewEvents('overview-attention', data.attention, 'Keine Warnungen oder Fehler in den letzten 24 Stunden.');
+                renderOverviewEvents('overview-latest', data.latest, 'Noch keine Ereignisse vorhanden.');
+                for (const [id, devices] of [['overview-devices', data.hosts.slice(0, 6)], ['monitored-hosts', data.hosts]]) {
+                    const list = document.getElementById(id); list.replaceChildren();
+                    devices.forEach(host => list.append(deviceCard(host)));
+                }
+                document.getElementById('dashboard-updated').textContent = `Aktualisiert ${new Date().toLocaleTimeString('de-DE')} · alle 10 Sekunden`;
+            } catch (error) {
+                document.getElementById('dashboard-updated').textContent = 'Aktualisierung fehlgeschlagen. Angezeigte Daten können veraltet sein.';
+            } finally { dashboardRequestActive = false; }
         }
 
         // Fetch Filter Autocomplete (Hosts & Apps)
@@ -723,6 +707,7 @@
         function resetFilters() {
             document.getElementById('filter-search').value = '';
             document.getElementById('filter-level').value = 'ALL';
+            document.getElementById('filter-period').value = 'ALL';
             document.getElementById('filter-host').value = 'ALL';
             document.getElementById('filter-app').value = 'ALL';
             fetchLogs(1);
@@ -969,6 +954,8 @@
                 app: app
             });
 
+            const period = document.getElementById('filter-period').value;
+            if (period !== 'ALL') params.set('hours', period);
             window.open(`/api/logs/export?${params.toString()}`, '_blank');
         }
 
@@ -1036,7 +1023,7 @@
         function showWorkflow() {
             const key = ['overview', 'logs', 'devices'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
             const copy = {
-                overview: ['Was braucht Aufmerksamkeit?', 'Prüfe den Zustand deiner Umgebung und wähle den nächsten Schritt.'],
+                overview: ['Deine Systeme auf einen Blick', 'Aktuelle Meldungen, auffällige Ereignisse und die Aktivität deiner Absender.'],
                 logs: ['Meldungen untersuchen', 'Suche nach einem Ereignis und grenze bei Bedarf Host, Dienst oder Level ein.'],
                 devices: ['Sind deine Geräte erreichbar?', 'Prüfe Lebenszeichen und springe direkt zu den Meldungen eines Geräts.']
             };

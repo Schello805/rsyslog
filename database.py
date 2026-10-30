@@ -52,6 +52,9 @@ def init_db() -> None:
         columns = {row['name'] for row in conn.execute('PRAGMA table_info(logs)')}
         if 'metadata' not in columns:
             conn.execute("ALTER TABLE logs ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'")
+        if 'received_at' not in columns:
+            conn.execute("ALTER TABLE logs ADD COLUMN received_at TEXT NOT NULL DEFAULT ''")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_received ON logs(received_at)")
         # Performance indexes for dashboard filtering and sorting
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)")
@@ -196,8 +199,8 @@ def insert_log(
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO logs (timestamp, host, app, level, facility, message, raw, metadata)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO logs (timestamp, host, app, level, facility, message, raw, metadata, received_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 timestamp,
@@ -208,6 +211,7 @@ def insert_log(
                 clean_msg,
                 raw or clean_msg,
                 json.dumps(metadata or {}, ensure_ascii=False),
+                datetime.now(timezone.utc).isoformat(),
             ),
         )
         log_id = cursor.lastrowid
@@ -232,6 +236,7 @@ def get_logs(
     host: Optional[str] = None,
     app: Optional[str] = None,
     search: Optional[str] = None,
+    hours: Optional[int] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Retrieves filtered logs with pagination.
@@ -246,6 +251,8 @@ def get_logs(
         lvl = level.strip().upper()
         if lvl == "ERROR_CRITICAL":
             conditions.append("level IN ('ERROR', 'CRITICAL', 'EMERGENCY', 'ALERT')")
+        elif lvl in ("WARN", "WARNING"):
+            conditions.append("level IN ('WARN', 'WARNING')")
         else:
             conditions.append("level = ?")
             params.append(lvl)
@@ -262,6 +269,10 @@ def get_logs(
         search_term = f"%{search.strip()}%"
         conditions.append("(message LIKE ? OR host LIKE ? OR app LIKE ?)")
         params.extend([search_term, search_term, search_term])
+
+    if hours is not None:
+        conditions.append("julianday(COALESCE(NULLIF(received_at,''),timestamp)) >= julianday('now', ?)")
+        params.append(f'-{int(hours)} hours')
 
     where_clause = ""
     if conditions:
@@ -375,3 +386,43 @@ def mark_offline_hosts(timeout=300):
 
 def get_monitored_hosts():
     return [dict(row) for row in get_db_connection().execute("SELECT * FROM monitored_hosts ORDER BY host")]
+
+
+def get_dashboard_summary():
+    """Activity is based on receipt time, not a device's possibly incorrect clock."""
+    import time
+    now = time.time()
+    conn = get_db_connection()
+    recent = "julianday(COALESCE(NULLIF(received_at, ''), timestamp)) >= julianday('now', '-1 day')"
+    totals = dict(conn.execute(f"""SELECT COUNT(*) AS logs_24h,
+        COALESCE(SUM(level IN ('ERROR','CRITICAL','EMERGENCY','ALERT')),0) AS errors_24h,
+        COALESCE(SUM(level IN ('WARN','WARNING')),0) AS warnings_24h
+        FROM logs WHERE {recent}""").fetchone())
+    rows = conn.execute(f"""SELECT host, COUNT(*) AS log_count,
+        MAX(COALESCE(NULLIF(received_at,''),timestamp)) AS last_message,
+        MAX(CAST(strftime('%s',COALESCE(NULLIF(received_at,''),timestamp)) AS REAL)) AS last_activity,
+        MAX(julianday(COALESCE(NULLIF(received_at,''),timestamp))) >= julianday('now','-15 minutes') AS recent,
+        SUM(CASE WHEN {recent} AND level IN ('ERROR','CRITICAL','EMERGENCY','ALERT') THEN 1 ELSE 0 END) AS errors_24h
+        FROM logs WHERE app <> 'host-monitor' GROUP BY host""").fetchall()
+    hosts = {row['host']: dict(row) for row in rows}
+    for heartbeat in get_monitored_hosts():
+        host = hosts.setdefault(heartbeat['host'], dict(host=heartbeat['host'], log_count=0, last_message=None, recent=0, errors_24h=0))
+        host['heartbeat_last_seen'] = heartbeat['last_seen']
+        host['status'] = 'offline' if now - heartbeat['last_seen'] > 300 else 'online'
+    for host in hosts.values():
+        host.setdefault('heartbeat_last_seen', None)
+        host.setdefault('status', 'syslog')
+    devices = sorted(hosts.values(), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
+    def entries(extra=''):
+        rows = conn.execute(f"""SELECT id,timestamp,host,app,level,facility,message,raw,metadata
+            FROM logs WHERE NOT (app='resource-monitor' AND message='HEARTBEAT') {extra}
+            ORDER BY id DESC LIMIT 6""").fetchall()
+        result = [dict(row) for row in rows]
+        for entry in result:
+            entry['metadata'] = json.loads(entry['metadata'] or '{}')
+        return result
+    return dict(**totals, hosts=devices, known_hosts=len(devices),
+        recent_hosts=sum(bool(host['recent']) for host in devices),
+        heartbeat_hosts=sum(host['heartbeat_last_seen'] is not None for host in devices),
+        offline_hosts=sum(host['status']=='offline' for host in devices),
+        latest=entries(), attention=entries(f"AND {recent} AND level IN ('WARN','WARNING','ERROR','CRITICAL','EMERGENCY','ALERT')"))

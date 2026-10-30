@@ -10,6 +10,9 @@ from pathlib import Path
 _tmp = tempfile.TemporaryDirectory()
 os.environ['DATABASE_PATH'] = os.path.join(_tmp.name, 'test.db')
 import database
+from config import config
+# Explicit assignment also isolates tests when another test imported config first.
+config.DATABASE_PATH = os.environ['DATABASE_PATH']
 import main
 from syslog_server import SyslogServerManager
 
