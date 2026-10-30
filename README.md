@@ -94,6 +94,41 @@ cgroup v2 die sichtbaren CPU-/RAM-Limits berücksichtigt; cgroup v1 wird nicht u
 Gemessen werden Dateisysteme, keine separaten ZFS-/Thin-Pool- oder Backup-Zustände.
 QNAP und UniFi können ihre Ereignisse per Syslog senden; das Linux-Skript ist dafür nicht vorgesehen.
 
+## Auf einem PVE-Host für alle Gäste einrichten
+
+Auf **jedem PVE-Host separat** als root ausführen. Das Skript installiert rsyslog
+und die Weiterleitung auf laufenden Debian-/Ubuntu-VMs und Debian-basierten
+LXC-Containern des Hosts. VMs benötigen einen aktivierten, laufenden QEMU Guest Agent.
+Gestoppte Gäste und Vorlagen bleiben unverändert. Windows und andere Distributionen
+werden nicht unterstützt. Fehlende Voraussetzungen und Fehler stehen im Abschlussbericht.
+
+```bash
+apt update && apt install -y git
+git clone https://github.com/Schello805/rsyslog.git /opt/rsyslog-tools
+cd /opt/rsyslog-tools
+python3 scripts/install-pve-guests.py --server 192.168.1.158 --dry-run
+python3 scripts/install-pve-guests.py --server 192.168.1.158
+```
+
+Die Server-IP anpassen. Ist das Tools-Repository bereits vorhanden, dort zunächst
+`git pull --ff-only` ausführen. `--dry-run` prüft die Voraussetzungen ohne Installation.
+Zusätzliche Möglichkeiten:
+
+```bash
+# Auch CPU, RAM und Speicherplatz mit Standardschwellen überwachen
+python3 scripts/install-pve-guests.py --server 192.168.1.158 --monitor
+# Nur bestimmte Gäste oder einzelne Gäste ausschließen
+python3 scripts/install-pve-guests.py --server 192.168.1.158 --only 101,102
+python3 scripts/install-pve-guests.py --server 192.168.1.158 --exclude 103
+```
+
+`--monitor` setzt die Monitoring-Einstellungen auf die oben genannten Standards.
+Die Installation erfolgt nacheinander und benötigt Paketquellen-Zugriff in den Gästen.
+Der PVE-Host selbst wird dabei nicht verändert; dafür separat den Monitoring-Installer nutzen.
+Ein fehlerhafter oder übersprungener Gast verhindert nicht die Bearbeitung der übrigen.
+Bei unvollständiger Installation endet das Skript mit Exitcode 1.
+Vorhandene Weiterleitungen zum gleichen Ziel können doppelte Meldungen erzeugen.
+
 ## Betrieb und Fehlerdiagnose
 
 | Was? | Pfad oder Befehl |
