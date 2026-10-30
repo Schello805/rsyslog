@@ -56,6 +56,7 @@ current=$(git -C "$app" rev-parse HEAD)
 target_short=$(git -C "$app" rev-parse --short "$target")
 installed=$(cat "$app/REVISION" 2>/dev/null || true)
 if [[ $target == "$current" && $installed == "$target_short" ]]; then
+    if [[ -f $app/scripts/setup-web-updates.sh ]]; then bash "$app/scripts/setup-web-updates.sh"; fi
     echo 'Bereits aktuell. Kein Neustart erforderlich.'
     exit 0
 fi
@@ -94,6 +95,7 @@ if ((reuse_environment == 0)); then
     python3 -m venv "$app/.venv"
     "$app/.venv/bin/python" -m pip install --no-index --find-links "$work/packages" -r "$app/requirements.txt"
 fi
+if [[ -f $app/scripts/setup-web-updates.sh ]]; then bash "$app/scripts/setup-web-updates.sh"; fi
 systemctl start rsyslog-web
 "$app/.venv/bin/python" - <<'PY'
 import json

@@ -84,6 +84,7 @@ ReadWritePaths=/var/lib/rsyslog-web
 [Install]
 WantedBy=multi-user.target
 UNIT
+bash "$app/scripts/setup-web-updates.sh"
 systemctl daemon-reload
 systemctl enable rsyslog-web
 systemctl restart rsyslog-web
@@ -92,3 +93,4 @@ systemctl is-active --quiet rsyslog-web || { journalctl -u rsyslog-web -n 30 --n
 echo 'Installiert. Dashboard: http://SERVER-IP:8000 | Syslog UDP/TCP: 5514'
 echo 'Konfiguration: /etc/rsyslog-web.env | Daten: /var/lib/rsyslog-web'
 echo 'Updates: sudo bash /opt/rsyslog-web/scripts/update-debian.sh'
+echo 'Web-Update-Schlüssel anzeigen: cat /etc/rsyslog-web-update.key'

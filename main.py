@@ -8,6 +8,7 @@ import csv
 import io
 import json
 import logging
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Literal
 
@@ -135,6 +136,31 @@ app = FastAPI(
     version=get_version_info()["version"],
     lifespan=lifespan,
 )
+
+
+app.mount('/assets', StaticFiles(directory=Path(__file__).parent / 'static'), name='assets')
+
+
+@app.get('/api/updates')
+async def api_updates():
+    from updates import check_updates
+    return await check_updates()
+
+
+@app.get('/api/updates/status')
+async def api_update_status():
+    from updates import job_status
+    return job_status()
+
+
+@app.post('/api/updates/start', status_code=202)
+async def api_start_update(request: Request):
+    from urllib.parse import urlsplit
+    from updates import request_update
+    origin = request.headers.get('origin')
+    if origin and urlsplit(origin).netloc != request.headers.get('host'):
+        raise HTTPException(403, 'Updates müssen von derselben Oberfläche gestartet werden')
+    return await request_update(request.headers.get('x-update-key', ''))
 
 
 class WebhookLogPayload(BaseModel):

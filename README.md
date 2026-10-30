@@ -59,6 +59,39 @@ Sicherungen liegen unter `/var/backups/rsyslog-web-*` und werden nicht automatis
 Die Dienst-Konfiguration bleibt erhalten. Eigene Datenbankpfade werden vor dem Update
 abgelehnt; dieses Skript unterstützt die Standardinstallation des Installers.
 
+## Updates direkt im Footer
+
+Der Footer prüft GitHub alle fünf Minuten und zeigt neue Versionen an.
+Mit **Update starten** öffnest du den Update-Dialog. Den nötigen Schlüssel auf dem
+Server als root anzeigen:
+
+```bash
+cat /etc/rsyslog-web-update.key
+```
+
+Nach Eingabe startet ein separater systemd-Dienst das vorhandene Update-Skript
+mit Sicherung und Wiederherstellung. Die Webapp startet kurz neu; der Footer
+zeigt den Status und lädt die Seite nach erfolgreichem Update neu.
+Der Schlüssel wird nicht im Browser gespeichert und nicht von der API ausgegeben.
+
+**Bestehende Installationen:** Einmal als root aktualisieren und den Update-Dienst einrichten:
+
+```bash
+bash /opt/rsyslog-web/scripts/update-debian.sh
+bash /opt/rsyslog-web/scripts/setup-web-updates.sh
+systemctl restart rsyslog-web
+```
+
+Der zusätzliche Einrichtungsschritt ist für alte Updater nötig; neue Installationen
+und künftige Updates richten den Dienst automatisch ein.
+Ohne diese Einrichtung (z. B. bei Docker oder `start.sh`) wird die verfügbare
+Version angezeigt; die Installation erfolgt dort weiter über den jeweiligen Weg.
+Das Webfrontend erhält keine allgemeinen Root- oder sudo-Rechte.
+
+Fehlerdiagnose: `journalctl -u rsyslog-web-update` und als root
+`cat /var/lib/rsyslog-web-update/update.log`. Ein Fehler wird im Footer angezeigt;
+bei einem fehlgeschlagenen App-Wechsel versucht das Update-Skript die Wiederherstellung.
+
 ## Erste Schritte
 
 1. **Gerät anbinden:** In der Weboberfläche dein System auswählen und die Anleitung ausführen.
