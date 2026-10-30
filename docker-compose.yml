@@ -1,0 +1,23 @@
+services:
+  rsyslog-web:
+    build: .
+    container_name: rsyslog-web
+    restart: unless-stopped
+    ports:
+      # Web Dashboard
+      - "8000:8000"
+      # Standard Syslog UDP & TCP (mapped from host 514 to container 5514)
+      - "514:5514/udp"
+      - "514:5514/tcp"
+      # Alternative high port 5514
+      - "5514:5514/udp"
+      - "5514:5514/tcp"
+    env_file:
+      - .env
+    volumes:
+      # Persist SQLite database outside the container
+      - ./data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/syslog.db
+      - SYSLOG_UDP_PORT=5514
+      - SYSLOG_TCP_PORT=5514

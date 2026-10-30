@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSyslog Web — Zentraler Syslog Monitor</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom scrollbar for modern dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        .live-pulse {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+            animation: pulse-ring 2s infinite cubic-bezier(0.66, 0, 0, 1);
+        }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                    <i data-lucide="server" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-lg font-bold tracking-tight text-white">RSyslog <span class="text-sky-400">Web</span></h1>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">v1.0.0</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Zentraler Syslog-Empfänger & Live-Monitor</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <!-- Live Connection Badge -->
+                <div id="connection-status" class="flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700">
+                    <span id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 live-pulse"></span>
+                    <span id="status-text" class="text-slate-300">Live verbunden</span>
+                </div>
+
+                <!-- Live Stream Pause/Play Toggle -->
+                <button id="toggle-stream-btn" onclick="toggleLiveStream()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Live Stream anhalten/fortsetzen">
+                    <i id="stream-icon" data-lucide="pause" class="w-4 h-4"></i>
+                </button>
+
+                <!-- Send Test Log Button -->
+                <button onclick="openTestLogModal()" class="flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition shadow-sm">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                    <span>Test-Log</span>
+                </button>
+
+                <!-- Test Alert Button -->
+                <button onclick="triggerTestAlert()" class="flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Testalarm an Telegram/Ntfy senden">
+                    <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span>Alarm testen</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Stat Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <!-- Total Logs -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-400">Gesamte Logs</p>
+                        <p id="stat-total" class="text-2xl font-bold text-white mt-1">0</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300">
+                        <i data-lucide="list" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-sky-500 to-indigo-500"></div>
+            </div>
+
+            <!-- Critical & Errors -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-rose-400">Kritisch & Fehler</p>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <p id="stat-critical" class="text-2xl font-bold text-rose-400">0</p>
+                            <span id="stat-error" class="text-xs text-rose-500/80 font-mono">(0 Fehler)</span>
+                        </div>
+                    </div>
+                    <div class="w-10 h-10 rounded-lg bg-rose-950/50 border border-rose-900/50 flex items-center justify-center text-rose-400">
+                        <i data-lucide="alert-octagon" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-500"></div>
+            </div>
+
+            <!-- Warnings -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-amber-400">Warnungen</p>
+                        <p id="stat-warn" class="text-2xl font-bold text-amber-400 mt-1">0</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-lg bg-amber-950/50 border border-amber-900/50 flex items-center justify-center text-amber-400">
+                        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"></div>
+            </div>
+
+            <!-- Active Hosts -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-emerald-400">Aktive Hosts</p>
+                        <p id="stat-hosts" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-lg bg-emerald-950/50 border border-emerald-900/50 flex items-center justify-center text-emerald-400">
+                        <i data-lucide="network" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500"></div>
+            </div>
+        </div>
+
+        <!-- Filter and Search Toolbar -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <!-- Search input -->
+                <div class="sm:col-span-4 relative">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                    <input type="text" id="filter-search" oninput="debounceFetchLogs()" placeholder="Volltextsuche in Nachricht, Host, App..." 
+                        class="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent">
+                </div>
+
+                <!-- Level Dropdown -->
+                <div class="sm:col-span-2">
+                    <select id="filter-level" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="ALL">Alle Level</option>
+                        <option value="ERROR_CRITICAL">🚨 Nur Fehler & Kritisch</option>
+                        <option value="CRITICAL">Critical / Notfall</option>
+                        <option value="ERROR">Error</option>
+                        <option value="WARN">Warning</option>
+                        <option value="NOTICE">Notice</option>
+                        <option value="INFO">Info</option>
+                        <option value="DEBUG">Debug</option>
+                    </select>
+                </div>
+
+                <!-- Host Dropdown -->
+                <div class="sm:col-span-2">
+                    <select id="filter-host" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="ALL">Alle Hosts</option>
+                    </select>
+                </div>
+
+                <!-- App Dropdown -->
+                <div class="sm:col-span-2">
+                    <select id="filter-app" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="ALL">Alle Dienste</option>
+                    </select>
+                </div>
+
+                <!-- Page Size -->
+                <div class="sm:col-span-2">
+                    <select id="filter-limit" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="25">25 pro Seite</option>
+                        <option value="50" selected>50 pro Seite</option>
+                        <option value="100">100 pro Seite</option>
+                        <option value="250">250 pro Seite</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Secondary Action Row -->
+            <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800/80">
+                <div class="flex items-center space-x-2 text-slate-400">
+                    <span>Ergebnisse:</span>
+                    <span id="filtered-count" class="font-semibold text-slate-200">0</span>
+                    <button onclick="resetFilters()" class="text-sky-400 hover:text-sky-300 ml-2 hover:underline">Filter zurücksetzen</button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <!-- Export CSV -->
+                    <button onclick="exportLogs('csv')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1">
+                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                        <span>CSV Export</span>
+                    </button>
+                    <!-- Export JSON -->
+                    <button onclick="exportLogs('json')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1">
+                        <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
+                        <span>JSON</span>
+                    </button>
+                    <!-- Clear logs -->
+                    <button onclick="confirmClearLogs()" class="px-2.5 py-1 rounded bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-900/50 transition flex items-center space-x-1">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        <span>Leeren</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Table Card -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-950/60 border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            <th class="py-3 px-4 w-36">Zeitstempel</th>
+                            <th class="py-3 px-4 w-28">Level</th>
+                            <th class="py-3 px-4 w-36">Host</th>
+                            <th class="py-3 px-4 w-36">Dienst / App</th>
+                            <th class="py-3 px-4">Nachricht</th>
+                            <th class="py-3 px-4 w-20 text-right">Aktion</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table-body" class="divide-y divide-slate-800 font-mono text-xs">
+                        <tr>
+                            <td colspan="6" class="py-12 text-center text-slate-500 font-sans">
+                                <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                                Keine Logs vorhanden oder Filter liefern keine Treffer.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Bar -->
+            <div class="px-4 py-3 bg-slate-950/40 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                <div id="pagination-info">Seite 1 von 1</div>
+                <div class="flex items-center space-x-2">
+                    <button id="btn-prev-page" onclick="changePage(-1)" disabled class="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                        Zurück
+                    </button>
+                    <span id="current-page-num" class="px-2 font-semibold text-slate-200">1</span>
+                    <button id="btn-next-page" onclick="changePage(1)" disabled class="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                        Weiter
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span id="modal-level-badge" class="px-2.5 py-1 rounded text-xs font-bold uppercase">INFO</span>
+                    <h3 class="text-base font-semibold text-white">Log-Details</h3>
+                </div>
+                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block mb-0.5">Zeitstempel:</span>
+                    <span id="modal-timestamp" class="font-mono text-slate-200"></span>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block mb-0.5">Host:</span>
+                    <span id="modal-host" class="font-mono text-slate-200"></span>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block mb-0.5">Dienst / App:</span>
+                    <span id="modal-app" class="font-mono text-slate-200"></span>
+                </div>
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 block mb-0.5">Facility:</span>
+                    <span id="modal-facility" class="font-mono text-slate-200"></span>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs font-medium text-slate-400 block mb-1">Nachricht:</label>
+                <div id="modal-message" class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs font-mono text-slate-100 break-words whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
+            </div>
+
+            <div>
+                <label class="text-xs font-medium text-slate-400 block mb-1">Rohes Syslog-Paket (Raw):</label>
+                <div id="modal-raw" class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs font-mono text-slate-400 break-words whitespace-pre-wrap max-h-36 overflow-y-auto"></div>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                <button onclick="copyModalMessage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition">
+                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                    <span>Nachricht kopieren</span>
+                </button>
+                <button onclick="closeDetailModal()" class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs text-white transition">
+                    Schließen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Log Modal -->
+    <div id="test-log-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="send" class="w-5 h-5 text-sky-400"></i>
+                    <h3 class="text-base font-semibold text-white">Test-Log senden</h3>
+                </div>
+                <button onclick="closeTestLogModal()" class="text-slate-400 hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Log-Level</label>
+                    <select id="test-log-level" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100">
+                        <option value="INFO">INFO</option>
+                        <option value="WARN">WARN</option>
+                        <option value="ERROR" selected>ERROR (Löst Alarm aus)</option>
+                        <option value="CRITICAL">CRITICAL (Löst Alarm aus)</option>
+                        <option value="DEBUG">DEBUG</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Host / Absender</label>
+                    <input type="text" id="test-log-host" value="web-dashboard.local" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Dienst / App-Name</label>
+                    <input type="text" id="test-log-app" value="demo-service" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Nachricht</label>
+                    <textarea id="test-log-message" rows="3" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100">Dies ist ein manuell gesendeter Test-Log über das Web-Dashboard.</textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                <button onclick="closeTestLogModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+                    Abbrechen
+                </button>
+                <button onclick="submitTestLog()" class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs text-white transition flex items-center space-x-1.5">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                    <span>Jetzt senden</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-16 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Footer Required by User Prompt -->
+    <footer class="border-t border-slate-800 bg-slate-950/90 text-xs text-slate-400 py-5 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center space-x-2">
+                <span>Open Source von <strong>Michael Schellenberger</strong></span>
+                <span class="text-slate-600">•</span>
+                <span class="text-slate-400">Freie Nutzung (Non-Commercial, CC BY-NC 4.0)</span>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <!-- Rev. Nr. Badge (dynamisch) -->
+                <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300 font-mono">
+                    <i data-lucide="git-commit" class="w-3.5 h-3.5 text-sky-400"></i>
+                    <span id="footer-rev-text">Rev. v1.0.0</span>
+                </div>
+
+                <!-- GitHub Link with GitHub Icon -->
+                <a id="footer-github-link" href="https://github.com/michaelschellenberger/rsyslog-web" target="_blank" rel="noopener noreferrer" 
+                   class="flex items-center space-x-1.5 text-slate-300 hover:text-white transition px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800">
+                    <!-- GitHub SVG Icon -->
+                    <svg class="w-4 h-4 fill-current text-white" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+                    </svg>
+                    <span class="font-medium">GitHub</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Frontend Application Logic -->
+    <script>
+        // State variables
+        let currentPage = 1;
+        let totalPages = 1;
+        let isLiveStreamActive = true;
+        let searchDebounceTimeout = null;
+        let ws = null;
+        let activeModalLog = null;
+
+        // Level Styling mapping
+        function getLevelBadge(level) {
+            const lvl = (level || 'INFO').toUpperCase();
+            switch (lvl) {
+                case 'CRITICAL':
+                case 'EMERGENCY':
+                case 'ALERT':
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">CRITICAL</span>';
+                case 'ERROR':
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">ERROR</span>';
+                case 'WARN':
+                case 'WARNING':
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">WARN</span>';
+                case 'NOTICE':
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">NOTICE</span>';
+                case 'DEBUG':
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-normal bg-slate-800 text-slate-400 border border-slate-700">DEBUG</span>';
+                case 'INFO':
+                default:
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-sky-500/20 text-sky-400 border border-sky-500/30">INFO</span>';
+            }
+        }
+
+        // Format ISO timestamp to readable local string
+        function formatTimestamp(isoStr) {
+            try {
+                const date = new Date(isoStr);
+                if (isNaN(date.getTime())) return isoStr;
+                return date.toLocaleString('de-DE', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
+            } catch (e) {
+                return isoStr;
+            }
+        }
+
+        // Fetch logs from backend
+        async function fetchLogs(page = 1) {
+            currentPage = page;
+            const search = document.getElementById('filter-search').value;
+            const level = document.getElementById('filter-level').value;
+            const host = document.getElementById('filter-host').value;
+            const app = document.getElementById('filter-app').value;
+            const perPage = document.getElementById('filter-limit').value;
+
+            const params = new URLSearchParams({
+                page: page,
+                per_page: perPage,
+                search: search,
+                level: level,
+                host: host,
+                app: app
+            });
+
+            try {
+                const res = await fetch(`/api/logs?${params.toString()}`);
+                const data = await res.json();
+                renderTable(data.logs);
+                updatePagination(data.page, data.per_page, data.total);
+                document.getElementById('filtered-count').innerText = data.total;
+            } catch (err) {
+                console.error('Error fetching logs:', err);
+                showToast('Fehler beim Laden der Logs', 'error');
+            }
+        }
+
+        function debounceFetchLogs() {
+            clearTimeout(searchDebounceTimeout);
+            searchDebounceTimeout = setTimeout(() => {
+                fetchLogs(1);
+            }, 300);
+        }
+
+        // Render table rows
+        function renderTable(logs) {
+            const tbody = document.getElementById('logs-table-body');
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-slate-500 font-sans">
+                            <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                            Keine Logs vorhanden.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            tbody.innerHTML = logs.map(log => {
+                const escapedMsg = escapeHtml(log.message);
+                const escapedHost = escapeHtml(log.host);
+                const escapedApp = escapeHtml(log.app);
+                const formattedTime = formatTimestamp(log.timestamp);
+                const levelBadge = getLevelBadge(log.level);
+
+                return `
+                    <tr class="hover:bg-slate-800/50 transition cursor-pointer group" onclick="openDetailModal(${escapeHtml(JSON.stringify(log))})">
+                        <td class="py-2.5 px-4 text-slate-400 whitespace-nowrap">${formattedTime}</td>
+                        <td class="py-2.5 px-4 whitespace-nowrap">${levelBadge}</td>
+                        <td class="py-2.5 px-4 text-slate-300 font-medium whitespace-nowrap truncate max-w-[140px]" title="${escapedHost}">${escapedHost}</td>
+                        <td class="py-2.5 px-4 text-slate-300 whitespace-nowrap truncate max-w-[140px]" title="${escapedApp}">${escapedApp}</td>
+                        <td class="py-2.5 px-4 text-slate-200 truncate max-w-md" title="${escapedMsg}">${escapedMsg}</td>
+                        <td class="py-2.5 px-4 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                            <button onclick='openDetailModal(${JSON.stringify(log)})' class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition" title="Details ansehen">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Pagination updates
+        function updatePagination(page, perPage, total) {
+            totalPages = Math.max(1, Math.ceil(total / perPage));
+            document.getElementById('current-page-num').innerText = page;
+            document.getElementById('pagination-info').innerText = `Seite ${page} von ${totalPages} (Gesamt: ${total})`;
+            document.getElementById('btn-prev-page').disabled = (page <= 1);
+            document.getElementById('btn-next-page').disabled = (page >= totalPages);
+        }
+
+        function changePage(delta) {
+            const target = currentPage + delta;
+            if (target >= 1 && target <= totalPages) {
+                fetchLogs(target);
+            }
+        }
+
+        // Fetch Stats
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                document.getElementById('stat-total').innerText = data.total;
+                document.getElementById('stat-critical').innerText = data.critical;
+                document.getElementById('stat-error').innerText = `(${data.error} Fehler)`;
+                document.getElementById('stat-warn').innerText = data.warn;
+                document.getElementById('stat-hosts').innerText = data.active_hosts;
+            } catch (err) {
+                console.error('Stats error:', err);
+            }
+        }
+
+        // Fetch Filter Autocomplete (Hosts & Apps)
+        async function fetchFilters() {
+            try {
+                const res = await fetch('/api/filters');
+                const data = await res.json();
+                
+                const hostSelect = document.getElementById('filter-host');
+                const currentHost = hostSelect.value;
+                hostSelect.innerHTML = '<option value="ALL">Alle Hosts</option>' + 
+                    data.hosts.map(h => `<option value="${escapeHtml(h)}" ${h === currentHost ? 'selected' : ''}>${escapeHtml(h)}</option>`).join('');
+
+                const appSelect = document.getElementById('filter-app');
+                const currentApp = appSelect.value;
+                appSelect.innerHTML = '<option value="ALL">Alle Dienste</option>' + 
+                    data.apps.map(a => `<option value="${escapeHtml(a)}" ${a === currentApp ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('');
+            } catch (err) {
+                console.error('Filter options error:', err);
+            }
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-level').value = 'ALL';
+            document.getElementById('filter-host').value = 'ALL';
+            document.getElementById('filter-app').value = 'ALL';
+            fetchLogs(1);
+        }
+
+        // WebSocket for Realtime Live Feed
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/logs`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                document.getElementById('status-indicator').className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 live-pulse';
+                document.getElementById('status-text').innerText = 'Live verbunden';
+            };
+
+            ws.onmessage = (event) => {
+                if (!isLiveStreamActive) return;
+                try {
+                    const newLog = JSON.parse(event.data);
+                    // Refresh stats immediately
+                    fetchStats();
+                    fetchFilters();
+
+                    // If currently on page 1 and no restrictive search filter, prepend new row
+                    const currentSearch = document.getElementById('filter-search').value;
+                    const currentLevel = document.getElementById('filter-level').value;
+                    
+                    if (currentPage === 1 && !currentSearch && currentLevel === 'ALL') {
+                        const tbody = document.getElementById('logs-table-body');
+                        const tempRow = document.createElement('tr');
+                        tempRow.className = "hover:bg-slate-800/50 transition cursor-pointer bg-sky-950/20";
+                        tempRow.onclick = () => openDetailModal(newLog);
+                        tempRow.innerHTML = `
+                            <td class="py-2.5 px-4 text-slate-400 whitespace-nowrap">${formatTimestamp(newLog.timestamp)}</td>
+                            <td class="py-2.5 px-4 whitespace-nowrap">${getLevelBadge(newLog.level)}</td>
+                            <td class="py-2.5 px-4 text-slate-300 font-medium whitespace-nowrap truncate max-w-[140px]">${escapeHtml(newLog.host)}</td>
+                            <td class="py-2.5 px-4 text-slate-300 whitespace-nowrap truncate max-w-[140px]">${escapeHtml(newLog.app)}</td>
+                            <td class="py-2.5 px-4 text-slate-200 truncate max-w-md">${escapeHtml(newLog.message)}</td>
+                            <td class="py-2.5 px-4 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                                <button onclick='openDetailModal(${JSON.stringify(newLog)})' class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition">
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </td>
+                        `;
+                        if (tbody.firstChild && tbody.firstChild.innerText && tbody.firstChild.innerText.includes('Keine Logs')) {
+                            tbody.innerHTML = '';
+                        }
+                        tbody.insertBefore(tempRow, tbody.firstChild);
+                        lucide.createIcons();
+                    } else {
+                        // Otherwise refresh table quietly
+                        fetchLogs(currentPage);
+                    }
+                } catch (e) {
+                    console.error('WS parse error:', e);
+                }
+            };
+
+            ws.onclose = () => {
+                document.getElementById('status-indicator').className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+                document.getElementById('status-text').innerText = 'Verbindung getrennt';
+                // Try reconnect in 3s
+                setTimeout(initWebSocket, 3000);
+            };
+
+            ws.onerror = () => {
+                ws.close();
+            };
+        }
+
+        function toggleLiveStream() {
+            isLiveStreamActive = !isLiveStreamActive;
+            const btn = document.getElementById('toggle-stream-btn');
+            const icon = document.getElementById('stream-icon');
+            if (isLiveStreamActive) {
+                icon.setAttribute('data-lucide', 'pause');
+                btn.className = "p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition";
+                showToast('Live Stream aktiv', 'info');
+            } else {
+                icon.setAttribute('data-lucide', 'play');
+                btn.className = "p-2 rounded-lg bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-800 transition";
+                showToast('Live Stream pausiert', 'info');
+            }
+            lucide.createIcons();
+        }
+
+        // Details Modal
+        function openDetailModal(log) {
+            activeModalLog = log;
+            document.getElementById('modal-level-badge').className = `px-2.5 py-1 rounded text-xs font-bold uppercase ${
+                log.level === 'CRITICAL' ? 'bg-rose-500/20 text-rose-300' :
+                log.level === 'ERROR' ? 'bg-red-500/20 text-red-400' :
+                log.level === 'WARN' ? 'bg-amber-500/20 text-amber-400' : 'bg-sky-500/20 text-sky-400'
+            }`;
+            document.getElementById('modal-level-badge').innerText = log.level;
+            document.getElementById('modal-timestamp').innerText = log.timestamp;
+            document.getElementById('modal-host').innerText = log.host;
+            document.getElementById('modal-app').innerText = log.app;
+            document.getElementById('modal-facility').innerText = log.facility || 'user';
+            document.getElementById('modal-message').innerText = log.message;
+            document.getElementById('modal-raw').innerText = log.raw || log.message;
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+
+        function copyModalMessage() {
+            if (activeModalLog && activeModalLog.message) {
+                navigator.clipboard.writeText(activeModalLog.message);
+                showToast('Nachricht in die Zwischenablage kopiert!', 'success');
+            }
+        }
+
+        // Test Log Modal
+        function openTestLogModal() {
+            document.getElementById('test-log-modal').classList.remove('hidden');
+        }
+
+        function closeTestLogModal() {
+            document.getElementById('test-log-modal').classList.add('hidden');
+        }
+
+        async function submitTestLog() {
+            const level = document.getElementById('test-log-level').value;
+            const host = document.getElementById('test-log-host').value;
+            const app = document.getElementById('test-log-app').value;
+            const message = document.getElementById('test-log-message').value;
+
+            try {
+                const res = await fetch('/api/logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ level, host, app, message })
+                });
+
+                if (res.ok) {
+                    showToast('Test-Log erfolgreich übermittelt!', 'success');
+                    closeTestLogModal();
+                    fetchLogs(1);
+                    fetchStats();
+                    fetchFilters();
+                } else {
+                    showToast('Fehler beim Senden des Test-Logs', 'error');
+                }
+            } catch (err) {
+                showToast('Verbindungsfehler beim Test-Log', 'error');
+            }
+        }
+
+        // Trigger Test Alert
+        async function triggerTestAlert() {
+            try {
+                showToast('Sende Test-Alarm an Telegram / Ntfy...', 'info');
+                const res = await fetch('/api/test-alert', { method: 'POST' });
+                const data = await res.json();
+                
+                let msg = 'Test-Alarm Ergebnis:\n';
+                if (data.results.telegram === true) {
+                    msg += 'Telegram: Erfolgreich zugestellt! ✅\n';
+                } else {
+                    msg += `Telegram: ${data.results.telegram}\n`;
+                }
+
+                if (data.results.ntfy === true) {
+                    msg += 'Ntfy: Erfolgreich zugestellt! ✅';
+                } else {
+                    msg += `Ntfy: ${data.results.ntfy}`;
+                }
+
+                alert(msg);
+            } catch (err) {
+                showToast('Fehler beim Ausführen des Test-Alarms', 'error');
+            }
+        }
+
+        // Export Logs (CSV / JSON)
+        function exportLogs(format) {
+            const search = document.getElementById('filter-search').value;
+            const level = document.getElementById('filter-level').value;
+            const host = document.getElementById('filter-host').value;
+            const app = document.getElementById('filter-app').value;
+
+            const params = new URLSearchParams({
+                format: format,
+                search: search,
+                level: level,
+                host: host,
+                app: app
+            });
+
+            window.open(`/api/logs/export?${params.toString()}`, '_blank');
+        }
+
+        // Confirm & Clear Logs
+        async function confirmClearLogs() {
+            if (confirm('Möchtest du wirklich ALLE Logs aus der SQLite-Datenbank unwiderruflich löschen?')) {
+                try {
+                    const res = await fetch('/api/logs/clear', { method: 'POST' });
+                    const data = await res.json();
+                    showToast(`${data.deleted} Logs erfolgreich gelöscht.`, 'success');
+                    fetchLogs(1);
+                    fetchStats();
+                    fetchFilters();
+                } catch (err) {
+                    showToast('Fehler beim Löschen der Logs', 'error');
+                }
+            }
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-600' : 'bg-slate-800 border border-slate-700');
+            toast.className = `${bgClass} text-white text-xs px-4 py-2.5 rounded-lg shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Fetch version info for header & footer
+        async function loadVersionInfo() {
+            try {
+                const res = await fetch('/api/version');
+                const data = await res.json();
+                document.getElementById('header-rev-badge').innerText = `v${data.version}`;
+                document.getElementById('footer-rev-text').innerText = `Rev. ${data.display}`;
+                if (data.github_url) {
+                    document.getElementById('footer-github-link').href = data.github_url;
+                }
+            } catch (e) {
+                console.error('Failed to load version:', e);
+            }
+        }
+
+        // HTML escaping helper
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Init on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            loadVersionInfo();
+            fetchLogs(1);
+            fetchStats();
+            fetchFilters();
+            initWebSocket();
+
+            // Periodic stats refresh every 10 seconds
+            setInterval(fetchStats, 10000);
+        });
+    </script>
+</body>
+</html>
