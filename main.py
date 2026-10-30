@@ -227,6 +227,7 @@ async def api_get_logs(
     hours: Optional[int] = Query(None, ge=1, le=8760),
     sort_by: Literal['timestamp', 'level', 'host', 'app', 'message'] = Query('timestamp'),
     sort_order: Literal['asc', 'desc'] = Query('desc'),
+    exclude_host: Optional[List[str]] = Query(None, max_length=200),
 ):
     """Retrieves paginated and filtered logs."""
     logs, total = get_logs(
@@ -239,6 +240,7 @@ async def api_get_logs(
         hours=hours,
         sort_by=sort_by,
         sort_order=sort_order,
+        exclude_hosts=exclude_host,
     )
     return {
         "logs": logs,
@@ -368,6 +370,7 @@ async def api_export_logs(
     hours: Optional[int] = Query(None, ge=1, le=8760),
     sort_by: Literal['timestamp', 'level', 'host', 'app', 'message'] = Query('timestamp'),
     sort_order: Literal['asc', 'desc'] = Query('desc'),
+    exclude_host: Optional[List[str]] = Query(None, max_length=200),
 ):
     """Exports matching logs as a downloadable CSV or JSON file."""
     # Retrieve all matching rows (up to 10,000 for export)
@@ -381,6 +384,7 @@ async def api_export_logs(
         hours=hours,
         sort_by=sort_by,
         sort_order=sort_order,
+        exclude_hosts=exclude_host,
     )
 
     if format == "json":

@@ -239,6 +239,7 @@ def get_logs(
     hours: Optional[int] = None,
     sort_by: str = "timestamp",
     sort_order: str = "desc",
+    exclude_hosts: Optional[List[str]] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Retrieves filtered logs with pagination.
@@ -262,6 +263,11 @@ def get_logs(
     if host and host.strip() and host.upper() != "ALL":
         conditions.append("host = ?")
         params.append(host.strip())
+
+    excluded = list(dict.fromkeys(item.strip() for item in (exclude_hosts or []) if item.strip()))
+    if excluded:
+        conditions.append('host NOT IN (' + ','.join('?' for _ in excluded) + ')')
+        params.extend(excluded)
 
     if app and app.strip() and app.upper() != "ALL":
         conditions.append("app = ?")

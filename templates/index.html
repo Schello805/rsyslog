@@ -230,6 +230,14 @@
                         <option value="ALL">Gesamter Zeitraum</option><option value="24">Letzte 24 Stunden</option>
                     </select>
                 </div>
+                <details id="host-exclusion-picker" class="relative">
+                    <summary class="cursor-pointer px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-sm"><span id="excluded-host-title">Hosts ausschließen</span></summary>
+                    <div class="absolute right-0 left-0 top-full z-20 mt-2 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-xl min-w-[240px]">
+                        <input id="excluded-host-search" aria-label="Hosts zum Ausschließen suchen" placeholder="Host suchen …" oninput="renderExcludedHosts()" class="w-full mb-2 p-2 rounded bg-slate-950 border border-slate-700 text-xs">
+                        <div id="excluded-host-options" class="max-h-60 overflow-y-auto space-y-1"></div>
+                        <button type="button" onclick="clearExcludedHosts()" class="mt-3 text-xs text-sky-400">Alle wieder anzeigen</button>
+                    </div>
+                </details>
                 <!-- Page Size -->
                 <div class="sm:col-span-1">
                     <select aria-label="Einträge pro Seite" id="filter-limit" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
@@ -241,6 +249,10 @@
                 </div>
                     </div>
                 </div>
+            </div>
+            <div id="excluded-host-summary" hidden class="space-y-2">
+                <div id="excluded-host-chips" class="flex flex-wrap gap-2"></div>
+                <p class="text-xs text-slate-400">Diese Hosts sind nur in der Logansicht und im Export ausgeblendet. Speicherung und Alarme bleiben aktiv.</p>
             </div>
             <!-- Secondary Action Row -->
             <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800/80">
@@ -478,6 +490,56 @@
         let activeModalLog = null;
         let pendingLogRefresh = false;
         let logRequestController = null;
+        let excludedHosts = new Set();
+        let availableExcludeHosts = [];
+        try {
+            const saved = JSON.parse(localStorage.getItem('rsyslog-excluded-hosts') || '[]');
+            if (Array.isArray(saved)) excludedHosts = new Set(saved.filter(host => typeof host === 'string' && host.trim()).slice(0, 200));
+        } catch (error) { /* Storage can be unavailable in private browsers. */ }
+
+        function saveExcludedHosts() {
+            try { localStorage.setItem('rsyslog-excluded-hosts', JSON.stringify([...excludedHosts])); } catch (error) {}
+            renderExcludedHosts();
+        }
+
+        function clearExcludedHosts() {
+            excludedHosts.clear();
+            saveExcludedHosts();
+            fetchLogs(1);
+        }
+
+        function renderExcludedHosts() {
+            const search = document.getElementById('excluded-host-search').value.toLowerCase();
+            const list = document.getElementById('excluded-host-options');
+            const previousScroll = list.scrollTop;
+            const focusedHost = list.contains(document.activeElement) ? document.activeElement.dataset.host : null;
+            list.replaceChildren();
+            const hosts = [...new Set([...availableExcludeHosts, ...excludedHosts])].sort((a, b) => a.localeCompare(b));
+            const matches = hosts.filter(host => host.toLowerCase().includes(search));
+            if (!matches.length) { const empty = document.createElement('p'); empty.textContent = 'Keine passenden Hosts'; empty.className = 'text-xs text-slate-400 py-2'; list.append(empty); }
+            matches.forEach(host => {
+                const label = document.createElement('label'); label.className = 'flex items-center gap-2 p-2 text-xs rounded hover:bg-slate-800 cursor-pointer';
+                const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.dataset.host = host; checkbox.checked = excludedHosts.has(host);
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked && excludedHosts.size >= 200) { checkbox.checked = false; showToast('Maximal 200 Hosts ausschließbar.', 'error'); return; }
+                    if (checkbox.checked) excludedHosts.add(host); else excludedHosts.delete(host);
+                    saveExcludedHosts(); fetchLogs(1);
+                });
+                const name = document.createElement('span'); name.textContent = host;
+                label.append(checkbox, name); list.append(label);
+            });
+            list.scrollTop = previousScroll;
+            if (focusedHost) [...list.querySelectorAll('input')].find(input => input.dataset.host === focusedHost)?.focus({ preventScroll: true });
+            document.getElementById('excluded-host-title').textContent = excludedHosts.size ? `Hosts ausschließen (${excludedHosts.size})` : 'Hosts ausschließen';
+            document.getElementById('excluded-host-summary').hidden = !excludedHosts.size;
+            const chips = document.getElementById('excluded-host-chips'); chips.replaceChildren();
+            excludedHosts.forEach(host => {
+                const button = document.createElement('button'); button.type = 'button';
+                button.className = 'text-xs px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300';
+                button.textContent = `${host} ×`; button.setAttribute('aria-label', `${host} wieder anzeigen`);
+                button.addEventListener('click', () => { excludedHosts.delete(host); saveExcludedHosts(); fetchLogs(1); }); chips.append(button);
+            });
+        }
 
         // Level Styling mapping
         function getLevelBadge(level) {
@@ -539,7 +601,7 @@
             const controller = new AbortController();
             logRequestController = controller;
             currentPage = page;
-            const activeFilters = ['filter-level', 'filter-host', 'filter-app', 'filter-period'].filter(id => document.getElementById(id).value !== 'ALL').length;
+            const activeFilters = ['filter-level', 'filter-host', 'filter-app', 'filter-period'].filter(id => document.getElementById(id).value !== 'ALL').length + (excludedHosts.size ? 1 : 0);
             document.getElementById('active-filter-count').textContent = activeFilters ? `(${activeFilters} aktiv)` : '';
             const search = document.getElementById('filter-search').value;
             const level = document.getElementById('filter-level').value;
@@ -560,6 +622,7 @@
 
             const period = document.getElementById('filter-period').value;
             if (period !== 'ALL') params.set('hours', period);
+            excludedHosts.forEach(host => params.append('exclude_host', host));
             try {
                 const res = await fetch(`/api/logs?${params.toString()}`, { signal: controller.signal });
                 const data = await res.json();
@@ -640,6 +703,7 @@
         }
 
         function openLogFilter(level = 'ALL', host = 'ALL', hours = 'ALL') {
+            if (host !== 'ALL' && excludedHosts.delete(host)) saveExcludedHosts();
             document.getElementById('filter-search').value = '';
             document.getElementById('filter-app').value = 'ALL';
             document.getElementById('filter-level').value = level;
@@ -721,6 +785,7 @@
                 const res = await fetch('/api/filters');
                 const data = await res.json();
                 
+                if (JSON.stringify(availableExcludeHosts) !== JSON.stringify(data.hosts)) { availableExcludeHosts = data.hosts; renderExcludedHosts(); }
                 const hostSelect = document.getElementById('filter-host');
                 const currentHost = hostSelect.value;
                 hostSelect.innerHTML = '<option value="ALL">Alle Hosts</option>' + 
@@ -736,6 +801,8 @@
         }
 
         function resetFilters() {
+            excludedHosts.clear();
+            saveExcludedHosts();
             document.getElementById('filter-search').value = '';
             document.getElementById('filter-level').value = 'ALL';
             document.getElementById('filter-period').value = 'ALL';
@@ -759,7 +826,8 @@
             ws.onmessage = (event) => {
                 if (!isLiveStreamActive) return;
                 try {
-                    JSON.parse(event.data);
+                    const newLog = JSON.parse(event.data);
+                    if (excludedHosts.has(newLog.host)) return;
                     // Refresh in batches so the server keeps ordering and pagination correct.
                     pendingLogRefresh = true;
                 } catch (error) { console.error('WS parse error:', error); }
@@ -952,6 +1020,7 @@
 
             const period = document.getElementById('filter-period').value;
             if (period !== 'ALL') params.set('hours', period);
+            excludedHosts.forEach(host => params.append('exclude_host', host));
             window.open(`/api/logs/export?${params.toString()}`, '_blank');
         }
 
@@ -1037,6 +1106,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             showWorkflow();
             updateSortIndicators();
+            renderExcludedHosts();
             lucide.createIcons();
             loadVersionInfo();
             setInterval(loadVersionInfo, 60000);

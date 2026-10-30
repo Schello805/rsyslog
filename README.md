@@ -241,3 +241,10 @@ und Überwachungsstatus. Die Werte aktualisieren sich alle 10 Sekunden, solange 
 Bereich geöffnet ist. Im Überblick steht die Empfangsrate direkt bei den Meldungen.
 Speicherwerte beziehen sich auf den RSyslog-Server; die Lograte enthält Heartbeats,
 die unter System separat ausgewiesen werden.
+
+
+Auf der Logseite kannst du unter **Hosts ausschließen** mehrere Absender ausblenden.
+Die Auswahl wird pro Browser gespeichert und gilt auch für CSV-/JSON-Exporte,
+Sortierung und Seitenwechsel. Einzelne Hosts lassen sich über die Markierungen
+wieder einblenden; „Filter zurücksetzen“ zeigt alle wieder an. Speicherung,
+Alarmierung und Systemkennzahlen bleiben unverändert.

@@ -145,6 +145,28 @@ class DashboardTests(unittest.TestCase):
                 await asyncio.to_thread(close)
             asyncio.run(check())
 
+    def test_multiple_host_exclusions_preserve_data_and_pagination(self):
+        for host in ('noisy-a', 'noisy-b', 'quiet-a', 'quiet-b', "quote'host"):
+            database.insert_log(host, 'app', 'INFO', 'message')
+        rows, total = database.get_logs(exclude_hosts=['noisy-a','noisy-b',"quote'host"], sort_by='host', sort_order='asc', per_page=1)
+        self.assertEqual(total, 2)
+        self.assertEqual(rows[0]['host'], 'quiet-a')
+        page, _ = database.get_logs(exclude_hosts=['noisy-a','noisy-b',"quote'host"], sort_by='host', sort_order='asc', per_page=1, page=2)
+        self.assertEqual(page[0]['host'], 'quiet-b')
+        self.assertEqual(database.get_logs()[1], 5)
+        import asyncio
+        import httpx
+        import main
+        async def check():
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
+                params = [('exclude_host','noisy-a'),('exclude_host','noisy-b'),('sort_by','host'),('sort_order','asc')]
+                response = await client.get('/api/logs',params=params)
+                self.assertEqual(response.status_code,200)
+                self.assertEqual(response.json()['total'],3)
+                exported = await client.get('/api/logs/export',params=params+[('format','json')])
+                self.assertEqual([row['host'] for row in exported.json()], ['quiet-a','quiet-b',"quote'host"])
+        asyncio.run(check())
+
     def test_version_patch_follows_revision_and_fallback(self):
         with patch.object(version, 'get_revision_number', return_value=15), patch.object(version, 'get_git_revision', return_value='abc'):
             info = version.get_version_info()
