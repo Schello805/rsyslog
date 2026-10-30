@@ -46,7 +46,9 @@ cd /opt/rsyslog-web
 bash scripts/update-debian.sh
 ```
 
-Der Updater holt `main` von GitHub. Wurde die App bisher nur mit `start.sh` betrieben,
+Der Updater holt nur neue Git-Objekte von `main`. Ist der Stand bereits aktuell,
+beendet er sich ohne Neustart. Bei unveränderten und konsistenten Abhängigkeiten
+wird die Python-Umgebung ohne erneute Paketinstallation übernommen. Wurde die App bisher nur mit `start.sh` betrieben,
 zuerst den Installer wie oben ausführen, um den systemd-Dienst einzurichten.
 
 Das [Update-Skript](scripts/update-debian.sh) lädt den aktuellen Stand, sichert App,

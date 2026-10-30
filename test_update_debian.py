@@ -7,7 +7,7 @@ import unittest
 
 
 class UpdaterTests(unittest.TestCase):
-    def run_update(self, fail):
+    def run_update(self, fail, reuse=False, current=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             app = root / 'app'
@@ -17,12 +17,14 @@ class UpdaterTests(unittest.TestCase):
             for path in (app / '.venv/bin', data, backup, commands):
                 path.mkdir(parents=True, exist_ok=True)
             (app / 'old-marker').write_text('old application')
+            (app / 'REVISION').write_text('abc1234')
+            (app / 'requirements.txt').write_text('' if reuse else 'old dependencies')
             (data / 'syslog.db').write_text('original database')
             config = root / 'config.env'
             config.write_text('original configuration')
             # The old Python validates settings. Fresh Python simulates pip and health.
             old_python = app / '.venv/bin/python'
-            old_python.write_text('#!/bin/sh\ncat >/dev/null\nexit 0\n')
+            old_python.write_text('#!/bin/bash\nif [[ $1 == - ]]; then cat >/dev/null; if [[ ${FAIL_HEALTH:-0} == 1 && -f $(dirname "$0")/../../new-marker ]]; then exit 1; fi; fi\nexit 0\n')
             old_python.chmod(0o755)
             stubs = {
                 'systemctl': '#!/bin/sh\nexit 0\n',
@@ -32,7 +34,12 @@ if [[ $1 == clone ]]; then
     mkdir -p "$target"
     echo new > "$target/new-marker"
     touch "$target/requirements.txt"
-elif [[ $3 == rev-parse ]]; then echo abc1234
+elif [[ $3 == rev-parse ]]; then
+    if [[ $4 == FETCH_HEAD ]]; then echo newhash
+    elif [[ $4 == HEAD ]]; then
+        if [[ ${ALREADY_CURRENT:-0} == 1 ]]; then echo newhash; else echo oldhash; fi
+    else echo abc1234
+    fi
 else echo 7
 fi
 ''',
@@ -67,16 +74,29 @@ fi
             script = script.replace('flock -n 9', 'true')
             isolated = root / 'update.sh'
             isolated.write_text(script)
-            environment = dict(os.environ, PATH=f'{commands}:/usr/bin:/bin', FAIL_HEALTH=str(int(fail)))
+            environment = dict(os.environ, PATH=f'{commands}:/usr/bin:/bin', FAIL_HEALTH=str(int(fail)), ALREADY_CURRENT=str(int(current)))
             result = subprocess.run(['bash', str(isolated)], env=environment, text=True, capture_output=True)
             self.assertEqual(result.returncode != 0, fail, result.stdout + result.stderr)
             self.assertEqual((data / 'syslog.db').read_text(), 'original database')
             self.assertEqual(config.read_text(), 'original configuration')
-            self.assertEqual((app / 'old-marker').exists(), fail)
-            self.assertEqual((app / 'new-marker').exists(), not fail)
+            self.assertEqual((app / 'old-marker').exists(), fail or current)
+            self.assertEqual((app / 'new-marker').exists(), not fail and not current)
             snapshots = list(backup.iterdir())
-            self.assertEqual(len(snapshots), 1)
+            self.assertEqual(len(snapshots), 0 if current else 1)
+            if current:
+                self.assertIn('Bereits aktuell', result.stdout)
+                return
+            self.assertEqual('wiederverwenden' in result.stdout, reuse)
             self.assertTrue((snapshots[0] / 'data/syslog.db').exists())
+
+    def test_unchanged_dependencies_reuse_environment(self):
+        self.run_update(False, reuse=True)
+
+    def test_fast_update_failure_restores_backup(self):
+        self.run_update(True, reuse=True)
+
+    def test_current_revision_skips_restart(self):
+        self.run_update(False, current=True)
 
     def test_installer_migrates_legacy_configuration_and_database(self):
         import sqlite3

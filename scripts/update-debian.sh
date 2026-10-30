@@ -41,13 +41,34 @@ settings = dotenv_values('/etc/rsyslog-web.env')
 if Path(settings.get('DATABASE_PATH', '')).as_posix() != '/var/lib/rsyslog-web/syslog.db':
     raise SystemExit('Update abgebrochen: eigener DATABASE_PATH. Datenbank separat sichern und manuell aktualisieren.')
 PY
-git clone --branch "$ref" https://github.com/Schello805/rsyslog.git "$work/source"
+echo 'Prüfe GitHub auf neue Änderungen …'
+git -C "$app" fetch --no-tags https://github.com/Schello805/rsyslog.git "$ref"
+target=$(git -C "$app" rev-parse FETCH_HEAD)
+current=$(git -C "$app" rev-parse HEAD)
+target_short=$(git -C "$app" rev-parse --short "$target")
+installed=$(cat "$app/REVISION" 2>/dev/null || true)
+if [[ $target == "$current" && $installed == "$target_short" ]]; then
+    echo 'Bereits aktuell. Kein Neustart erforderlich.'
+    exit 0
+fi
+# Copy existing objects locally; only fetch transfers new Git data.
+git clone --local --no-hardlinks "$app" "$work/source"
+git -C "$work/source" checkout -B "$ref" "$target"
+git -C "$work/source" remote set-url origin https://github.com/Schello805/rsyslog.git
 git -C "$work/source" rev-parse --short HEAD > "$work/source/REVISION"
 git -C "$work/source" rev-list --count HEAD > "$work/source/REVISION_NUMBER"
-# Resolve/install dependencies before stopping the running service.
-python3 -m venv "$work/check-venv"
-"$work/check-venv/bin/python" -m pip download -r "$work/source/requirements.txt" -d "$work/packages"
-"$work/check-venv/bin/python" -m compileall -q "$work/source"
+reuse_environment=0
+if cmp -s "$app/requirements.txt" "$work/source/requirements.txt" && "$app/.venv/bin/python" -m pip check; then
+    echo 'Abhängigkeiten unverändert: vorhandene Python-Umgebung wiederverwenden.'
+    reuse_environment=1
+    # Copy before stopping; the original stays in the rollback backup.
+    cp -a "$app/.venv" "$work/source/.venv"
+else
+    echo 'Abhängigkeiten geändert: Pakete vorbereiten …'
+    python3 -m venv "$work/check-venv"
+    "$work/check-venv/bin/python" -m pip download -r "$work/source/requirements.txt" -d "$work/packages"
+fi
+"$app/.venv/bin/python" -m compileall -q -x '/(\.venv|\.git)/' "$work/source"
 backup=$(mktemp -d /var/backups/rsyslog-web-$(date +%Y%m%d-%H%M%S).XXXXXX)
 chmod 0700 "$backup"
 cp -a /etc/rsyslog-web.env "$backup/config.env"
@@ -61,8 +82,10 @@ fi
 changed=1
 mv "$app" "$backup/app"
 mv "$work/source" "$app"
-python3 -m venv "$app/.venv"
-"$app/.venv/bin/python" -m pip install --no-index --find-links "$work/packages" -r "$app/requirements.txt"
+if ((reuse_environment == 0)); then
+    python3 -m venv "$app/.venv"
+    "$app/.venv/bin/python" -m pip install --no-index --find-links "$work/packages" -r "$app/requirements.txt"
+fi
 systemctl start rsyslog-web
 "$app/.venv/bin/python" - <<'PY'
 import json
