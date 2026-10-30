@@ -508,12 +508,46 @@
             }
         }
 
-        function copyText(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('In die Zwischenablage kopiert! ✓', 'success');
-            }).catch(() => {
-                showToast('Kopieren fehlgeschlagen', 'error');
-            });
+        async function copyText(text) {
+            function copyWithSelection() {
+                const previousFocus = document.activeElement;
+                const selection = window.getSelection();
+                const ranges = selection ? Array.from({ length: selection.rangeCount }, (_, i) => selection.getRangeAt(i).cloneRange()) : [];
+                const field = document.createElement('textarea');
+                field.value = String(text);
+                field.setAttribute('readonly', '');
+                field.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+                document.body.appendChild(field);
+                try {
+                    field.focus();
+                    field.select();
+                    field.setSelectionRange(0, field.value.length);
+                    return document.execCommand('copy');
+                } finally {
+                    field.remove();
+                    if (previousFocus) previousFocus.focus({ preventScroll: true });
+                    if (selection) {
+                        selection.removeAllRanges();
+                        ranges.forEach(range => selection.addRange(range));
+                    }
+                }
+            }
+            try {
+                let copied = false;
+                if (window.isSecureContext && navigator.clipboard?.writeText) {
+                    try {
+                        await navigator.clipboard.writeText(String(text));
+                        copied = true;
+                    } catch (error) {
+                        // Browser permissions may deny the modern clipboard API.
+                    }
+                }
+                if (!copied) copied = copyWithSelection();
+                if (!copied) throw new Error('Clipboard unavailable');
+                showToast('In die Zwischenablage kopiert!', 'success');
+            } catch (error) {
+                showToast('Kopieren nicht möglich. Bitte den Text markieren und manuell kopieren.', 'error');
+            }
         }
 
         async function sendLiveBrowserTestLog() {
