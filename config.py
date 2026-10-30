@@ -40,7 +40,7 @@ class Config:
 
     # Attribution & Links
     GITHUB_URL: str = os.getenv(
-        "GITHUB_URL", "https://github.com/michaelschellenberger/rsyslog-web"
+        "GITHUB_URL", "https://github.com/Schello805/rsyslog"
     )
     AUTHOR_NAME: str = "Michael Schellenberger"
 

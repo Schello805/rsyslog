@@ -211,7 +211,7 @@ ALERT_MIN_LEVEL=ERROR
 ALERT_THROTTLE_SECONDS=10
 
 # GitHub Link im Dashboard
-GITHUB_URL=https://github.com/michaelschellenberger/rsyslog-web
+GITHUB_URL=https://github.com/Schello805/rsyslog
 ```
 
 ---
