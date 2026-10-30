@@ -28,6 +28,8 @@
         ::-webkit-scrollbar-track { background: #111827; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        [hidden] { display:none !important; }
+        @media(max-width:700px) { header > div { height:auto !important; min-height:64px; flex-wrap:wrap; gap:.75rem; padding-top:.75rem; padding-bottom:.75rem; } #header-rev-badge { display:none; } }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
@@ -53,7 +55,7 @@
                 <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-800">
                     <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
                         <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                        <span>Dashboard</span>
+                        <span>Überblick</span>
                     </a>
                     <a href="/guide" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-950/60 text-sky-400 border border-sky-800/50 transition">
                         <i data-lucide="radio" class="w-4 h-4"></i>
@@ -78,24 +80,44 @@
     <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
+        <div>
+            <p class="text-xs text-sky-400 mb-2">EINRICHTUNG</p>
+            <h2 class="text-2xl font-semibold">Ein Gerät in drei Schritten anbinden</h2>
+            <p class="text-sm text-slate-400 mt-2">Wähle dein System. Du siehst anschließend nur die passende Anleitung.</p>
+        </div>
+        <section class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+            <label for="device-type" class="block font-semibold">1. Welches Gerät möchtest du anbinden?</label>
+            <select id="device-type" onchange="selectDevice(this.value)" class="w-full sm:max-w-lg bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm">
+                <option value="">System auswählen …</option>
+                <option value="linux">Linux / Proxmox VE / Proxmox PBS</option>
+                <option value="nas">QNAP / Synology</option>
+                <option value="network">UniFi / Firewall / Switch</option>
+                <option value="docker">Docker</option>
+                <option value="http">HTTP / eigene Anwendung</option>
+                <option value="router">Heim-Router</option>
+            </select>
+        </section>
+        <div id="setup-next-steps" hidden class="space-y-6">
+        <details class="border border-slate-800 rounded-2xl" open>
+            <summary class="cursor-pointer p-5 font-semibold">2. Serveradresse prüfen</summary>
         <!-- Hero: Verbindungsdaten & Dynamische IP -->
         <div class="bg-gradient-to-br from-slate-900 via-sky-950/30 to-indigo-950/40 border border-sky-900/50 rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
             <div class="relative z-10 space-y-6">
                 <div>
                     <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium mb-3">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span>Server aktiv & empfangsbereit</span>
+                        <span>Verbindungsdaten</span>
                     </div>
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                        So sendest du Logs an deinen Remote Syslog Server
+                        Dein Empfangsziel
                     </h2>
                     <p class="text-slate-300 text-sm max-w-3xl mt-2">
-                        Alle nachfolgenden Befehle und Konfigurationsdateien sind bereits mit deiner <strong class="text-white">aktuellen Server-IP</strong> und den korrekten Ports vorbefüllt. Du kannst sie per Klick kopieren und direkt einfügen.
+                        Prüfe die Adresse, unter der dein Gerät diesen Server erreichen kann. Die Anleitung wird mit dieser Adresse ausgefüllt.
                     </p>
                 </div>
 
                 <!-- Server Info Cards Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <!-- Target IP -->
                     <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 shadow-sm backdrop-blur">
                         <span class="text-xs font-medium text-slate-400 flex items-center justify-between">
@@ -112,7 +134,7 @@
                     </div>
 
                     <!-- Syslog UDP Port -->
-                    <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 shadow-sm backdrop-blur">
+                    <div data-transport="udp" class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 shadow-sm backdrop-blur">
                         <span class="text-xs font-medium text-slate-400 flex items-center justify-between">
                             <span>Syslog UDP Port</span>
                             <i data-lucide="radio" class="w-4 h-4 text-emerald-400"></i>
@@ -125,7 +147,7 @@
                     </div>
 
                     <!-- Syslog TCP Port -->
-                    <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 shadow-sm backdrop-blur">
+                    <div data-transport="tcp" class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 shadow-sm backdrop-blur">
                         <span class="text-xs font-medium text-slate-400 flex items-center justify-between">
                             <span>Syslog TCP Port</span>
                             <i data-lucide="arrow-left-right" class="w-4 h-4 text-indigo-400"></i>
@@ -138,7 +160,7 @@
                     </div>
 
                     <!-- HTTP Webhook -->
-                    <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 shadow-sm backdrop-blur">
+                    <div data-transport="http" class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-4 shadow-sm backdrop-blur">
                         <span class="text-xs font-medium text-slate-400 flex items-center justify-between">
                             <span>HTTP Webhook (JSON)</span>
                             <i data-lucide="globe" class="w-4 h-4 text-amber-400"></i>
@@ -160,16 +182,187 @@
                         <span>Ziel-IP in allen Beispielen anpassen:</span>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <select id="ip-selector" onchange="changeActiveIP(this.value)" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 font-mono focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        <select aria-label="Serveradresse auswählen" id="ip-selector" onchange="changeActiveIP(this.value)" class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 font-mono focus:outline-none focus:ring-1 focus:ring-sky-500">
                             <!-- Populated dynamically -->
                         </select>
-                        <input type="text" id="custom-ip-input" placeholder="Oder eigene Domain / IP..." oninput="changeActiveIP(this.value)"
+                        <input type="text" aria-label="Eigene Serveradresse" id="custom-ip-input" placeholder="Oder eigene Domain / IP..." oninput="changeActiveIP(this.value)"
                             class="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                     </div>
                 </div>
             </div>
         </div>
 
+        </details>
+        <section class="space-y-4"><h3 class="text-lg font-semibold">3. Weiterleitung einrichten und testen</h3>
+        <!-- Section 2: Geräte-Anleitungen Tabs / Cards -->
+        <div class="space-y-4">
+
+            <!-- Card: AVM FRITZ!Box & Heim-Router -->
+            <div data-device="router" hidden class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                        <i data-lucide="router" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-semibold text-white">AVM FRITZ!Box & Heim-Router</h3>
+                        <p class="text-xs text-slate-400">Ereignisse und Sicherheitslogs automatisch weiterleiten.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs text-slate-300">
+                    <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
+                        <li>Öffne deine FRITZ!Box Benutzeroberfläche (<code class="text-amber-300 bg-slate-950 px-1 py-0.5 rounded">http://fritz.box</code>).</li>
+                        <li>Navigiere im Menü zu: <strong>System → Ereignisse → Push Service</strong>.</li>
+                        <li>Wähle den Reiter <strong>Syslog</strong> oder die Protokollweiterleitung.</li>
+                        <li>Trage folgende Werte ein:</li>
+                    </ol>
+
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono text-xs">
+                        <div class="flex justify-between"><span class="text-slate-500">Syslog-Server IP:</span> <strong class="text-sky-400 dynamic-ip">192.168.1.191</strong></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Port:</span> <strong class="text-emerald-400 dynamic-udp-port">5514</strong></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Protokoll:</span> <strong class="text-slate-200">UDP</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: Linux Server (Ubuntu, Debian, Proxmox, Pi) -->
+            <div data-device="linux" hidden class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                    <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                        <i data-lucide="hard-drive" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-semibold text-white">Linux Server (rsyslog)</h3>
+                        <p class="text-xs text-slate-400">Debian, Ubuntu, Proxmox, Raspberry Pi, Rocky Linux.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs text-slate-300">
+                    <p>Führe diesen 1-Zeiler auf deinem Linux-Server aus. Auf Proxmox VE/PBS zuerst als root <code>apt update &amp;&amp; apt install -y rsyslog</code> ausführen; in der Root-Shell <code>sudo</code> weglassen.</p>
+
+                    <div class="relative group">
+                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs font-mono text-purple-300 overflow-x-auto"><code id="code-linux-rsyslog">echo "*.* @192.168.1.191:5514" | sudo tee /etc/rsyslog.d/99-remote.conf && sudo systemctl restart rsyslog</code></pre>
+                        <button onclick="copyCode('code-linux-rsyslog')" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 border border-slate-700">
+                            Kopieren
+                        </button>
+                    </div>
+
+                    <p class="text-[11px] text-slate-500">
+                        Ressourcenüberwachung: Das mitgelieferte <code>scripts/resource-monitor.py</code> prüft CPU, RAM und Dateisysteme und sendet Warnungen über diese Weiterleitung. Installation mit systemd-Timer siehe README, Abschnitt „Ressourcen überwachen“. Auf jedem Host bzw. Gast separat einrichten.<br>💡 <em>Hinweis:</em> Ein einzelnes <code>@</code> sendet via UDP. Wenn du TCP bevorzugst, nutze <code>@@</code>.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Card: Synology DSM & QNAP NAS -->
+            <div data-device="nas" hidden class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                    <div class="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                        <i data-lucide="folder-sync" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-semibold text-white">Synology DSM & QNAP NAS</h3>
+                        <p class="text-xs text-slate-400">System-, Speicher- und Login-Logs zentral sammeln.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs text-slate-300">
+                    <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
+                        <li>Öffne das <strong>Protokoll-Center</strong> in Synology DSM (oder QuLog Center bei QNAP).</li>
+                        <li>Gehe auf <strong>Protokollsendung</strong> und aktiviere die Option.</li>
+                        <li>Gib folgende Serverdaten ein:</li>
+                    </ol>
+
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono text-xs">
+                        <div class="flex justify-between"><span class="text-slate-500">Server:</span> <strong class="text-sky-400 dynamic-ip">192.168.1.191</strong></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Port:</span> <strong class="text-emerald-400 dynamic-udp-port">5514</strong></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Übertragungsprotokoll:</span> <strong class="text-slate-200">UDP</strong></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Format:</span> <strong class="text-amber-400">IETF (RFC 5424)</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: Docker Daemon & Docker Compose -->
+            <div data-device="docker" hidden class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                    <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                        <i data-lucide="container" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-semibold text-white">Docker Daemon & Compose</h3>
+                        <p class="text-xs text-slate-400">Container-Ausgaben direkt an RSyslog weiterleiten.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs text-slate-300">
+                    <p>Füge dies in deine <code>docker-compose.yml</code> bei einem Service ein:</p>
+
+                    <div class="relative group">
+                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-cyan-300 overflow-x-auto"><code id="code-docker-compose">logging:
+  driver: syslog
+  options:
+    syslog-address: "udp://192.168.1.191:5514"
+    tag: "mein-service"</code></pre>
+                        <button onclick="copyCode('code-docker-compose')" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 border border-slate-700">
+                            Kopieren
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: Firewalls & Switches (UniFi, pfSense, OPNsense, MikroTik) -->
+            <div data-device="network" hidden class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                    <div class="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                        <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-semibold text-white">pfSense, OPNsense & UniFi</h3>
+                        <p class="text-xs text-slate-400">Netzwerk-Firewalls, Router und Managed Switches.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2 text-xs text-slate-300">
+                    <p><strong>pfSense / OPNsense:</strong></p>
+                    <p class="text-slate-400">Menü: <em>Status → System Logs → Settings → Remote Logging</em>. Haken bei <em>Send log messages to remote syslog server</em> aktivieren.</p>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-[11px] text-slate-300">
+                        Remote Log Servers: <strong class="text-sky-400 dynamic-ip">192.168.1.191</strong>:<strong class="text-emerald-400 dynamic-udp-port">5514</strong>
+                    </div>
+
+                    <p class="pt-1"><strong>Ubiquiti UniFi:</strong></p>
+                    <p class="text-slate-400">UniFi Network: <em>Settings → System → Advanced → Syslog</em> aktivieren.</p>
+                </div>
+            </div>
+
+            <!-- Card: HTTP Webhook (curl / Python / Skripte) -->
+            <div data-device="http" hidden class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <i data-lucide="code" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-semibold text-white">HTTP Webhook (REST API)</h3>
+                        <p class="text-xs text-slate-400">JSON-Logs direkt per POST-Request senden.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs text-slate-300">
+                    <p>Mit <strong>curl</strong> von jedem Rechner oder Skript aus:</p>
+
+                    <div class="relative group">
+                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-emerald-300 overflow-x-auto"><code id="code-http-curl">curl -X POST http://192.168.1.191:8000/api/logs \
+  -H "Content-Type: application/json" \
+  -d '{"host": "app-server", "app": "checkout", "level": "ERROR", "message": "Datenbank Timeout aufgetreten"}'</code></pre>
+                        <button onclick="copyCode('code-http-curl')" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 border border-slate-700">
+                            Kopieren
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        </section>
+        <details class="border border-slate-800 rounded-2xl"><summary class="cursor-pointer p-5 font-medium">Verbindung mit einem Test-Log prüfen</summary>
         <!-- Section 1: Schnelltest direkt im Terminal -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
             <div class="flex items-center justify-between">
@@ -198,173 +391,9 @@
             </div>
         </div>
 
-        <!-- Section 2: Geräte-Anleitungen Tabs / Cards -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            <!-- Card: AVM FRITZ!Box & Heim-Router -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                    <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                        <i data-lucide="router" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-semibold text-white">AVM FRITZ!Box & Heim-Router</h3>
-                        <p class="text-xs text-slate-400">Ereignisse und Sicherheitslogs automatisch weiterleiten.</p>
-                    </div>
-                </div>
-
-                <div class="space-y-3 text-xs text-slate-300">
-                    <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
-                        <li>Öffne deine FRITZ!Box Benutzeroberfläche (<code class="text-amber-300 bg-slate-950 px-1 py-0.5 rounded">http://fritz.box</code>).</li>
-                        <li>Navigiere im Menü zu: <strong>System → Ereignisse → Push Service</strong>.</li>
-                        <li>Wähle den Reiter <strong>Syslog</strong> oder die Protokollweiterleitung.</li>
-                        <li>Trage folgende Werte ein:</li>
-                    </ol>
-
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono text-xs">
-                        <div class="flex justify-between"><span class="text-slate-500">Syslog-Server IP:</span> <strong class="text-sky-400 dynamic-ip">192.168.1.191</strong></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Port:</span> <strong class="text-emerald-400 dynamic-udp-port">5514</strong></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Protokoll:</span> <strong class="text-slate-200">UDP</strong></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card: Linux Server (Ubuntu, Debian, Proxmox, Pi) -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                    <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                        <i data-lucide="hard-drive" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-semibold text-white">Linux Server (rsyslog)</h3>
-                        <p class="text-xs text-slate-400">Debian, Ubuntu, Proxmox, Raspberry Pi, Rocky Linux.</p>
-                    </div>
-                </div>
-
-                <div class="space-y-3 text-xs text-slate-300">
-                    <p>Führe diesen 1-Zeiler mit Root-Rechten auf deinem Linux-Server aus:</p>
-
-                    <div class="relative group">
-                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs font-mono text-purple-300 overflow-x-auto"><code id="code-linux-rsyslog">echo "*.* @192.168.1.191:5514" | sudo tee /etc/rsyslog.d/99-remote.conf && sudo systemctl restart rsyslog</code></pre>
-                        <button onclick="copyCode('code-linux-rsyslog')" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 border border-slate-700">
-                            Kopieren
-                        </button>
-                    </div>
-
-                    <p class="text-[11px] text-slate-500">
-                        💡 <em>Hinweis:</em> Ein einzelnes <code>@</code> sendet via UDP. Wenn du TCP bevorzugst, nutze <code>@@</code>.
-                    </p>
-                </div>
-            </div>
-
-            <!-- Card: Synology DSM & QNAP NAS -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                    <div class="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                        <i data-lucide="folder-sync" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-semibold text-white">Synology DSM & QNAP NAS</h3>
-                        <p class="text-xs text-slate-400">System-, Speicher- und Login-Logs zentral sammeln.</p>
-                    </div>
-                </div>
-
-                <div class="space-y-3 text-xs text-slate-300">
-                    <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
-                        <li>Öffne das <strong>Protokoll-Center</strong> in Synology DSM (oder QuLog Center bei QNAP).</li>
-                        <li>Gehe auf <strong>Protokollsendung</strong> und aktiviere die Option.</li>
-                        <li>Gib folgende Serverdaten ein:</li>
-                    </ol>
-
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono text-xs">
-                        <div class="flex justify-between"><span class="text-slate-500">Server:</span> <strong class="text-sky-400 dynamic-ip">192.168.1.191</strong></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Port:</span> <strong class="text-emerald-400 dynamic-udp-port">5514</strong></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Übertragungsprotokoll:</span> <strong class="text-slate-200">UDP</strong></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Format:</span> <strong class="text-amber-400">IETF (RFC 5424)</strong></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card: Docker Daemon & Docker Compose -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                    <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-                        <i data-lucide="container" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-semibold text-white">Docker Daemon & Compose</h3>
-                        <p class="text-xs text-slate-400">Container-Ausgaben direkt an RSyslog weiterleiten.</p>
-                    </div>
-                </div>
-
-                <div class="space-y-3 text-xs text-slate-300">
-                    <p>Füge dies in deine <code>docker-compose.yml</code> bei einem Service ein:</p>
-
-                    <div class="relative group">
-                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-cyan-300 overflow-x-auto"><code id="code-docker-compose">logging:
-  driver: syslog
-  options:
-    syslog-address: "udp://192.168.1.191:5514"
-    tag: "mein-service"</code></pre>
-                        <button onclick="copyCode('code-docker-compose')" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 border border-slate-700">
-                            Kopieren
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card: Firewalls & Switches (UniFi, pfSense, OPNsense, MikroTik) -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                    <div class="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-                        <i data-lucide="shield-alert" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-semibold text-white">pfSense, OPNsense & UniFi</h3>
-                        <p class="text-xs text-slate-400">Netzwerk-Firewalls, Router und Managed Switches.</p>
-                    </div>
-                </div>
-
-                <div class="space-y-2 text-xs text-slate-300">
-                    <p><strong>pfSense / OPNsense:</strong></p>
-                    <p class="text-slate-400">Menü: <em>Status → System Logs → Settings → Remote Logging</em>. Haken bei <em>Send log messages to remote syslog server</em> aktivieren.</p>
-                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-[11px] text-slate-300">
-                        Remote Log Servers: <strong class="text-sky-400 dynamic-ip">192.168.1.191</strong>:<strong class="text-emerald-400 dynamic-udp-port">5514</strong>
-                    </div>
-
-                    <p class="pt-1"><strong>Ubiquiti UniFi:</strong></p>
-                    <p class="text-slate-400">UniFi Network: <em>Settings → System → Advanced → Syslog</em> aktivieren.</p>
-                </div>
-            </div>
-
-            <!-- Card: HTTP Webhook (curl / Python / Skripte) -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                    <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                        <i data-lucide="code" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-semibold text-white">HTTP Webhook (REST API)</h3>
-                        <p class="text-xs text-slate-400">JSON-Logs direkt per POST-Request senden.</p>
-                    </div>
-                </div>
-
-                <div class="space-y-3 text-xs text-slate-300">
-                    <p>Mit <strong>curl</strong> von jedem Rechner oder Skript aus:</p>
-
-                    <div class="relative group">
-                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-emerald-300 overflow-x-auto"><code id="code-http-curl">curl -X POST http://192.168.1.191:8000/api/logs \
-  -H "Content-Type: application/json" \
-  -d '{"host": "app-server", "app": "checkout", "level": "ERROR", "message": "Datenbank Timeout aufgetreten"}'</code></pre>
-                        <button onclick="copyCode('code-http-curl')" class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 border border-slate-700">
-                            Kopieren
-                        </button>
-                    </div>
-                </div>
-            </div>
-
+        </details>
+        <a href="/#logs" class="inline-block text-sm text-sky-400">Im Log-Eingang prüfen →</a>
         </div>
-
     </main>
 
     <!-- Notification Toast Container -->
@@ -512,10 +541,10 @@
 
         async function loadVersionInfo() {
             try {
-                const res = await fetch('/api/version');
+                const res = await fetch('/api/version', { cache: 'no-store' });
                 const data = await res.json();
                 document.getElementById('header-rev-badge').innerText = `v${data.version}`;
-                document.getElementById('footer-rev-text').innerText = `Rev. ${data.display}`;
+                document.getElementById('footer-rev-text').innerText = data.display;
                 if (data.github_url) {
                     document.getElementById('footer-github-link').href = data.github_url;
                 }
@@ -539,9 +568,15 @@
             }, 3500);
         }
 
+        function selectDevice(key) {
+            document.getElementById('setup-next-steps').hidden = !key;
+            document.querySelectorAll('[data-device]').forEach(card => card.hidden = card.dataset.device !== key);
+            document.querySelectorAll('[data-transport]').forEach(card => card.hidden = card.dataset.transport !== (key === 'http' ? 'http' : 'udp'));
+        }
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             loadVersionInfo();
+            setInterval(loadVersionInfo, 60000);
             loadNetworkInfo();
         });
     </script>

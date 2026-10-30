@@ -1,50 +1,52 @@
-"""
-Version and Revision Management for RSyslog Web.
-Automatically detects git commit SHA or tag for release info.
-"""
-
+"""Version and automatically increasing Git revision for the dashboard."""
 import os
+from pathlib import Path
 import subprocess
-from functools import lru_cache
 
 VERSION = "1.0.0"
+BASE_DIR = Path(__file__).resolve().parent
 
 
-@lru_cache(maxsize=1)
-def get_git_revision() -> str:
-    """Returns short git revision or fallback string."""
-    # 1. Check environment variable override
-    env_rev = os.getenv("APP_REVISION")
-    if env_rev:
-        return env_rev.strip()
+def git_value(*arguments):
+    return subprocess.check_output(
+        ['git', '-C', str(BASE_DIR), *arguments],
+        stderr=subprocess.DEVNULL, timeout=1.5,
+    ).decode().strip()
 
-    # 2. Try git rev-parse
+
+def release_value(filename, default):
     try:
-        cmd = ["git", "rev-parse", "--short", "HEAD"]
-        output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, timeout=1.5)
-        rev = output.decode("utf-8").strip()
-        if rev:
-            return rev
-    except Exception:
-        pass
+        return (BASE_DIR / filename).read_text(encoding='utf-8').strip() or default
+    except OSError:
+        return default
 
-    # 3. Try reading from a release file if packaged
-    rev_file = os.path.join(os.path.dirname(__file__), "REVISION")
-    if os.path.exists(rev_file):
+
+def get_git_revision() -> str:
+    override = os.getenv('APP_REVISION', '').strip()
+    if override:
+        return override
+    try:
+        return git_value('rev-parse', '--short', 'HEAD')
+    except (OSError, subprocess.SubprocessError):
+        return release_value('REVISION', 'initial')
+
+
+def get_revision_number() -> int:
+    try:
+        return int(git_value('rev-list', '--count', 'HEAD'))
+    except (OSError, subprocess.SubprocessError, ValueError):
         try:
-            with open(rev_file, "r", encoding="utf-8") as f:
-                return f.read().strip()
-        except Exception:
-            pass
-
-    return "initial"
+            return int(release_value('REVISION_NUMBER', '0'))
+        except ValueError:
+            return 0
 
 
 def get_version_info() -> dict:
-    """Returns structured version and revision information."""
-    rev = get_git_revision()
+    revision = get_git_revision()
+    number = get_revision_number()
     return {
-        "version": VERSION,
-        "revision": rev,
-        "display": f"v{VERSION} (rev. {rev})",
+        'version': VERSION,
+        'revision': revision,
+        'revision_number': number,
+        'display': f'v{VERSION} · Rev. {number} ({revision})',
     }

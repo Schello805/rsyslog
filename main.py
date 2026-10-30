@@ -3,6 +3,7 @@ Main FastAPI application for RSyslog Web.
 Integrates Web UI, REST API, WebSockets, and asynchronous Syslog listeners.
 """
 
+import asyncio
 import csv
 import io
 import json
@@ -59,21 +60,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger("rsyslog.main")
 
-# Active WebSocket connections
-_active_websockets: List[WebSocket] = []
+# Each browser has its own bounded queue and sender.
+_active_websockets = {}
 
 
-async def websocket_broadcaster(log_entry: Dict[str, Any]) -> None:
-    """Broadcasts a log dictionary to all connected WebSocket clients."""
-    if not _active_websockets:
-        return
+async def websocket_broadcaster(log_entry):
     payload = json.dumps(log_entry)
-    for ws in list(_active_websockets):
+    for ws, queue in list(_active_websockets.items()):
         try:
-            await ws.send_text(payload)
+            queue.put_nowait(payload)
+        except asyncio.QueueFull:
+            _active_websockets.pop(ws, None)
+            # The sender closes this client once its pending send completes/times out.
+
+
+async def websocket_sender(ws, queue):
+    try:
+        while ws in _active_websockets:
+            payload = await queue.get()
+            await asyncio.wait_for(ws.send_text(payload), 3)
+    finally:
+        _active_websockets.pop(ws, None)
+        try:
+            await asyncio.wait_for(ws.close(code=1013), 2)
         except Exception:
-            if ws in _active_websockets:
-                _active_websockets.remove(ws)
+            pass
 
 
 @asynccontextmanager
@@ -100,7 +111,13 @@ async def lifespan(app: FastAPI):
     logger.info(
         f"RSyslog Web started successfully! Open http://{config.WEB_HOST}:{config.WEB_PORT} in your browser."
     )
-    yield
+    from monitoring import maintenance
+    maintenance_task = asyncio.create_task(maintenance())
+    try:
+        yield
+    finally:
+        maintenance_task.cancel()
+        await asyncio.gather(maintenance_task, return_exceptions=True)
 
     # Shutdown
     logger.info("Shutting down Syslog listeners...")
@@ -195,6 +212,12 @@ async def api_get_logs(
     }
 
 
+@app.get("/api/hosts")
+async def api_hosts():
+    from database import get_monitored_hosts
+    return {"hosts": get_monitored_hosts(), "udp_dropped": server_manager.dropped}
+
+
 @app.get("/api/stats")
 async def api_get_stats():
     """Returns dashboard statistics (totals, counts by level, active hosts)."""
@@ -257,6 +280,8 @@ async def api_post_log(request: Request):
         )
 
     # Trigger alerts and realtime broadcast
+    from monitoring import observe_log
+    await observe_log(saved)
     await process_alert(saved)
     await broadcast_log(saved)
 
@@ -384,7 +409,9 @@ async def api_database_cleanup(request: Request):
 async def websocket_endpoint(websocket: WebSocket):
     """Real-time log streaming WebSocket."""
     await websocket.accept()
-    _active_websockets.append(websocket)
+    queue = asyncio.Queue(maxsize=100)
+    _active_websockets[websocket] = queue
+    sender = asyncio.create_task(websocket_sender(websocket, queue))
     try:
         while True:
             # Keep connection open; receive ping or client queries
@@ -392,8 +419,9 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
-        if websocket in _active_websockets:
-            _active_websockets.remove(websocket)
+        _active_websockets.pop(websocket, None)
+        sender.cancel()
+        await asyncio.gather(sender, return_exceptions=True)
 
 
 if __name__ == "__main__":

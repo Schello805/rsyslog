@@ -61,11 +61,10 @@ async def handle_incoming_log(raw_data: str, client_ip: str) -> Dict[str, Any]:
     loop = asyncio.get_running_loop()
     saved = await loop.run_in_executor(None, handle_incoming_log_sync, raw_data, client_ip)
 
-    # 2. Trigger alerting in background
-    asyncio.create_task(alerter.process_alert(saved))
-
-    # 3. Broadcast to real-time WebSockets
-    asyncio.create_task(broadcast_log(saved))
+    from monitoring import observe_log
+    await observe_log(saved)
+    await alerter.process_alert(saved)
+    await broadcast_log(saved)
 
     return saved
 
@@ -88,7 +87,7 @@ class SyslogUDPProtocol(asyncio.DatagramProtocol):
                 raw_text = data.decode("latin-1", errors="replace")
 
             client_ip = addr[0] if addr else "unknown"
-            asyncio.create_task(handle_incoming_log(raw_text, client_ip))
+            server_manager.enqueue(raw_text, client_ip)
         except Exception as e:
             logger.error(f"Error handling UDP datagram: {e}")
 
@@ -98,6 +97,11 @@ class SyslogUDPProtocol(asyncio.DatagramProtocol):
 
 async def handle_tcp_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """Handles an incoming TCP connection streaming syslog messages."""
+    if server_manager.active_tcp_clients >= 64:
+        writer.close()
+        await writer.wait_closed()
+        return
+    server_manager.active_tcp_clients += 1
     client_addr = writer.get_extra_info("peername")
     client_ip = client_addr[0] if client_addr else "unknown"
     logger.debug(f"TCP Syslog connection established from {client_ip}")
@@ -105,13 +109,16 @@ async def handle_tcp_client(reader: asyncio.StreamReader, writer: asyncio.Stream
     try:
         buffer = ""
         while True:
-            chunk = await reader.read(4096)
+            chunk = await asyncio.wait_for(reader.read(4096), 120)
             if not chunk:
                 break
             try:
                 buffer += chunk.decode("utf-8")
             except UnicodeDecodeError:
                 buffer += chunk.decode("latin-1", errors="replace")
+
+            if len(buffer) > 65536:
+                raise ValueError("TCP message exceeds 64 KiB")
 
             # Split messages by newline
             while "\n" in buffer:
@@ -128,6 +135,7 @@ async def handle_tcp_client(reader: asyncio.StreamReader, writer: asyncio.Stream
     except Exception as e:
         logger.error(f"Error in TCP syslog client {client_ip}: {e}")
     finally:
+        server_manager.active_tcp_clients -= 1
         writer.close()
         try:
             await writer.wait_closed()
@@ -139,10 +147,33 @@ class SyslogServerManager:
     """Manages the lifecycle of both UDP and TCP Syslog services."""
 
     def __init__(self) -> None:
+        self.queue = asyncio.Queue(maxsize=2000)
+        self.workers = []
+        self.dropped = 0
+        self.active_tcp_clients = 0
         self.udp_transport: Optional[asyncio.DatagramTransport] = None
         self.tcp_server: Optional[asyncio.Server] = None
 
+    def enqueue(self, raw, ip):
+        try:
+            self.queue.put_nowait((raw, ip))
+        except asyncio.QueueFull:
+            self.dropped += 1
+            if self.dropped == 1 or self.dropped % 1000 == 0:
+                logger.warning("UDP queue full; dropped %s messages", self.dropped)
+
+    async def consume(self):
+        while True:
+            raw, ip = await self.queue.get()
+            try:
+                await handle_incoming_log(raw, ip)
+            except Exception:
+                logger.exception("Failed processing syslog message")
+            finally:
+                self.queue.task_done()
+
     async def start(self) -> None:
+        self.workers = [asyncio.create_task(self.consume()) for _ in range(4)]
         loop = asyncio.get_running_loop()
 
         # 1. Start UDP Listener
@@ -189,6 +220,14 @@ class SyslogServerManager:
             self.tcp_server.close()
             await self.tcp_server.wait_closed()
             logger.info("TCP Syslog listener stopped.")
+
+        try:
+            await asyncio.wait_for(self.queue.join(), 10)
+        except asyncio.TimeoutError:
+            logger.warning("Shutdown queue drain timed out")
+        for worker in self.workers:
+            worker.cancel()
+        await asyncio.gather(*self.workers, return_exceptions=True)
 
 
 server_manager = SyslogServerManager()

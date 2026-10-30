@@ -28,6 +28,10 @@
         ::-webkit-scrollbar-track { background: #111827; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        [hidden] { display:none !important; }
+        .settings-tab { padding:.7rem 1rem; border-radius:.75rem; color:#94a3b8; font-size:.875rem; border:1px solid #1e293b; }
+        .settings-tab[aria-current="page"] { color:#e0f2fe; background:#0c4a6e; border-color:#075985; }
+        @media(max-width:700px) { header > div { height:auto !important; min-height:64px; flex-wrap:wrap; gap:.75rem; padding-top:.75rem; padding-bottom:.75rem; } #header-rev-badge { display:none; } }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
@@ -53,7 +57,7 @@
                 <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-800">
                     <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
                         <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                        <span>Dashboard</span>
+                        <span>Überblick</span>
                     </a>
                     <a href="/guide" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
                         <i data-lucide="radio" class="w-4 h-4"></i>
@@ -89,16 +93,135 @@
             <div class="relative z-10">
                 <h2 class="text-xl font-bold text-white flex items-center space-x-2">
                     <i data-lucide="sliders" class="w-5 h-5 text-sky-400"></i>
-                    <span>Alarmierungs- & Benachrichtigungseinstellungen</span>
+                    <span id="settings-title">Benachrichtigungen einrichten</span>
                 </h2>
-                <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
-                    Konfiguriere hier flexibel, wann Alarme ausgelöst werden (z. B. sofort beim ersten Fehler oder erst bei wiederholtem Auftreten) sowie deine Zugangsdaten für Telegram und Ntfy.
+                <p id="settings-description" class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                    Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.
                 </p>
             </div>
         </div>
 
         <form id="settings-form" onsubmit="event.preventDefault(); saveSettings();" class="space-y-6">
 
+            <nav aria-label="Einstellungen" class="flex gap-2 flex-wrap">
+                <a href="#channels" data-settings-link="channels" class="settings-tab">1. Benachrichtigungskanal</a>
+                <a href="#rules" data-settings-link="rules" class="settings-tab">2. Alarmregeln</a>
+                <a href="#maintenance" data-settings-link="maintenance" class="settings-tab">Daten aufbewahren</a>
+            </nav>
+            <section data-settings-panel="channels" class="space-y-4">
+                <p class="text-sm text-slate-400">Wähle einen Kanal. Trage die Zugangsdaten ein und teste die Verbindung vor dem Speichern.</p>
+<details class="rounded-2xl border border-slate-800"><summary class="cursor-pointer p-5 font-medium">Telegram einrichten</summary>            <!-- Card 2: Telegram Bot Einstellungen -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-white">Telegram Benachrichtigung</h3>
+                            <p class="text-xs text-slate-400">Erhalte Alarme direkt als Nachricht auf dein Smartphone.</p>
+                        </div>
+                    </div>
+
+                    <!-- Enabled Toggle -->
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="telegram_enabled" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                        <span class="ml-2 text-xs font-medium text-slate-300">Aktiviert</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Token -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Telegram Bot Token
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="telegram_bot_token" placeholder="z. B. 7123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ"
+                                class="w-full pl-3.5 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
+                            <button type="button" onclick="togglePasswordVisibility('telegram_bot_token', this)" class="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-1">Erstelle einen Bot bei <strong>@BotFather</strong> auf Telegram, um diesen Token zu erhalten.</p>
+                    </div>
+
+                    <!-- Chat ID -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Telegram Chat-ID
+                        </label>
+                        <input type="text" id="telegram_chat_id" placeholder="z. B. 123456789"
+                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
+                        <p class="text-[11px] text-slate-500 mt-1">Deine persönliche ID erfährst du sofort beim Bot <strong>@userinfobot</strong>.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="button" onclick="testTelegram()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
+                        <i data-lucide="send" class="w-3.5 h-3.5 text-sky-400"></i>
+                        <span>Telegram-Verbindung jetzt testen</span>
+                    </button>
+                </div>
+            </div>
+
+</details>
+<details class="rounded-2xl border border-slate-800"><summary class="cursor-pointer p-5 font-medium">Ntfy einrichten</summary>            <!-- Card 3: Ntfy Push-Dienst Einstellungen -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <i data-lucide="bell" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-white">Ntfy Push-Dienst</h3>
+                            <p class="text-xs text-slate-400">Kostenlose, offene Push-Benachrichtigungen ohne Registrierung oder Account.</p>
+                        </div>
+                    </div>
+
+                    <!-- Enabled Toggle -->
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="ntfy_enabled" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <span class="ml-2 text-xs font-medium text-slate-300">Aktiviert</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Thema -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Ntfy Thema (Topic)
+                        </label>
+                        <input type="text" id="ntfy_topic" placeholder="z. B. mein-syslog-alarm-9482"
+                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                        <p class="text-[11px] text-slate-500 mt-1">Wähle einen individuellen, geheimen Themennamen und abonniere ihn in der ntfy-App.</p>
+                    </div>
+
+                    <!-- Server -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Ntfy Server
+                        </label>
+                        <input type="text" id="ntfy_server" value="https://ntfy.sh"
+                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                        <p class="text-[11px] text-slate-500 mt-1">Standard: <code>https://ntfy.sh</code> (kann bei Bedarf auf eigene Instanz geändert werden).</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="button" onclick="testNtfy()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
+                        <i data-lucide="bell" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Ntfy-Verbindung jetzt testen</span>
+                    </button>
+                </div>
+            </div>
+
+</details>
+                <a href="#rules" class="inline-block text-sm text-sky-400">Weiter zu den Alarmregeln →</a>
+            </section>
+            <section data-settings-panel="rules" hidden class="space-y-4">
             <!-- Card 1: Alarmbedingungen & Schwellenwerte -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
                 <div class="border-b border-slate-800 pb-4">
@@ -183,113 +306,8 @@
                 </div>
             </div>
 
-            <!-- Card 2: Telegram Bot Einstellungen -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-                            <i data-lucide="send" class="w-4 h-4"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-semibold text-white">Telegram Benachrichtigung</h3>
-                            <p class="text-xs text-slate-400">Erhalte Alarme direkt als Nachricht auf dein Smartphone.</p>
-                        </div>
-                    </div>
-
-                    <!-- Enabled Toggle -->
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="telegram_enabled" class="sr-only peer">
-                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
-                        <span class="ml-2 text-xs font-medium text-slate-300">Aktiviert</span>
-                    </label>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Token -->
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
-                            Telegram Bot Token
-                        </label>
-                        <div class="relative">
-                            <input type="password" id="telegram_bot_token" placeholder="z. B. 7123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ"
-                                class="w-full pl-3.5 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
-                            <button type="button" onclick="togglePasswordVisibility('telegram_bot_token', this)" class="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
-                                <i data-lucide="eye" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                        <p class="text-[11px] text-slate-500 mt-1">Erstelle einen Bot bei <strong>@BotFather</strong> auf Telegram, um diesen Token zu erhalten.</p>
-                    </div>
-
-                    <!-- Chat ID -->
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
-                            Telegram Chat-ID
-                        </label>
-                        <input type="text" id="telegram_chat_id" placeholder="z. B. 123456789"
-                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
-                        <p class="text-[11px] text-slate-500 mt-1">Deine persönliche ID erfährst du sofort beim Bot <strong>@userinfobot</strong>.</p>
-                    </div>
-                </div>
-
-                <div class="flex justify-end pt-2">
-                    <button type="button" onclick="testTelegram()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
-                        <i data-lucide="send" class="w-3.5 h-3.5 text-sky-400"></i>
-                        <span>Telegram-Verbindung jetzt testen</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Card 3: Ntfy Push-Dienst Einstellungen -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                            <i data-lucide="bell" class="w-4 h-4"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-semibold text-white">Ntfy Push-Dienst</h3>
-                            <p class="text-xs text-slate-400">Kostenlose, offene Push-Benachrichtigungen ohne Registrierung oder Account.</p>
-                        </div>
-                    </div>
-
-                    <!-- Enabled Toggle -->
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="ntfy_enabled" class="sr-only peer">
-                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                        <span class="ml-2 text-xs font-medium text-slate-300">Aktiviert</span>
-                    </label>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Thema -->
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
-                            Ntfy Thema (Topic)
-                        </label>
-                        <input type="text" id="ntfy_topic" placeholder="z. B. mein-syslog-alarm-9482"
-                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
-                        <p class="text-[11px] text-slate-500 mt-1">Wähle einen individuellen, geheimen Themennamen und abonniere ihn in der ntfy-App.</p>
-                    </div>
-
-                    <!-- Server -->
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
-                            Ntfy Server
-                        </label>
-                        <input type="text" id="ntfy_server" value="https://ntfy.sh"
-                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
-                        <p class="text-[11px] text-slate-500 mt-1">Standard: <code>https://ntfy.sh</code> (kann bei Bedarf auf eigene Instanz geändert werden).</p>
-                    </div>
-                </div>
-
-                <div class="flex justify-end pt-2">
-                    <button type="button" onclick="testNtfy()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
-                        <i data-lucide="bell" class="w-3.5 h-3.5 text-emerald-400"></i>
-                        <span>Ntfy-Verbindung jetzt testen</span>
-                    </button>
-                </div>
-            </div>
-
+            </section>
+            <section data-settings-panel="maintenance" hidden class="space-y-4">
             <!-- Card 4: Wartung & Datenbank -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
                 <div class="border-b border-slate-800 pb-4">
@@ -324,6 +342,7 @@
                 </div>
             </div>
 
+            </section>
             <!-- Bottom Sticky Action Bar -->
             <div class="flex items-center justify-between pt-4">
                 <a href="/" class="text-xs text-slate-400 hover:text-white flex items-center space-x-1">
@@ -533,10 +552,10 @@
         // Version info
         async function loadVersionInfo() {
             try {
-                const res = await fetch('/api/version');
+                const res = await fetch('/api/version', { cache: 'no-store' });
                 const data = await res.json();
                 document.getElementById('header-rev-badge').innerText = `v${data.version}`;
-                document.getElementById('footer-rev-text').innerText = `Rev. ${data.display}`;
+                document.getElementById('footer-rev-text').innerText = data.display;
                 if (data.github_url) {
                     document.getElementById('footer-github-link').href = data.github_url;
                 }
@@ -561,9 +580,20 @@
             }, 3500);
         }
 
+        function showSettingsPanel() {
+            const key = ['channels', 'rules', 'maintenance'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'channels';
+            const titles = {channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Wie lange möchtest du Logs behalten?', 'Lege die Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
+            document.getElementById('settings-title').textContent = titles[key][0];
+            document.getElementById('settings-description').textContent = titles[key][1];
+            document.querySelectorAll('[data-settings-panel]').forEach(panel => panel.hidden = panel.dataset.settingsPanel !== key);
+            document.querySelectorAll('[data-settings-link]').forEach(link => link.setAttribute('aria-current', link.dataset.settingsLink === key ? 'page' : 'false'));
+        }
+        window.addEventListener('hashchange', showSettingsPanel);
         document.addEventListener('DOMContentLoaded', () => {
+            showSettingsPanel();
             lucide.createIcons();
             loadVersionInfo();
+            setInterval(loadVersionInfo, 60000);
             loadSettings();
         });
     </script>

@@ -1,0 +1,8 @@
+[Unit]
+Description=CPU, RAM and disk warnings through syslog
+After=rsyslog.service
+
+[Service]
+Type=oneshot
+StateDirectory=rsyslog-resource-monitor
+ExecStart=/usr/bin/python3 /usr/local/sbin/rsyslog-resource-monitor.py --config /etc/rsyslog-resource-monitor.json

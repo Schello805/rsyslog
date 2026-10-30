@@ -54,6 +54,8 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_host ON logs(host)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_app ON logs(app)")
 
+        conn.execute("CREATE TABLE IF NOT EXISTS monitored_hosts (host TEXT PRIMARY KEY, last_seen REAL NOT NULL, offline INTEGER NOT NULL DEFAULT 0)")
+
         # Settings Key-Value Table
         conn.execute(
             """
@@ -152,11 +154,9 @@ def delete_logs_older_than(days: int) -> int:
     conn = get_db_connection()
     with conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM logs WHERE timestamp < ?", (cutoff,))
+        cursor.execute("SELECT COUNT(*) FROM logs WHERE julianday(timestamp) < julianday(?)", (cutoff,))
         count = cursor.fetchone()[0]
-        cursor.execute("DELETE FROM logs WHERE timestamp < ?", (cutoff,))
-        if count > 0:
-            cursor.execute("VACUUM")
+        cursor.execute("DELETE FROM logs WHERE julianday(timestamp) < julianday(?)", (cutoff,))
     return count
 
 
@@ -332,5 +332,26 @@ def clear_all_logs() -> int:
         cursor.execute("SELECT COUNT(*) FROM logs")
         count = cursor.fetchone()[0]
         cursor.execute("DELETE FROM logs")
-        cursor.execute("VACUUM")
     return count
+
+
+def touch_monitored_host(host):
+    import time
+    conn = get_db_connection()
+    with conn:
+        row = conn.execute("SELECT offline FROM monitored_hosts WHERE host=?", (host,)).fetchone()
+        conn.execute("INSERT INTO monitored_hosts(host,last_seen,offline) VALUES(?,?,0) ON CONFLICT(host) DO UPDATE SET last_seen=excluded.last_seen,offline=0", (host,time.time()))
+    return bool(row and row['offline'])
+
+
+def mark_offline_hosts(timeout=300):
+    import time
+    conn = get_db_connection()
+    with conn:
+        rows = conn.execute("SELECT host FROM monitored_hosts WHERE offline=0 AND last_seen < ?", (time.time()-timeout,)).fetchall()
+        conn.execute("UPDATE monitored_hosts SET offline=1 WHERE offline=0 AND last_seen < ?", (time.time()-timeout,))
+    return [row['host'] for row in rows]
+
+
+def get_monitored_hosts():
+    return [dict(row) for row in get_db_connection().execute("SELECT * FROM monitored_hosts ORDER BY host")]

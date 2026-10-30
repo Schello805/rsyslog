@@ -255,3 +255,129 @@ Dieses Projekt ist **Open Source** unter der **Creative Commons Attribution-NonC
 - ✅ **Freie Nutzung:** Privatpersonen, gemeinnützige Organisationen, Forschung und Bildung dürfen das Projekt uneingeschränkt und kostenlos nutzen, verändern und weitergeben.
 - ❌ **Nicht-kommerziell:** Eine direkte kommerzielle Vermarktung oder der Weiterverkauf als kostenpflichtiges Produkt ist ohne ausdrückliche schriftliche Zustimmung des Urhebers nicht gestattet.
 - 🏷️ **Namensnennung:** Der Urhebervermerk (Michael Schellenberger) muss erhalten bleiben.
+
+
+## Ressourcen überwachen: Linux, Proxmox VE und PBS
+
+Der rsyslog-Weiterleitungsbefehl überträgt Ereignisse. Das zusätzliche Skript
+`scripts/resource-monitor.py` misst CPU, RAM und Speicherplatz auf dem Linux-Gerät.
+Es benötigt Python 3, `logger`, rsyslog und systemd. Auf jedem zu überwachenden
+Host separat installieren; Gäste werden durch eine Installation auf dem Host
+nicht einzeln überwacht. QNAP und UniFi benötigen eine andere Anbindung.
+
+Auf Debian/Ubuntu sowie Proxmox VE/PBS als root (sonst `sudo` voranstellen):
+
+```bash
+apt update && apt install -y rsyslog python3
+printf '%s\n' '*.* @192.168.1.163:5514' > /etc/rsyslog.d/99-remote.conf
+rsyslogd -N1 && systemctl enable --now rsyslog && systemctl restart rsyslog
+logger -p user.warning -t verbindungstest 'Test vom Linux-/Proxmox-Host'
+```
+
+Die IP durch die Adresse deines RSyslog-Servers ersetzen. `@` verwendet UDP,
+`@@` TCP. Proxmox-Root-Shells benötigen kein `sudo`. Weitergeleitet werden die
+von rsyslog verarbeiteten Meldungen, nicht automatisch sämtliche Proxmox-Dateilogs.
+
+Im kopierten Projektordner startet der interaktive Installer:
+
+```bash
+sudo bash scripts/install-monitor.sh
+```
+
+Er fragt Serveradresse, Port, Schwellen, Mindestdauer, Wiederholungsintervall und
+Dateisystempfade ab, prüft Messwerte und installiert Dienst und Timer.
+Einstellungen liegen in `/etc/rsyslog-resource-monitor.json`.
+Bestehende Weiterleitungen zum selben Ziel entfernen, damit keine Duplikate entstehen.
+
+Standard: Prüfung etwa jede Minute; CPU und RAM ab 90 % für mindestens 10 Minuten,
+Speicherplatz ab 90 % sofort bei der nächsten Prüfung. CPU wird über eine Sekunde
+gemessen; RAM anhand `MemAvailable`, damit freigebbarer Cache berücksichtigt wird.
+Warnungen wiederholen sich alle 30 Minuten. Bei Unterschreitung der Schwelle
+erscheint einmal eine Entwarnung. Während ausgeschalteter Hosts wird nicht gemessen.
+
+Standardmäßig wird nur `/` geprüft. Weitere Pfade und Schwellen über
+`systemctl edit rsyslog-resource-monitor.service` konfigurieren, beispielsweise:
+
+```ini
+[Service]
+ExecStart=
+ExecStart=/usr/bin/python3 /usr/local/sbin/rsyslog-resource-monitor.py --cpu 90 --ram 90 --disk 90 --duration 600 --repeat 1800 --mount / --mount /mnt/backup
+```
+
+Danach `systemctl daemon-reload` ausführen. Nur vorhandene, tatsächlich eingehängte
+Volumes angeben. ZFS-Poolbelegung, Thin-Pools und PBS-Datastore-Gesundheit sind keine
+separaten Prüfungen; das Skript misst die Dateisystembelegung der angegebenen Pfade.
+Container werden automatisch mit systemd erkannt. Unter cgroup v2 berücksichtigt das Skript CPU-Quota, CPU-Zuordnung und RAM-Limits (einschließlich sichtbarer Eltern-Limits). RAM nutzt den Working Set ohne inaktiven Dateicache. cgroup v1 wird mit Fehler abgelehnt; es werden keine scheinbaren Containerwerte ausgegeben. Bei Bedarf Messbereich `cgroup` explizit im Installer wählen.
+
+Im RSyslog-Dashboard nach Dienst **resource-monitor** filtern. Für Push-Alarme die
+Alarmschwelle auf **WARN** und die Häufigkeit auf **sofort** stellen: Die Mindestdauer
+prüft bereits das Skript. Entwarnungen kommen als NOTICE im Dashboard an; bei einer
+WARN-Alarmschwelle lösen sie keinen Push aus.
+
+Status: `systemctl status rsyslog-resource-monitor.timer` und
+`journalctl -u rsyslog-resource-monitor.service`. Deaktivieren:
+`systemctl disable --now rsyslog-resource-monitor.timer`.
+
+
+## Debian-Webapp per Einzeiler installieren
+
+Für Debian 12+ mit systemd, als root oder mit sudo. Dieser Befehl funktioniert,
+sobald die neuen Dateien im GitHub-Branch `main` veröffentlicht sind:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Schello805/rsyslog/main/scripts/install-debian.sh | sudo bash
+```
+
+Falls curl fehlt: `sudo apt update && sudo apt install -y curl`.
+Im bereits kopierten Projekt: `sudo bash scripts/install-debian.sh`.
+Der Installer lädt den Branch `main` aus GitHub, installiert Python-Abhängigkeiten
+in `/opt/rsyslog-web/.venv` und richtet den Dienst `rsyslog-web` mit eigenem
+Systembenutzer ein. Eine vorhandene Installation wird nicht überschrieben.
+Konfiguration: `/etc/rsyslog-web.env`; Datenbank: `/var/lib/rsyslog-web/syslog.db`.
+Dashboard: `http://SERVER-IP:8000`; Syslog: UDP/TCP 5514.
+Firewall passend zum eigenen LAN einrichten; die App hat weiterhin keine Anmeldung.
+Status: `systemctl status rsyslog-web`; Logs: `journalctl -u rsyslog-web`.
+
+Monitoring auf jedem Linux-/Proxmox-Gerät (nach Veröffentlichung):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Schello805/rsyslog/main/scripts/install-monitor.sh | sudo bash
+```
+
+Nur Hosts mit empfangenem `resource-monitor: HEARTBEAT` werden auf Ausfälle überwacht.
+Nach 5 Minuten ohne Heartbeat erzeugt der Server einmal ERROR, beim nächsten
+Heartbeat einmal WARN als Entwarnung. Diese Meldungen folgen den allgemeinen
+Alarmregeln; für sofortige Pushs Schwelle WARN und Häufigkeit 1 wählen.
+Der Status erscheint im Dashboard und unter `/api/hosts`. Normale stille Syslog-
+Absender (z. B. QNAP/UniFi ohne Agent) werden nicht als ausgefallen eingestuft.
+Heartbeats bleiben über Neustarts der Webapp gespeichert.
+
+Die Aufbewahrungsfrist aus den Einstellungen wird beim Start und stündlich geprüft.
+0 deaktiviert die Bereinigung. Freie SQLite-Seiten werden wiederverwendet;
+kein blockierendes VACUUM während des Betriebs. UDP hat eine Warteschlange von 2000
+Meldungen und vier Verarbeitungs-Worker. Bei Überlast werden weitere UDP-Meldungen
+gezählt und verworfen. TCP verarbeitet mit Rückstau, erlaubt höchstens 64 gleichzeitige Verbindungen und begrenzt Meldungen auf
+64 KiB (Leerlauf-Timeout: 120 Sekunden). Jeder Browser hat maximal 100 ausstehende Meldungen; langsame Verbindungen
+werden geschlossen und verbinden sich über die bestehende UI automatisch erneut.
+
+
+## Oberfläche nach Aufgaben
+
+Der Einstieg zeigt einen kompakten Überblick mit Erreichbarkeit und gespeicherten
+Fehlermeldungen. Unter „Logs prüfen“ stehen Suche und Meldungen im Mittelpunkt;
+weitere Filter, Export und Löschaktionen werden bei Bedarf geöffnet. „Gerätestatus“
+führt vom Host direkt zu seinen Logs. Die Einrichtungsseite zeigt nach Auswahl des
+Systems nur die passende Anleitung. Benachrichtigungskanäle, Alarmregeln und
+Aufbewahrung sind getrennte Bereiche. Bereiche lassen sich per URL-Fragment
+(`/#logs`, `/#devices`, `/settings#rules`) direkt öffnen.
+
+
+## Revision im Footer
+
+Der Footer zeigt automatisch `v1.0.0 · Rev. N (Commit)`. N ist die Anzahl der
+Commits des installierten Branches und steigt bei jedem normalen Commit.
+Die Anzeige aktualisiert sich beim Laden und jede Minute, auch ohne Serverneustart.
+Der Debian-Installer lädt die vollständige Git-Historie und speichert für den
+Dienstbenutzer einen Revisions-Fallback. Shallow Clones haben nur eine verkürzte
+Commit-Anzahl; bei eigenen Installationen daher vollständig klonen.
+Ein GitHub-Push aktualisiert keine bereits auf anderen Geräten installierte App.

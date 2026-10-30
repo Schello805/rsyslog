@@ -50,6 +50,12 @@
             70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
+        [hidden] { display: none !important; }
+        .workflow-link { padding: .65rem 1rem; border-radius: .65rem; font-size: .875rem; white-space: nowrap; color: #94a3b8; }
+        .workflow-link[aria-current="page"] { background: #0c4a6e; color: #e0f2fe; }
+        .workflow-link:hover { color: white; }
+        summary { list-style-position: inside; }
+        @media (max-width: 700px) { header > div { height: auto !important; min-height: 64px; flex-wrap: wrap; gap: .75rem; padding-top: .75rem; padding-bottom: .75rem; } #header-rev-badge { display:none; } #connection-status { padding:.4rem; white-space:nowrap; } }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
@@ -67,7 +73,7 @@
                             <h1 class="text-lg font-bold tracking-tight text-white">RSyslog <span class="text-sky-400">Web</span></h1>
                             <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">v1.0.0</span>
                         </div>
-                        <p class="text-xs text-slate-400">Zentraler Syslog-Empfänger & Live-Monitor</p>
+                        <p class="text-xs text-slate-400">Deine Systeme im Blick</p>
                     </div>
                 </a>
 
@@ -75,7 +81,7 @@
                 <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-800">
                     <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-950/60 text-sky-400 border border-sky-800/50 transition">
                         <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                        <span>Dashboard</span>
+                        <span>Überblick</span>
                     </a>
                     <a href="/guide" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
                         <i data-lucide="radio" class="w-4 h-4"></i>
@@ -108,17 +114,13 @@
                     <i id="stream-icon" data-lucide="pause" class="w-4 h-4"></i>
                 </button>
 
-                <!-- Send Test Log Button -->
-                <button onclick="openTestLogModal()" class="flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition shadow-sm">
-                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                    <span>Test-Log</span>
-                </button>
-
-                <!-- Test Alert Button -->
-                <button onclick="triggerTestAlert()" class="flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Testalarm an Telegram/Ntfy senden">
-                    <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-amber-400"></i>
-                    <span>Alarm testen</span>
-                </button>
+                <details class="relative">
+                    <summary class="cursor-pointer px-3 py-2 rounded-lg border border-slate-700 text-xs text-slate-300">Werkzeuge</summary>
+                    <div class="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl p-2 shadow-xl space-y-1">
+                        <button onclick="openTestLogModal(); this.closest('details').open=false" class="w-full text-left p-2 text-xs rounded-lg hover:bg-slate-800">Test-Log senden</button>
+                        <button onclick="triggerTestAlert(); this.closest('details').open=false" class="w-full text-left p-2 text-xs rounded-lg hover:bg-slate-800">Alarm testen</button>
+                    </div>
+                </details>
             </div>
         </div>
     </header>
@@ -126,6 +128,35 @@
     <!-- Main Content Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div><p class="text-xs text-sky-400 font-medium mb-2">BETRIEB</p>
+                <h2 id="workflow-title" class="text-2xl font-semibold tracking-tight">Was braucht Aufmerksamkeit?</h2>
+                <p id="workflow-description" class="text-sm text-slate-400 mt-2">Prüfe den Zustand deiner Umgebung und wähle den nächsten Schritt.</p>
+            </div>
+            <a href="/guide" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-sm font-medium">Gerät anbinden</a>
+        </div>
+        <nav aria-label="Arbeitsbereich" class="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+            <a href="#overview" data-workflow="overview" class="workflow-link">Überblick</a>
+            <a href="#logs" data-workflow="logs" class="workflow-link">Logs prüfen</a>
+            <a href="#devices" data-workflow="devices" class="workflow-link">Gerätestatus <span id="offline-badge"></span></a>
+        </nav>
+        <section data-panel="overview" class="space-y-6">
+            <div class="grid gap-4 sm:grid-cols-2">
+                <a href="#devices" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-sky-700 transition">
+                    <p class="text-xs text-slate-400">Erreichbarkeit</p><p id="overview-host-status" class="text-xl font-semibold mt-3">Status wird geladen …</p>
+                    <p class="text-sm text-slate-400 mt-3">Gerätestatus prüfen <span aria-hidden="true">→</span></p>
+                </a>
+                <a href="#logs" onclick="document.getElementById('filter-level').value='ERROR_CRITICAL'; fetchLogs(1)" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-sky-700 transition">
+                    <p class="text-xs text-slate-400">Gespeicherte Fehlermeldungen</p><p id="overview-error-count" class="text-xl font-semibold mt-3">…</p>
+                    <p class="text-sm text-slate-400 mt-3">Fehler untersuchen <span aria-hidden="true">→</span></p>
+                </a>
+            </div>
+            <div id="onboarding-hint" hidden class="rounded-2xl border border-sky-900 bg-sky-950/20 p-6">
+                <h3 class="font-semibold">Starte mit deinem ersten Gerät</h3>
+                <p class="text-sm text-slate-400 mt-2">Wähle dein System, richte die Weiterleitung ein und prüfe den Eingang der ersten Meldung.</p>
+                <a href="/guide" class="inline-block mt-4 text-sky-400 text-sm">Einrichtung starten →</a>
+            </div>
+            <details class="space-y-4"><summary class="cursor-pointer text-sm text-slate-400">Ereignisstatistik anzeigen</summary>
         <!-- Stat Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <!-- Total Logs -->
@@ -177,7 +208,7 @@
             <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-medium text-emerald-400">Aktive Hosts</p>
+                        <p class="text-xs font-medium text-emerald-400">Hosts in gespeicherten Logs</p>
                         <p id="stat-hosts" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
                     </div>
                     <div class="w-10 h-10 rounded-lg bg-emerald-950/50 border border-emerald-900/50 flex items-center justify-center text-emerald-400">
@@ -188,19 +219,35 @@
             </div>
         </div>
 
+            </details>
+        </section>
+        <section data-panel="devices" hidden class="space-y-4">
+        <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
+            <h2 class="text-sm font-semibold text-white">Geräte mit Lebenszeichen</h2>
+            <p class="text-xs text-slate-400 mt-1">Mit Monitoring-Skript: Ausfall nach 5 Minuten ohne Lebenszeichen.</p>
+            <div id="monitored-hosts" class="text-xs text-slate-300 mt-3 space-y-2">Noch keine Lebenszeichen.</div>
+            <p id="udp-dropped" class="text-xs text-amber-400 mt-2"></p>
+        </section>
+
+            <a href="/guide" class="inline-block text-sm text-sky-400">Überwachung für ein Gerät einrichten →</a>
+        </section>
+        <section data-panel="logs" hidden class="space-y-4">
         <!-- Filter and Search Toolbar -->
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
                 <!-- Search input -->
                 <div class="sm:col-span-4 relative">
                     <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                    <input type="text" id="filter-search" oninput="debounceFetchLogs()" placeholder="Volltextsuche in Nachricht, Host, App..." 
+                    <input type="text" aria-label="Logs durchsuchen" id="filter-search" oninput="debounceFetchLogs()" placeholder="Volltextsuche in Nachricht, Host, App..."
                         class="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent">
                 </div>
 
+                <details class="sm:col-span-8" id="advanced-filters">
+                    <summary class="cursor-pointer text-sm text-slate-300 py-2">Filter verfeinern <span id="active-filter-count" class="text-sky-400"></span></summary>
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-2">
                 <!-- Level Dropdown -->
-                <div class="sm:col-span-2">
-                    <select id="filter-level" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <div class="sm:col-span-1">
+                    <select aria-label="Schweregrad" id="filter-level" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Level</option>
                         <option value="ERROR_CRITICAL">🚨 Nur Fehler & Kritisch</option>
                         <option value="CRITICAL">Critical / Notfall</option>
@@ -213,30 +260,31 @@
                 </div>
 
                 <!-- Host Dropdown -->
-                <div class="sm:col-span-2">
-                    <select id="filter-host" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <div class="sm:col-span-1">
+                    <select aria-label="Host" id="filter-host" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Hosts</option>
                     </select>
                 </div>
 
                 <!-- App Dropdown -->
-                <div class="sm:col-span-2">
-                    <select id="filter-app" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <div class="sm:col-span-1">
+                    <select aria-label="Dienst" id="filter-app" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Dienste</option>
                     </select>
                 </div>
 
                 <!-- Page Size -->
-                <div class="sm:col-span-2">
-                    <select id="filter-limit" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <div class="sm:col-span-1">
+                    <select aria-label="Einträge pro Seite" id="filter-limit" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="25">25 pro Seite</option>
                         <option value="50" selected>50 pro Seite</option>
                         <option value="100">100 pro Seite</option>
                         <option value="250">250 pro Seite</option>
                     </select>
                 </div>
+                    </div>
+                </details>
             </div>
-
             <!-- Secondary Action Row -->
             <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800/80">
                 <div class="flex items-center space-x-2 text-slate-400">
@@ -245,7 +293,7 @@
                     <button onclick="resetFilters()" class="text-sky-400 hover:text-sky-300 ml-2 hover:underline">Filter zurücksetzen</button>
                 </div>
 
-                <div class="flex items-center space-x-2">
+                <details class="relative"><summary class="cursor-pointer text-slate-300 px-3 py-1">Aktionen</summary><div class="absolute right-0 top-full z-20 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-3 mt-2 flex flex-col gap-2 min-w-[180px]">
                     <!-- Export CSV -->
                     <button onclick="exportLogs('csv')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1">
                         <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
@@ -261,7 +309,7 @@
                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         <span>Leeren</span>
                     </button>
-                </div>
+                </div></details>
             </div>
         </div>
 
@@ -305,6 +353,7 @@
             </div>
         </div>
 
+        </section>
     </main>
 
     <!-- Detail Modal -->
@@ -493,6 +542,8 @@
         // Fetch logs from backend
         async function fetchLogs(page = 1) {
             currentPage = page;
+            const activeFilters = ['filter-level', 'filter-host', 'filter-app'].filter(id => document.getElementById(id).value !== 'ALL').length;
+            document.getElementById('active-filter-count').textContent = activeFilters ? `(${activeFilters} aktiv)` : '';
             const search = document.getElementById('filter-search').value;
             const level = document.getElementById('filter-level').value;
             const host = document.getElementById('filter-host').value;
@@ -535,7 +586,8 @@
                     <tr>
                         <td colspan="6" class="py-12 text-center text-slate-500 font-sans">
                             <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
-                            Keine Logs vorhanden.
+                            Keine passenden Meldungen vorhanden.
+                            <div class="mt-3"><a href="/guide" class="text-sky-400 hover:underline">Gerät anbinden oder Verbindung prüfen →</a></div>
                         </td>
                     </tr>
                 `;
@@ -558,7 +610,7 @@
                         <td class="py-2.5 px-4 text-slate-300 whitespace-nowrap truncate max-w-[140px]" title="${escapedApp}">${escapedApp}</td>
                         <td class="py-2.5 px-4 text-slate-200 truncate max-w-md" title="${escapedMsg}">${escapedMsg}</td>
                         <td class="py-2.5 px-4 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                            <button onclick='openDetailModal(${JSON.stringify(log)})' class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition" title="Details ansehen">
+                            <button onclick='openDetailModal(${escapeHtml(JSON.stringify(log))})' class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition" title="Details ansehen">
                                 <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                             </button>
                         </td>
@@ -595,6 +647,41 @@
                 document.getElementById('stat-error').innerText = `(${data.error} Fehler)`;
                 document.getElementById('stat-warn').innerText = data.warn;
                 document.getElementById('stat-hosts').innerText = data.active_hosts;
+                const hostsResponse = await fetch('/api/hosts');
+                const status = await hostsResponse.json();
+                const offline = status.hosts.filter(host => host.offline).length;
+                document.getElementById('overview-host-status').textContent = !status.hosts.length ? 'Noch keine Geräte überwacht' : offline ? `${offline} von ${status.hosts.length} Geräten offline` : `${status.hosts.length} Geräte erreichbar`;
+                document.getElementById('overview-host-status').className = `text-xl font-semibold mt-3 ${offline ? 'text-rose-400' : 'text-slate-100'}`;
+                document.getElementById('offline-badge').textContent = offline ? `(${offline} offline)` : '';
+                document.getElementById('overview-error-count').textContent = `${data.critical + data.error} Fehler und kritische Meldungen`;
+                document.getElementById('onboarding-hint').hidden = data.total > 0;
+                const list = document.getElementById('monitored-hosts');
+                list.replaceChildren();
+                if (!status.hosts.length) list.textContent = 'Noch keine Lebenszeichen.';
+                status.hosts.forEach(host => {
+                    const row = document.createElement('div');
+                    row.textContent = `${host.host}: ${host.offline ? 'OFFLINE' : 'Online'} · zuletzt ${new Date(host.last_seen * 1000).toLocaleString()}`;
+                    row.className = host.offline ? 'text-rose-400' : 'text-emerald-400';
+                    const action = document.createElement('button');
+                    action.type = 'button';
+                    action.textContent = 'Logs ansehen →';
+                    action.className = 'ml-4 text-sky-400 hover:underline';
+                    action.addEventListener('click', () => {
+                        const select = document.getElementById('filter-host');
+                        if (![...select.options].some(option => option.value === host.host)) select.add(new Option(host.host, host.host));
+                        document.getElementById('filter-search').value = '';
+                        document.getElementById('filter-app').value = 'ALL';
+                        document.getElementById('filter-level').value = 'ALL';
+                        select.value = host.host;
+                        document.getElementById('advanced-filters').open = true;
+                        location.hash = 'logs';
+                        fetchLogs(1);
+                    });
+                    row.appendChild(action);
+                    list.appendChild(row);
+                });
+                document.getElementById('udp-dropped').textContent = status.udp_dropped
+                    ? `Wegen Überlast verworfene UDP-Meldungen seit Start: ${status.udp_dropped}` : '';
             } catch (err) {
                 console.error('Stats error:', err);
             }
@@ -859,10 +946,10 @@
         // Fetch version info for header & footer
         async function loadVersionInfo() {
             try {
-                const res = await fetch('/api/version');
+                const res = await fetch('/api/version', { cache: 'no-store' });
                 const data = await res.json();
                 document.getElementById('header-rev-badge').innerText = `v${data.version}`;
-                document.getElementById('footer-rev-text').innerText = `Rev. ${data.display}`;
+                document.getElementById('footer-rev-text').innerText = data.display;
                 if (data.github_url) {
                     document.getElementById('footer-github-link').href = data.github_url;
                 }
@@ -882,10 +969,29 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function showWorkflow() {
+            const key = ['overview', 'logs', 'devices'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+            const copy = {
+                overview: ['Was braucht Aufmerksamkeit?', 'Prüfe den Zustand deiner Umgebung und wähle den nächsten Schritt.'],
+                logs: ['Meldungen untersuchen', 'Suche nach einem Ereignis und grenze bei Bedarf Host, Dienst oder Level ein.'],
+                devices: ['Sind deine Geräte erreichbar?', 'Prüfe Lebenszeichen und springe direkt zu den Meldungen eines Geräts.']
+            };
+            document.querySelectorAll('[data-panel]').forEach(panel => panel.hidden = panel.dataset.panel !== key);
+            document.querySelectorAll('[data-workflow]').forEach(link => {
+                const active = link.dataset.workflow === key;
+                link.setAttribute('aria-current', active ? 'page' : 'false');
+            });
+            document.getElementById('workflow-title').textContent = copy[key][0];
+            document.getElementById('workflow-description').textContent = copy[key][1];
+        }
+        window.addEventListener('hashchange', showWorkflow);
+
         // Init on page load
         document.addEventListener('DOMContentLoaded', () => {
+            showWorkflow();
             lucide.createIcons();
             loadVersionInfo();
+            setInterval(loadVersionInfo, 60000);
             fetchLogs(1);
             fetchStats();
             fetchFilters();
