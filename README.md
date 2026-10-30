@@ -248,3 +248,10 @@ Die Auswahl wird pro Browser gespeichert und gilt auch für CSV-/JSON-Exporte,
 Sortierung und Seitenwechsel. Einzelne Hosts lassen sich über die Markierungen
 wieder einblenden; „Filter zurücksetzen“ zeigt alle wieder an. Speicherung,
 Alarmierung und Systemkennzahlen bleiben unverändert.
+
+
+Eigene Hostnamen vergibst du unter **Gerätestatus → Benennen** oder direkt unter
+dem Host-Filter bei einem ausgewählten Absender. Anzeigenamen gelten zentral für
+alle Browser und bereits gespeicherte Meldungen, sind durchsuchbar und erscheinen
+im Export. Der ursprüngliche Host bleibt die eindeutige Kennung für Filter und
+Ausschlüsse. Ein leeres Namensfeld setzt die Anzeige zurück.

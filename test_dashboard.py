@@ -167,6 +167,40 @@ class DashboardTests(unittest.TestCase):
                 self.assertEqual([row['host'] for row in exported.json()], ['quiet-a','quiet-b',"quote'host"])
         asyncio.run(check())
 
+    def test_host_names_preserve_identity_and_apply_to_old_logs(self):
+        database.insert_log('192.0.2.1', 'app', 'INFO', 'old message')
+        database.set_host_alias('192.0.2.1', 'QNAP NAS')
+        rows, total = database.get_logs(search='QNAP')
+        self.assertEqual(total, 1)
+        self.assertEqual(rows[0]['host'], '192.0.2.1')
+        self.assertEqual(rows[0]['display_host'], 'QNAP NAS')
+        self.assertEqual(database.get_filter_options()['host_labels']['192.0.2.1'], 'QNAP NAS')
+        self.assertEqual(database.get_logs(host='192.0.2.1')[1], 1)
+        self.assertEqual(database.get_logs(exclude_hosts=['192.0.2.1'])[1], 0)
+        self.assertEqual(database.get_dashboard_summary()['hosts'][0]['display_host'], 'QNAP NAS')
+        self.assertEqual(database.insert_log('192.0.2.1','app','INFO','new')['display_host'], 'QNAP NAS')
+        database.set_host_alias('192.0.2.1', '')
+        self.assertEqual(database.get_logs()[0][0]['display_host'], '192.0.2.1')
+
+    def test_host_name_api_persists_and_validates(self):
+        import asyncio
+        import httpx
+        import main
+        async def check():
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
+                response = await client.put('/api/hosts/name',json={'host':'192.0.2.2','name':'Switch Büro'})
+                self.assertEqual(response.status_code,200)
+                self.assertEqual(response.json()['display_host'],'Switch Büro')
+                invalid = await client.put('/api/hosts/name',json={'host':'192.0.2.2','name':'a'*81})
+                self.assertEqual(invalid.status_code,422)
+                invalid = await client.put('/api/hosts/name',json={'host':'192.0.2.2','name':'line\nbreak'})
+                self.assertEqual(invalid.status_code,422)
+            database._local.connection.close()
+            database._local.connection = None
+            database.init_db()
+            self.assertEqual(database.get_host_aliases()['192.0.2.2'],'Switch Büro')
+        asyncio.run(check())
+
     def test_version_patch_follows_revision_and_fallback(self):
         with patch.object(version, 'get_revision_number', return_value=15), patch.object(version, 'get_git_revision', return_value='abc'):
             info = version.get_version_info()

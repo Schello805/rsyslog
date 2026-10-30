@@ -63,6 +63,8 @@ def init_db() -> None:
 
         conn.execute("CREATE TABLE IF NOT EXISTS monitored_hosts (host TEXT PRIMARY KEY, last_seen REAL NOT NULL, offline INTEGER NOT NULL DEFAULT 0)")
 
+        conn.execute("CREATE TABLE IF NOT EXISTS host_aliases (host TEXT PRIMARY KEY, name TEXT NOT NULL)")
+
         # Settings Key-Value Table
         conn.execute(
             """
@@ -220,6 +222,7 @@ def insert_log(
         "id": log_id,
         "timestamp": timestamp,
         "host": clean_host,
+        "display_host": get_host_display_name(clean_host),
         "app": clean_app,
         "level": normalized_level,
         "facility": facility or "user",
@@ -275,8 +278,8 @@ def get_logs(
 
     if search and search.strip():
         search_term = f"%{search.strip()}%"
-        conditions.append("(message LIKE ? OR host LIKE ? OR app LIKE ?)")
-        params.extend([search_term, search_term, search_term])
+        conditions.append("(message LIKE ? OR host LIKE ? OR app LIKE ? OR EXISTS (SELECT 1 FROM host_aliases WHERE host_aliases.host=logs.host AND name LIKE ?))")
+        params.extend([search_term, search_term, search_term, search_term])
 
     if hours is not None:
         conditions.append("julianday(COALESCE(NULLIF(received_at,''),timestamp)) >= julianday('now', ?)")
@@ -295,7 +298,7 @@ def get_logs(
     sort_columns = {
         'timestamp': 'COALESCE(julianday(timestamp), julianday(received_at))',
         'level': "CASE level WHEN 'DEBUG' THEN 0 WHEN 'INFO' THEN 1 WHEN 'NOTICE' THEN 2 WHEN 'WARN' THEN 3 WHEN 'WARNING' THEN 3 WHEN 'ERROR' THEN 4 WHEN 'CRITICAL' THEN 5 WHEN 'ALERT' THEN 6 WHEN 'EMERGENCY' THEN 7 ELSE -1 END",
-        'host': 'host COLLATE NOCASE',
+        'host': 'COALESCE((SELECT name FROM host_aliases WHERE host_aliases.host=logs.host),host) COLLATE NOCASE',
         'app': 'app COLLATE NOCASE',
         'message': 'message COLLATE NOCASE',
     }
@@ -317,7 +320,9 @@ def get_logs(
     rows = cursor.fetchall()
 
     logs = [dict(row) for row in rows]
+    aliases = get_host_aliases()
     for log in logs:
+        log["display_host"] = aliases.get(log["host"], log["host"])
         try:
             log['metadata'] = json.loads(log['metadata'])
         except (ValueError, TypeError):
@@ -358,7 +363,7 @@ def get_stats() -> Dict[str, Any]:
     }
 
 
-def get_filter_options() -> Dict[str, List[str]]:
+def get_filter_options() -> Dict[str, Any]:
     """Returns distinct hosts and applications for UI dropdown filters."""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -371,6 +376,7 @@ def get_filter_options() -> Dict[str, List[str]]:
 
     return {
         "hosts": hosts,
+        "host_labels": get_host_aliases(),
         "apps": apps,
     }
 
@@ -432,6 +438,9 @@ def get_dashboard_summary():
     for host in hosts.values():
         host.setdefault('heartbeat_last_seen', None)
         host.setdefault('status', 'syslog')
+    aliases = get_host_aliases()
+    for host in hosts.values():
+        host["display_host"] = aliases.get(host["host"], host["host"])
     devices = sorted(hosts.values(), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
     def entries(extra=''):
         rows = conn.execute(f"""SELECT id,timestamp,host,app,level,facility,message,raw,metadata
@@ -439,6 +448,7 @@ def get_dashboard_summary():
             ORDER BY id DESC LIMIT 6""").fetchall()
         result = [dict(row) for row in rows]
         for entry in result:
+            entry['display_host'] = aliases.get(entry['host'], entry['host'])
             entry['metadata'] = json.loads(entry['metadata'] or '{}')
         return result
     return dict(**totals, hosts=devices, known_hosts=len(devices),
@@ -460,3 +470,23 @@ def get_ingestion_metrics():
     counts['logs_per_minute_5m'] = round(counts.pop('logs_last_5_minutes') / 5, 1)
     counts['events_last_minute'] = counts['logs_last_minute'] - counts['heartbeats_last_minute']
     return counts
+
+
+def get_host_aliases():
+    return {row['host']: row['name'] for row in get_db_connection().execute('SELECT host,name FROM host_aliases')}
+
+
+def set_host_alias(host, name):
+    host, name = host.strip(), name.strip()
+    conn = get_db_connection()
+    with conn:
+        if name:
+            conn.execute('INSERT INTO host_aliases(host,name) VALUES(?,?) ON CONFLICT(host) DO UPDATE SET name=excluded.name', (host,name))
+        else:
+            conn.execute('DELETE FROM host_aliases WHERE host=?', (host,))
+    return {'host':host, 'display_host':name or host}
+
+
+def get_host_display_name(host):
+    row = get_db_connection().execute('SELECT name FROM host_aliases WHERE host=?', (host,)).fetchone()
+    return row['name'] if row else host

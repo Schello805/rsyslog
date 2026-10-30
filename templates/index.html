@@ -177,7 +177,7 @@
         <section data-panel="devices" hidden class="space-y-4">
         <section class="bg-white border border-slate-200 rounded-2xl p-4 mb-6">
             <h2 class="text-sm font-semibold text-slate-900">Alle bekannten Absender</h2>
-            <p class="text-xs text-slate-600 mt-1">Syslog zeigt Meldungsaktivität. Nur Geräte mit Lebenszeichen können als online oder offline eingestuft werden.</p>
+            <p class="text-xs text-slate-600 mt-1">Über „Benennen“ vergibst du Anzeigenamen. Nur Geräte mit Lebenszeichen können als online oder offline eingestuft werden.</p>
             <div id="monitored-hosts" class="text-xs text-slate-700 mt-3 space-y-2">Noch keine Lebenszeichen.</div>
             <p id="udp-dropped" class="text-xs text-amber-700 mt-2"></p>
         </section>
@@ -214,9 +214,10 @@
 
                 <!-- Host Dropdown -->
                 <div class="sm:col-span-1">
-                    <select aria-label="Host" id="filter-host" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <select aria-label="Host" id="filter-host" onchange="updateHostNameButton(); fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Hosts</option>
                     </select>
+                    <button id="filter-host-name" type="button" disabled onclick="openSelectedHostName()" class="mt-1 text-xs text-sky-700 hover:underline disabled:opacity-40 disabled:cursor-not-allowed">Ausgewählten Host benennen</button>
                 </div>
 
                 <!-- App Dropdown -->
@@ -332,6 +333,19 @@
         </section>
     </main>
 
+    <dialog id="host-name-dialog" class="bg-white text-slate-900 border border-slate-300 rounded-2xl p-6 w-full max-w-md shadow-xl">
+        <form onsubmit="saveHostName(event)" class="space-y-4">
+            <h2 class="text-lg font-semibold">Host benennen</h2>
+            <p id="host-name-original" class="text-sm text-slate-600 break-all"></p>
+            <div><label for="host-name-input" class="block text-sm font-medium mb-2">Anzeigename</label>
+                <input id="host-name-input" maxlength="80" placeholder="Zum Beispiel QNAP NAS" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg">
+            </div>
+            <p class="text-xs text-slate-500">Gilt für alle Browser und für bereits gespeicherte Logs. Die ursprüngliche Host-Kennung bleibt erhalten. Ein leeres Feld stellt den Originalnamen wieder her.</p>
+            <p id="host-name-error" role="alert" class="text-sm text-rose-700"></p>
+            <div class="flex justify-end gap-3"><button type="button" onclick="document.getElementById('host-name-dialog').close()" class="px-3 py-2 text-sm">Abbrechen</button>
+                <button id="host-name-save" type="submit" class="px-4 py-2 bg-sky-700 text-white rounded-lg text-sm">Speichern</button></div>
+        </form>
+    </dialog>
     <!-- Detail Modal -->
     <div id="detail-modal" class="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white border border-slate-300 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
@@ -499,6 +513,9 @@
         let logRequestController = null;
         let excludedHosts = new Set();
         let availableExcludeHosts = [];
+        let hostLabels = Object.create(null);
+        let hostBeingNamed = null;
+        function hostLabel(host, supplied) { const label = supplied || (Object.hasOwn(hostLabels, host) ? hostLabels[host] : null); return label && label !== host ? `${label} (${host})` : host; }
         try {
             const saved = JSON.parse(localStorage.getItem('rsyslog-excluded-hosts') || '[]');
             if (Array.isArray(saved)) excludedHosts = new Set(saved.filter(host => typeof host === 'string' && host.trim()).slice(0, 200));
@@ -522,7 +539,7 @@
             const focusedHost = list.contains(document.activeElement) ? document.activeElement.dataset.host : null;
             list.replaceChildren();
             const hosts = [...new Set([...availableExcludeHosts, ...excludedHosts])].sort((a, b) => a.localeCompare(b));
-            const matches = hosts.filter(host => host.toLowerCase().includes(search));
+            const matches = hosts.filter(host => hostLabel(host).toLowerCase().includes(search));
             if (!matches.length) { const empty = document.createElement('p'); empty.textContent = 'Keine passenden Hosts'; empty.className = 'text-xs text-slate-600 py-2'; list.append(empty); }
             matches.forEach(host => {
                 const label = document.createElement('label'); label.className = 'flex items-center gap-2 p-2 text-xs rounded hover:bg-slate-100 cursor-pointer';
@@ -532,7 +549,7 @@
                     if (checkbox.checked) excludedHosts.add(host); else excludedHosts.delete(host);
                     saveExcludedHosts(); fetchLogs(1);
                 });
-                const name = document.createElement('span'); name.textContent = host;
+                const name = document.createElement('span'); name.textContent = hostLabel(host);
                 label.append(checkbox, name); list.append(label);
             });
             list.scrollTop = previousScroll;
@@ -543,7 +560,7 @@
             excludedHosts.forEach(host => {
                 const button = document.createElement('button'); button.type = 'button';
                 button.className = 'text-xs px-2 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700';
-                button.textContent = `${host} ×`; button.setAttribute('aria-label', `${host} wieder anzeigen`);
+                button.textContent = `${hostLabel(host)} ×`; button.setAttribute('aria-label', `${hostLabel(host)} wieder anzeigen`);
                 button.addEventListener('click', () => { excludedHosts.delete(host); saveExcludedHosts(); fetchLogs(1); }); chips.append(button);
             });
         }
@@ -659,7 +676,8 @@
 
             tbody.innerHTML = logs.map(log => {
                 const escapedMsg = escapeHtml(log.message);
-                const escapedHost = escapeHtml(log.host);
+                const escapedHost = escapeHtml(log.display_host || hostLabels[log.host] || log.host);
+                const sourceHost = escapeHtml(log.host);
                 const escapedApp = escapeHtml(log.app);
                 const formattedTime = formatTimestamp(log.timestamp);
                 const levelBadge = getLevelBadge(log.level);
@@ -668,7 +686,7 @@
                     <tr class="log-row ${severityClass(log.level)} transition cursor-pointer group" onclick="openDetailModal(${escapeHtml(JSON.stringify(log))})">
                         <td class="py-2.5 px-4 text-slate-600 whitespace-nowrap">${formattedTime}</td>
                         <td class="py-2.5 px-4 whitespace-nowrap">${levelBadge}</td>
-                        <td class="py-2.5 px-4 text-slate-700 font-medium whitespace-nowrap truncate max-w-[140px]" title="${escapedHost}">${escapedHost}</td>
+                        <td class="py-2.5 px-4 text-slate-700 font-medium whitespace-nowrap truncate max-w-[140px]" title="${sourceHost}">${escapedHost}${escapedHost !== sourceHost ? `<span class="block text-[10px] text-slate-500">${sourceHost}</span>` : ''}</td>
                         <td class="py-2.5 px-4 text-slate-700 whitespace-nowrap truncate max-w-[140px]" title="${escapedApp}">${escapedApp}</td>
                         <td class="py-2.5 px-4 text-slate-800 truncate max-w-md" title="${escapedMsg}">${escapedMsg}</td>
                         <td class="py-2.5 px-4 text-right whitespace-nowrap" onclick="event.stopPropagation()">
@@ -706,26 +724,60 @@
             document.getElementById('filter-level').value = level;
             document.getElementById('filter-period').value = hours;
             const select = document.getElementById('filter-host');
-            if (![...select.options].some(option => option.value === host)) select.add(new Option(host, host));
+            if (![...select.options].some(option => option.value === host)) select.add(new Option(hostLabel(host), host));
             select.value = host;
+            updateHostNameButton();
             location.hash = 'logs';
             fetchLogs(1);
         }
 
+        function updateHostNameButton() { document.getElementById('filter-host-name').disabled = document.getElementById('filter-host').value === 'ALL'; }
+        function openSelectedHostName() {
+            const host = document.getElementById('filter-host').value;
+            if (host !== 'ALL') openHostNameDialog({host, display_host:hostLabels[host] || host});
+        }
+
+        function openHostNameDialog(host) {
+            hostBeingNamed = host.host;
+            document.getElementById('host-name-original').textContent = `Ursprünglicher Host: ${host.host}`;
+            const name = host.display_host || hostLabels[host.host] || host.host;
+            document.getElementById('host-name-input').value = name !== host.host ? name : '';
+            document.getElementById('host-name-error').textContent = '';
+            document.getElementById('host-name-dialog').showModal();
+        }
+
+        async function saveHostName(event) {
+            event.preventDefault();
+            const button = document.getElementById('host-name-save'); button.disabled = true;
+            try {
+                const response = await fetch('/api/hosts/name', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({host:hostBeingNamed, name:document.getElementById('host-name-input').value.trim()})});
+                if (!response.ok) throw new Error('Anzeigename konnte nicht gespeichert werden.');
+                document.getElementById('host-name-dialog').close();
+                await fetchFilters(); await fetchStats(); await fetchLogs(currentPage);
+                showToast('Hostname gespeichert.', 'success');
+            } catch (error) { document.getElementById('host-name-error').textContent = error.message; }
+            finally { button.disabled = false; }
+        }
+
         function deviceCard(host) {
-            const card = document.createElement('button');
-            card.type = 'button';
+            const card = document.createElement('article');
             card.className = 'text-left p-3 rounded-xl bg-slate-50/60 border border-slate-200 hover:border-sky-300 min-w-0';
             const name = document.createElement('p');
-            name.className = 'text-sm font-medium truncate'; name.textContent = host.host;
+            name.className = 'text-sm font-medium truncate'; name.textContent = host.display_host || hostLabels[host.host] || host.host;
             const status = document.createElement('p');
             status.className = 'text-xs mt-1 ' + (host.status === 'offline' ? 'text-rose-700' : host.status === 'online' ? 'text-emerald-700' : 'text-slate-600');
             status.textContent = host.status === 'offline' ? 'Offline · Lebenszeichen fehlt' : host.status === 'online' ? 'Online · Lebenszeichen empfangen' : 'Syslog-Absender · Erreichbarkeit unbekannt';
             const activity = document.createElement('p');
             activity.className = 'text-xs text-slate-500 mt-2';
             activity.textContent = host.last_message ? `Letzte Meldung: ${formatTimestamp(host.last_message)} · ${host.errors_24h} Fehler / 24 h` : 'Noch keine gespeicherten Meldungen';
-            card.append(name, status, activity);
-            card.addEventListener('click', () => openLogFilter('ALL', host.host));
+            const identity = document.createElement('p'); identity.className = 'text-xs text-slate-500 mt-1';
+            identity.textContent = host.display_host && host.display_host !== host.host ? host.host : '';
+            const actions = document.createElement('div'); actions.className = 'flex gap-4 mt-3 text-xs text-sky-700';
+            const logs = document.createElement('button'); logs.type = 'button'; logs.textContent = 'Logs ansehen →';
+            logs.addEventListener('click', () => openLogFilter('ALL', host.host));
+            const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Benennen'; edit.setAttribute('aria-label', `${hostLabel(host.host, host.display_host)} benennen`);
+            edit.addEventListener('click', () => openHostNameDialog(host)); actions.append(logs, edit);
+            card.append(name, identity, status, activity, actions);
             return card;
         }
 
@@ -739,7 +791,7 @@
                 button.className = `severity-card ${severityClass(log.level)} block w-full text-left rounded-xl p-3`;
                 const meta = document.createElement('p');
                 meta.className = 'text-xs font-semibold level-caption';
-                meta.textContent = `${log.level} · ${log.host} · ${formatTimestamp(log.timestamp)}`;
+                meta.textContent = `${log.level} · ${log.display_host || hostLabels[log.host] || log.host} · ${formatTimestamp(log.timestamp)}`;
                 const message = document.createElement('p');
                 message.className = 'text-sm text-slate-700 mt-1 truncate'; message.textContent = log.message;
                 button.append(meta, message); button.addEventListener('click', () => openDetailModal(log)); container.append(button);
@@ -782,12 +834,15 @@
                 const res = await fetch('/api/filters');
                 const data = await res.json();
                 
-                if (JSON.stringify(availableExcludeHosts) !== JSON.stringify(data.hosts)) { availableExcludeHosts = data.hosts; renderExcludedHosts(); }
+                const labelsChanged = JSON.stringify(hostLabels) !== JSON.stringify(data.host_labels || {});
+                hostLabels = Object.assign(Object.create(null), data.host_labels || {});
+                if (labelsChanged || JSON.stringify(availableExcludeHosts) !== JSON.stringify(data.hosts)) { availableExcludeHosts = data.hosts; renderExcludedHosts(); }
                 const hostSelect = document.getElementById('filter-host');
                 const currentHost = hostSelect.value;
                 hostSelect.innerHTML = '<option value="ALL">Alle Hosts</option>' + 
-                    data.hosts.map(h => `<option value="${escapeHtml(h)}" ${h === currentHost ? 'selected' : ''}>${escapeHtml(h)}</option>`).join('');
+                    data.hosts.map(h => `<option value="${escapeHtml(h)}" ${h === currentHost ? 'selected' : ''}>${escapeHtml(hostLabel(h))}</option>`).join('');
 
+                updateHostNameButton();
                 const appSelect = document.getElementById('filter-app');
                 const currentApp = appSelect.value;
                 appSelect.innerHTML = '<option value="ALL">Alle Dienste</option>' + 
@@ -804,6 +859,7 @@
             document.getElementById('filter-level').value = 'ALL';
             document.getElementById('filter-period').value = 'ALL';
             document.getElementById('filter-host').value = 'ALL';
+            updateHostNameButton();
             document.getElementById('filter-app').value = 'ALL';
             fetchLogs(1);
         }
@@ -864,7 +920,7 @@
             document.getElementById('modal-level-badge').className = `level-badge ${severityClass(log.level)}`;
             document.getElementById('modal-level-badge').innerText = log.level;
             document.getElementById('modal-timestamp').innerText = log.timestamp;
-            document.getElementById('modal-host').innerText = log.host;
+            document.getElementById('modal-host').innerText = hostLabel(log.host, log.display_host);
             document.getElementById('modal-app').innerText = log.app;
             document.getElementById('modal-facility').innerText = log.facility || 'user';
             document.getElementById('modal-message').innerText = log.message;

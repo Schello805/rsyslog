@@ -250,6 +250,19 @@ async def api_get_logs(
     }
 
 
+class HostNamePayload(BaseModel):
+    host: str = Field(..., min_length=1, max_length=255)
+    name: str = Field('', max_length=80)
+
+
+@app.put('/api/hosts/name')
+async def api_set_host_name(payload: HostNamePayload):
+    from database import set_host_alias
+    if not payload.host.strip() or any(ord(char) < 32 for char in payload.name):
+        raise HTTPException(422, 'Bitte einen gültigen Host und einen einzeiligen Anzeigenamen verwenden')
+    return set_host_alias(payload.host, payload.name)
+
+
 @app.get("/api/hosts")
 async def api_hosts():
     from database import get_monitored_hosts
@@ -397,13 +410,14 @@ async def api_export_logs(
     else:
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["ID", "Timestamp", "Level", "Host", "App", "Facility", "Message"])
+        writer.writerow(["ID", "Timestamp", "Level", "Host", "Anzeigename", "App", "Facility", "Message"])
         for row in logs:
             writer.writerow([
                 row.get("id"),
                 row.get("timestamp"),
                 row.get("level"),
                 row.get("host"),
+                row.get("display_host", row.get("host")),
                 row.get("app"),
                 row.get("facility"),
                 row.get("message"),
