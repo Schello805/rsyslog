@@ -28,6 +28,15 @@
         ::-webkit-scrollbar-track { background: #111827; }
         ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        .system-card { background:#0f172a; border:1px solid #1e293b; border-radius:1rem; padding:1.25rem; }
+        .system-card p, .system-card small { font-size:.75rem; color:#94a3b8; }
+        .system-card strong { display:block; margin:.75rem 0; font-size:1.75rem; font-weight:600; }
+        #system-storage-progress { appearance:none; height:8px; border:0; border-radius:4px; background:#1e293b; overflow:hidden; }
+        #system-storage-progress::-webkit-progress-bar { background:#1e293b; }
+        #system-storage-progress::-webkit-progress-value { background:var(--storage-color,#38bdf8); }
+        #system-storage-progress::-moz-progress-bar { background:var(--storage-color,#38bdf8); }
+        .system-list { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.75rem; font-size:.875rem; }
+        .system-list dt { color:#94a3b8; } .system-list dd { text-align:right; }
         [hidden] { display:none !important; }
         .settings-tab { padding:.7rem 1rem; border-radius:.75rem; color:#94a3b8; font-size:.875rem; border:1px solid #1e293b; }
         .settings-tab[aria-current="page"] { color:#e0f2fe; background:#0c4a6e; border-color:#075985; }
@@ -77,7 +86,7 @@
                 <a href="/" class="flex sm:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white" title="Zurück zum Dashboard">
                     <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
                 </a>
-                <button onclick="saveSettings()" class="flex items-center space-x-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition shadow-sm">
+                <button data-settings-save onclick="saveSettings()" class="flex items-center space-x-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition shadow-sm">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     <span>Einstellungen speichern</span>
                 </button>
@@ -106,6 +115,7 @@
             <nav aria-label="Einstellungen" class="flex gap-2 flex-wrap">
                 <a href="#channels" data-settings-link="channels" class="settings-tab">1. Benachrichtigungskanal</a>
                 <a href="#rules" data-settings-link="rules" class="settings-tab">2. Alarmregeln</a>
+                <a href="#system" data-settings-link="system" class="settings-tab">System</a>
                 <a href="#maintenance" data-settings-link="maintenance" class="settings-tab">Daten aufbewahren</a>
             </nav>
             <section data-settings-panel="channels" class="space-y-4">
@@ -343,6 +353,35 @@
             </div>
 
             </section>
+            <section data-settings-panel="system" hidden class="space-y-6">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="system-card"><p>Logs · letzte Minute</p><strong id="system-rate">…</strong><small id="system-rate-average"></small></div>
+                    <div class="system-card"><p>Gespeicherte Logs</p><strong id="system-log-total">…</strong><small>In der aktuellen Datenbank</small></div>
+                    <div class="system-card"><p>Bekannte Absender</p><strong id="system-host-total">…</strong><small id="system-host-active"></small></div>
+                    <div class="system-card"><p>Laufzeit der Webapp</p><strong id="system-uptime">…</strong><small>Seit letztem App-Start</small></div>
+                </div>
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                        <h3 class="font-semibold">Speicher des RSyslog-Servers</h3>
+                        <p class="text-xs text-slate-400">Dateisystem, auf dem die Log-Datenbank liegt. Keine Messwerte der angebundenen Geräte.</p>
+                        <p id="system-storage-label" class="text-lg font-semibold">…</p>
+                        <progress id="system-storage-progress" max="100" value="0" aria-label="Belegung des Datenbank-Dateisystems" style="width:100%;accent-color:#38bdf8"></progress>
+                        <dl class="system-list"><dt>Belegt</dt><dd id="system-storage-used">…</dd><dt>Verfügbar</dt><dd id="system-storage-free">…</dd><dt>Gesamtkapazität</dt><dd id="system-storage-total">…</dd></dl>
+                    </section>
+                    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                        <h3 class="font-semibold">Log-Datenbank</h3>
+                        <dl class="system-list"><dt>Datenbankdatei</dt><dd id="system-db-size">…</dd><dt>Schreibprotokoll (WAL)</dt><dd id="system-db-wal">…</dd><dt>Verwaltung (SHM)</dt><dd id="system-db-shm">…</dd><dt>Dateien insgesamt</dt><dd id="system-db-total">…</dd><dt>Aufbewahrungsfrist</dt><dd id="system-retention">…</dd></dl>
+                        <p id="system-db-path" class="text-xs text-slate-500 break-all"></p>
+                        <a href="#maintenance" class="inline-block text-sm text-sky-400">Aufbewahrung ändern →</a>
+                    </section>
+                </div>
+                <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <h3 class="font-semibold">Empfang & Überwachung</h3>
+                    <dl class="system-list"><dt>UDP-Empfang</dt><dd id="system-udp">…</dd><dt>TCP-Empfang</dt><dd id="system-tcp">…</dd><dt>Empfangswarteschlange</dt><dd id="system-queue">…</dd><dt>UDP wegen Überlast verworfen</dt><dd id="system-dropped">…</dd><dt>TCP-Verbindungen</dt><dd id="system-tcp-clients">…</dd><dt>Live-Dashboards</dt><dd id="system-ws-clients">…</dd><dt>Lebenszeichen-Überwachung</dt><dd id="system-heartbeats">…</dd></dl>
+                    <p id="system-rate-detail" class="text-xs text-slate-400"></p>
+                </section>
+                <p id="system-metrics-updated" role="status" class="text-xs text-slate-500">Kennzahlen werden geladen …</p>
+            </section>
             <!-- Bottom Sticky Action Bar -->
             <div class="flex items-center justify-between pt-4">
                 <a href="/" class="text-xs text-slate-400 hover:text-white flex items-center space-x-1">
@@ -350,7 +389,7 @@
                     <span>Zurück zum Dashboard</span>
                 </a>
 
-                <button type="submit" class="flex items-center space-x-2 text-sm font-semibold px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white transition shadow-lg shadow-sky-600/30">
+                <button data-settings-save type="submit" class="flex items-center space-x-2 text-sm font-semibold px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white transition shadow-lg shadow-sky-600/30">
                     <i data-lucide="check" class="w-4 h-4"></i>
                     <span>Alle Einstellungen speichern</span>
                 </button>
@@ -584,12 +623,62 @@
             }, 3500);
         }
 
+        function formatBytes(value) {
+            if (!Number.isFinite(value)) return 'Nicht verfügbar';
+            const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+            let unit = 0;
+            while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+            return `${value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} ${units[unit]}`;
+        }
+
+        let systemMetricsLoading = false;
+        async function loadSystemMetrics() {
+            if (systemMetricsLoading) return;
+            systemMetricsLoading = true;
+            const text = (id, value) => document.getElementById(id).textContent = value;
+            try {
+                const response = await fetch('/api/system', { cache: 'no-store' });
+                if (!response.ok) throw new Error('Kennzahlen nicht verfügbar');
+                const data = await response.json();
+                text('system-rate', data.logs_last_minute.toLocaleString('de-DE'));
+                text('system-rate-average', `Ø ${data.logs_per_minute_5m.toLocaleString('de-DE')}/min über 5 Minuten`);
+                text('system-log-total', data.total_logs.toLocaleString('de-DE'));
+                text('system-host-total', data.known_hosts);
+                text('system-host-active', `${data.active_hosts_15m} aktiv in den letzten 15 Minuten`);
+                const minutes = Math.floor(data.uptime_seconds / 60);
+                text('system-uptime', minutes < 1 ? `${data.uptime_seconds} Sek` : `${Math.floor(minutes / 1440)} T ${Math.floor(minutes / 60) % 24} Std ${minutes % 60} Min`);
+                text('system-storage-label', `${data.storage.used_percent.toLocaleString('de-DE')} % belegt`);
+                const progress = document.getElementById('system-storage-progress');
+                progress.value = data.storage.used_percent;
+                progress.style.setProperty('--storage-color', data.storage.used_percent >= 90 ? '#fb7185' : '#38bdf8');
+                for (const [key, value] of [['used',data.storage.used_bytes],['free',data.storage.free_bytes],['total',data.storage.total_bytes]]) text(`system-storage-${key}`, formatBytes(value));
+                text('system-db-size', formatBytes(data.database.database_bytes));
+                text('system-db-wal', formatBytes(data.database.wal_bytes));
+                text('system-db-shm', formatBytes(data.database.shared_memory_bytes));
+                text('system-db-total', formatBytes(data.database.total_bytes));
+                text('system-db-path', data.database.path);
+                text('system-retention', data.retention_days > 0 ? `${data.retention_days} Tage` : 'Unbegrenzt');
+                text('system-udp', data.receiver.udp_listening ? `Aktiv · Port ${data.receiver.udp_port}` : 'Nicht aktiv');
+                text('system-tcp', data.receiver.tcp_listening ? `Aktiv · Port ${data.receiver.tcp_port}` : 'Nicht aktiv');
+                text('system-queue', `${data.receiver.queue_size} / ${data.receiver.queue_capacity}`);
+                text('system-dropped', data.receiver.udp_dropped.toLocaleString('de-DE'));
+                text('system-tcp-clients', data.receiver.tcp_connections);
+                text('system-ws-clients', data.websocket_clients);
+                text('system-heartbeats', `${data.heartbeat_hosts} Geräte · ${data.offline_hosts} offline`);
+                text('system-rate-detail', `Logs pro Minute enthalten Lebenszeichen: ${data.events_last_minute} Ereignisse und ${data.heartbeats_last_minute} Heartbeats in den letzten 60 Sekunden.`);
+                text('system-metrics-updated', `Aktualisiert ${new Date(data.measured_at * 1000).toLocaleTimeString('de-DE')} · alle 10 Sekunden`);
+            } catch (error) { text('system-metrics-updated', 'Kennzahlen konnten nicht aktualisiert werden. Angezeigte Werte können veraltet sein.'); }
+            finally { systemMetricsLoading = false; }
+        }
+
         function showSettingsPanel() {
-            const key = ['channels', 'rules', 'maintenance'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'channels';
-            const titles = {channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Wie lange möchtest du Logs behalten?', 'Lege die Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
+            const key = ['channels', 'rules', 'maintenance', 'system'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'channels';
+            const titles = {system: ['Wie läuft dein RSyslog-Server?', 'Empfang, Speicherbelegung und Geräteaktivität – alle 10 Sekunden aktualisiert.'], channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Wie lange möchtest du Logs behalten?', 'Lege die Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
             document.getElementById('settings-title').textContent = titles[key][0];
             document.getElementById('settings-description').textContent = titles[key][1];
             document.querySelectorAll('[data-settings-panel]').forEach(panel => panel.hidden = panel.dataset.settingsPanel !== key);
+            document.querySelectorAll('[data-settings-save]').forEach(button => button.hidden = key === 'system');
+            if (key === 'system') loadSystemMetrics();
             document.querySelectorAll('[data-settings-link]').forEach(link => link.setAttribute('aria-current', link.dataset.settingsLink === key ? 'page' : 'false'));
         }
         window.addEventListener('hashchange', showSettingsPanel);
@@ -599,6 +688,7 @@
             loadVersionInfo();
             setInterval(loadVersionInfo, 60000);
             loadSettings();
+            setInterval(() => { if (location.hash === '#system' && !document.hidden) loadSystemMetrics(); }, 10000);
         });
     </script>
     <script src="/assets/update-footer.js" defer></script>

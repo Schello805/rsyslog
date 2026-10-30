@@ -232,3 +232,12 @@ mindestens eine Meldung in 15 Minuten. Nur ein empfangenes Heartbeat-Signal erla
 eine Aussage zur Erreichbarkeit; reine Syslog-Absender erhalten keinen erfundenen
 Online-/Offline-Status. Die Zeitfenster neuer Meldungen verwenden die Empfangszeit,
 damit eine falsche Uhr am sendenden Gerät die Übersicht nicht verfälscht.
+
+
+Unter **Einstellungen → System** findest du Speicherbelegung des Datenbank-Dateisystems,
+Datenbankgröße inklusive WAL, gespeicherte Logs, Logs pro Minute (60 Sekunden und
+5-Minuten-Durchschnitt), bekannte und aktive Absender, App-Laufzeit sowie Empfangs-
+und Überwachungsstatus. Die Werte aktualisieren sich alle 10 Sekunden, solange der
+Bereich geöffnet ist. Im Überblick steht die Empfangsrate direkt bei den Meldungen.
+Speicherwerte beziehen sich auf den RSyslog-Server; die Lograte enthält Heartbeats,
+die unter System separat ausgewiesen werden.

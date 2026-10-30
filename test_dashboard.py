@@ -104,6 +104,47 @@ class DashboardTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             database.get_logs(sort_by='id; DROP TABLE logs')
 
+    def test_ingestion_metrics_use_receipt_time_and_separate_heartbeats(self):
+        database.insert_log('new', 'service', 'INFO', 'new', timestamp='2000-01-01T00:00:00Z')
+        database.insert_log('new', 'resource-monitor', 'INFO', 'HEARTBEAT')
+        old = database.insert_log('old', 'service', 'INFO', 'old')
+        with database.get_db_connection() as connection:
+            connection.execute("UPDATE logs SET received_at=datetime('now','-3 minutes') WHERE id=?", (old['id'],))
+        metrics = database.get_ingestion_metrics()
+        self.assertEqual(metrics['total_logs'], 3)
+        self.assertEqual(metrics['logs_last_minute'], 2)
+        self.assertEqual(metrics['events_last_minute'], 1)
+        self.assertEqual(metrics['heartbeats_last_minute'], 1)
+        self.assertEqual(metrics['logs_per_minute_5m'], 0.6)
+
+    def test_storage_and_system_api(self):
+        import asyncio
+        import httpx
+        import main
+        import system_metrics
+        from collections import namedtuple
+        database.insert_log('qnap', 'storage', 'INFO', 'test')
+        disk = namedtuple('Disk', 'total used free')(1000, 600, 400)
+        with patch.object(system_metrics.shutil, 'disk_usage', return_value=disk):
+            metrics = system_metrics.collect_system_metrics()
+            self.assertEqual(metrics['storage']['used_percent'], 60)
+            self.assertEqual(metrics['storage']['free_bytes'], 400)
+            self.assertGreater(metrics['database']['database_bytes'], 0)
+            self.assertEqual(metrics['database']['total_bytes'], sum(metrics['database'][key] for key in ('database_bytes','wal_bytes','shared_memory_bytes')))
+            self.assertEqual(metrics['known_hosts'], 1)
+            self.assertEqual(metrics['heartbeat_hosts'], 0)
+            async def check():
+                async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
+                    response = await client.get('/api/system')
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.json()['total_logs'], 1)
+                    self.assertIn('queue_capacity', response.json()['receiver'])
+                def close():
+                    database._local.connection.close()
+                    database._local.connection = None
+                await asyncio.to_thread(close)
+            asyncio.run(check())
+
     def test_version_patch_follows_revision_and_fallback(self):
         with patch.object(version, 'get_revision_number', return_value=15), patch.object(version, 'get_git_revision', return_value='abc'):
             info = version.get_version_info()

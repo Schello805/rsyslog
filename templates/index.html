@@ -147,7 +147,7 @@
         <section data-panel="overview" class="space-y-6">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <a href="#devices" class="dashboard-card"><p class="dashboard-label">Bekannte Absender</p><p id="overview-known" class="dashboard-number">…</p><p id="overview-recent" class="dashboard-label mt-2">Aktivität wird geladen</p></a>
-                <a href="#logs" class="dashboard-card"><p class="dashboard-label">Meldungen · 24 Stunden</p><p id="overview-volume" class="dashboard-number">…</p><p class="dashboard-label mt-2">Seit Empfang auf diesem Server</p></a>
+                <a href="#logs" class="dashboard-card"><p class="dashboard-label">Meldungen · 24 Stunden</p><p id="overview-volume" class="dashboard-number">…</p><p id="overview-rate" class="dashboard-label mt-2">Logs pro Minute werden geladen …</p></a>
                 <button type="button" onclick="openLogFilter('ERROR_CRITICAL', 'ALL', '24')" class="dashboard-card text-left"><p class="dashboard-label">Fehler · 24 Stunden</p><p id="overview-errors" class="dashboard-number text-rose-400">…</p><p class="dashboard-label mt-2">Fehler untersuchen →</p></button>
                 <button type="button" onclick="openLogFilter('WARN', 'ALL', '24')" class="dashboard-card text-left"><p class="dashboard-label">Warnungen · 24 Stunden</p><p id="overview-warnings" class="dashboard-number text-amber-400">…</p><p class="dashboard-label mt-2">Warnungen prüfen →</p></button>
             </div>
@@ -170,6 +170,7 @@
                 <div class="flex justify-between gap-4 mb-4"><h3 class="font-semibold">Absender & Aktivität</h3><a href="#devices" class="text-sm text-sky-400">Alle Absender →</a></div>
                 <div id="overview-devices" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
             </section>
+            <a href="/settings#system" class="inline-block text-sm text-sky-400 hover:underline">Systemkennzahlen & Speicherplatz →</a>
             <p id="dashboard-updated" role="status" class="text-xs text-slate-500"></p>
         </section>
         <section data-panel="devices" hidden class="space-y-4">
@@ -695,6 +696,7 @@
                 document.getElementById('overview-known').textContent = data.known_hosts;
                 document.getElementById('overview-recent').textContent = `${data.recent_hosts} mit Meldungen in den letzten 15 Minuten`;
                 document.getElementById('overview-volume').textContent = data.logs_24h.toLocaleString('de-DE');
+                document.getElementById('overview-rate').textContent = `${data.ingestion.logs_last_minute} Logs in der letzten Minute · Ø ${data.ingestion.logs_per_minute_5m.toLocaleString('de-DE')}/min über 5 min`;
                 document.getElementById('overview-errors').textContent = data.errors_24h;
                 document.getElementById('overview-warnings').textContent = data.warnings_24h;
                 document.getElementById('overview-monitoring').textContent = `${data.known_hosts} bekannte Absender · ${data.heartbeat_hosts} mit Lebenszeichen-Überwachung · ${data.offline_hosts} davon offline`;

@@ -440,3 +440,17 @@ def get_dashboard_summary():
         heartbeat_hosts=sum(host['heartbeat_last_seen'] is not None for host in devices),
         offline_hosts=sum(host['status']=='offline' for host in devices),
         latest=entries(), attention=entries(f"AND {recent} AND level IN ('WARN','WARNING','ERROR','CRITICAL','EMERGENCY','ALERT')"))
+
+
+def get_ingestion_metrics():
+    """Rolling receipt-time counts; five-minute rate is an average, not a counter."""
+    conn = get_db_connection()
+    receipt = "julianday(COALESCE(NULLIF(received_at,''),timestamp))"
+    counts = dict(conn.execute(f"""SELECT COUNT(*) AS total_logs,
+        COALESCE(SUM({receipt} >= julianday('now','-1 minute')),0) AS logs_last_minute,
+        COALESCE(SUM({receipt} >= julianday('now','-5 minutes')),0) AS logs_last_5_minutes,
+        COALESCE(SUM({receipt} >= julianday('now','-1 minute') AND app='resource-monitor' AND message='HEARTBEAT'),0) AS heartbeats_last_minute
+        FROM logs""").fetchone())
+    counts['logs_per_minute_5m'] = round(counts.pop('logs_last_5_minutes') / 5, 1)
+    counts['events_last_minute'] = counts['logs_last_minute'] - counts['heartbeats_last_minute']
+    return counts

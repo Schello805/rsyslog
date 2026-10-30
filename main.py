@@ -53,6 +53,7 @@ from syslog_server import (
 )
 from version import get_version_info
 from network_utils import get_network_connection_info
+from system_metrics import collect_system_metrics
 
 # Setup logging
 logging.basicConfig(
@@ -258,7 +259,25 @@ async def api_dashboard():
     from database import get_dashboard_summary
     summary = await asyncio.to_thread(get_dashboard_summary)
     summary["udp_dropped"] = server_manager.dropped
+    from database import get_ingestion_metrics
+    summary["ingestion"] = await asyncio.to_thread(get_ingestion_metrics)
     return summary
+
+
+@app.get('/api/system')
+async def api_system_metrics():
+    result = await asyncio.to_thread(collect_system_metrics)
+    result['receiver'] = {
+        'udp_dropped': server_manager.dropped,
+        'queue_size': server_manager.queue.qsize(),
+        'queue_capacity': server_manager.queue.maxsize,
+        'tcp_connections': server_manager.active_tcp_clients,
+        'udp_listening': server_manager.udp_transport is not None,
+        'tcp_listening': server_manager.tcp_server is not None,
+        'udp_port': config.SYSLOG_UDP_PORT, 'tcp_port': config.SYSLOG_TCP_PORT,
+    }
+    result['websocket_clients'] = len(_active_websockets)
+    return result
 
 
 @app.get("/api/stats")
