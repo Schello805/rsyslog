@@ -50,6 +50,7 @@ from syslog_server import (
     unregister_log_subscriber,
 )
 from version import get_version_info
+from network_utils import get_network_connection_info
 
 # Setup logging
 logging.basicConfig(
@@ -146,6 +147,26 @@ async def serve_settings():
     if not template_path.exists():
         raise HTTPException(status_code=404, detail="Settings template not found")
     return HTMLResponse(content=template_path.read_text(encoding="utf-8"))
+
+
+@app.get("/guide", response_class=HTMLResponse)
+@app.get("/setup", response_class=HTMLResponse)
+@app.get("/connect", response_class=HTMLResponse)
+async def serve_guide():
+    """Serves the remote setup guide with pre-configured IP and connection parameters."""
+    from pathlib import Path
+
+    template_path = Path(__file__).parent / "templates" / "guide.html"
+    if not template_path.exists():
+        raise HTTPException(status_code=404, detail="Guide template not found")
+    return HTMLResponse(content=template_path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/network-info")
+async def api_network_info(request: Request):
+    """Returns detected LAN IP addresses and connection ports."""
+    req_host = request.headers.get("host", "")
+    return get_network_connection_info(req_host)
 
 
 @app.get("/api/logs")
