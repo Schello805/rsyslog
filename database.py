@@ -237,6 +237,8 @@ def get_logs(
     app: Optional[str] = None,
     search: Optional[str] = None,
     hours: Optional[int] = None,
+    sort_by: str = "timestamp",
+    sort_order: str = "desc",
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Retrieves filtered logs with pagination.
@@ -284,13 +286,25 @@ def get_logs(
     cursor.execute(count_sql, params)
     total_count = cursor.fetchone()[0]
 
+    sort_columns = {
+        'timestamp': 'COALESCE(julianday(timestamp), julianday(received_at))',
+        'level': "CASE level WHEN 'DEBUG' THEN 0 WHEN 'INFO' THEN 1 WHEN 'NOTICE' THEN 2 WHEN 'WARN' THEN 3 WHEN 'WARNING' THEN 3 WHEN 'ERROR' THEN 4 WHEN 'CRITICAL' THEN 5 WHEN 'ALERT' THEN 6 WHEN 'EMERGENCY' THEN 7 ELSE -1 END",
+        'host': 'host COLLATE NOCASE',
+        'app': 'app COLLATE NOCASE',
+        'message': 'message COLLATE NOCASE',
+    }
+    if sort_by not in sort_columns or sort_order not in ('asc', 'desc'):
+        raise ValueError('Unsupported log sorting')
+    order_expression = sort_columns[sort_by]
+    direction = sort_order.upper()
+
     # 2. Paginated data query
     offset = max(0, (page - 1) * per_page)
     data_sql = f"""
         SELECT id, timestamp, host, app, level, facility, message, raw, metadata
         FROM logs
         {where_clause}
-        ORDER BY id DESC
+        ORDER BY {order_expression} {direction}, id {direction}
         LIMIT ? OFFSET ?
     """
     cursor.execute(data_sql, params + [per_page, offset])

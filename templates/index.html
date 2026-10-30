@@ -193,8 +193,8 @@
                         class="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent">
                 </div>
 
-                <details class="sm:col-span-8" id="advanced-filters">
-                    <summary class="cursor-pointer text-sm text-slate-300 py-2">Filter verfeinern <span id="active-filter-count" class="text-sky-400"></span></summary>
+                <div class="sm:col-span-8" id="advanced-filters">
+                    <p class="text-xs text-slate-400 mb-2">Filter <span id="active-filter-count" class="text-sky-400"></span></p>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
                 <!-- Level Dropdown -->
                 <div class="sm:col-span-1">
@@ -239,7 +239,7 @@
                     </select>
                 </div>
                     </div>
-                </details>
+                </div>
             </div>
             <!-- Secondary Action Row -->
             <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800/80">
@@ -275,11 +275,11 @@
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
                         <tr class="bg-slate-950/60 border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                            <th class="py-3 px-4 w-36">Zeitstempel</th>
-                            <th class="py-3 px-4 w-28">Level</th>
-                            <th class="py-3 px-4 w-36">Host</th>
-                            <th class="py-3 px-4 w-36">Dienst / App</th>
-                            <th class="py-3 px-4">Nachricht</th>
+                            <th data-sort-column="timestamp" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('timestamp')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Zeitstempel sortieren">Zeitstempel<span data-sort-arrow="timestamp" aria-hidden="true">↕︎</span></button></th>
+                            <th data-sort-column="level" aria-sort="none" class="py-3 px-4 w-28"><button type="button" onclick="sortLogs('level')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Level sortieren">Level<span data-sort-arrow="level" aria-hidden="true">↕︎</span></button></th>
+                            <th data-sort-column="host" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('host')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Host sortieren">Host<span data-sort-arrow="host" aria-hidden="true">↕︎</span></button></th>
+                            <th data-sort-column="app" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('app')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Dienst / App sortieren">Dienst / App<span data-sort-arrow="app" aria-hidden="true">↕︎</span></button></th>
+                            <th data-sort-column="message" aria-sort="none" class="py-3 px-4"><button type="button" onclick="sortLogs('message')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Nachricht sortieren">Nachricht<span data-sort-arrow="message" aria-hidden="true">↕︎</span></button></th>
                             <th class="py-3 px-4 w-20 text-right">Aktion</th>
                         </tr>
                     </thead>
@@ -464,12 +464,15 @@
     <script>
         // State variables
         let currentPage = 1;
+        let logSortBy = 'timestamp';
+        let logSortOrder = 'desc';
         let totalPages = 1;
         let isLiveStreamActive = true;
         let searchDebounceTimeout = null;
         let ws = null;
         let activeModalLog = null;
         let pendingLogRefresh = false;
+        let logRequestController = null;
 
         // Level Styling mapping
         function getLevelBadge(level) {
@@ -508,8 +511,28 @@
             }
         }
 
+        function updateSortIndicators() {
+            document.querySelectorAll('[data-sort-column]').forEach(header => {
+                const active = header.dataset.sortColumn === logSortBy;
+                header.setAttribute('aria-sort', active ? (logSortOrder === 'asc' ? 'ascending' : 'descending') : 'none');
+            });
+            document.querySelectorAll('[data-sort-arrow]').forEach(arrow => {
+                arrow.textContent = arrow.dataset.sortArrow === logSortBy ? (logSortOrder === 'asc' ? '↑' : '↓') : '↕︎';
+            });
+        }
+
+        function sortLogs(column) {
+            logSortOrder = logSortBy === column ? (logSortOrder === 'asc' ? 'desc' : 'asc') : (column === 'timestamp' || column === 'level' ? 'desc' : 'asc');
+            logSortBy = column;
+            updateSortIndicators();
+            fetchLogs(1);
+        }
+
         // Fetch logs from backend
         async function fetchLogs(page = 1) {
+            if (logRequestController) logRequestController.abort();
+            const controller = new AbortController();
+            logRequestController = controller;
             currentPage = page;
             const activeFilters = ['filter-level', 'filter-host', 'filter-app', 'filter-period'].filter(id => document.getElementById(id).value !== 'ALL').length;
             document.getElementById('active-filter-count').textContent = activeFilters ? `(${activeFilters} aktiv)` : '';
@@ -525,18 +548,21 @@
                 search: search,
                 level: level,
                 host: host,
-                app: app
+                app: app,
+                sort_by: logSortBy,
+                sort_order: logSortOrder
             });
 
             const period = document.getElementById('filter-period').value;
             if (period !== 'ALL') params.set('hours', period);
             try {
-                const res = await fetch(`/api/logs?${params.toString()}`);
+                const res = await fetch(`/api/logs?${params.toString()}`, { signal: controller.signal });
                 const data = await res.json();
                 renderTable(data.logs);
                 updatePagination(data.page, data.per_page, data.total);
                 document.getElementById('filtered-count').innerText = data.total;
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 console.error('Error fetching logs:', err);
                 showToast('Fehler beim Laden der Logs', 'error');
             }
@@ -616,7 +642,6 @@
             const select = document.getElementById('filter-host');
             if (![...select.options].some(option => option.value === host)) select.add(new Option(host, host));
             select.value = host;
-            document.getElementById('advanced-filters').open = level !== 'ALL' || host !== 'ALL';
             location.hash = 'logs';
             fetchLogs(1);
         }
@@ -728,47 +753,10 @@
             ws.onmessage = (event) => {
                 if (!isLiveStreamActive) return;
                 try {
-                    const newLog = JSON.parse(event.data);
-                    // Metadata refresh is periodic, independent of incoming log volume.
-
-                    // If currently on page 1 and no restrictive search filter, prepend new row
-                    const currentSearch = document.getElementById('filter-search').value;
-                    const currentLevel = document.getElementById('filter-level').value;
-                    const currentHost = document.getElementById('filter-host').value;
-                    const currentApp = document.getElementById('filter-app').value;
-                    
-                    if (currentPage === 1 && !currentSearch && currentLevel === 'ALL' && currentHost === 'ALL' && currentApp === 'ALL') {
-                        const tbody = document.getElementById('logs-table-body');
-                        const tempRow = document.createElement('tr');
-                        tempRow.className = "hover:bg-slate-800/50 transition cursor-pointer bg-sky-950/20";
-                        tempRow.onclick = () => openDetailModal(newLog);
-                        tempRow.innerHTML = `
-                            <td class="py-2.5 px-4 text-slate-400 whitespace-nowrap">${formatTimestamp(newLog.timestamp)}</td>
-                            <td class="py-2.5 px-4 whitespace-nowrap">${getLevelBadge(newLog.level)}</td>
-                            <td class="py-2.5 px-4 text-slate-300 font-medium whitespace-nowrap truncate max-w-[140px]">${escapeHtml(newLog.host)}</td>
-                            <td class="py-2.5 px-4 text-slate-300 whitespace-nowrap truncate max-w-[140px]">${escapeHtml(newLog.app)}</td>
-                            <td class="py-2.5 px-4 text-slate-200 truncate max-w-md">${escapeHtml(newLog.message)}</td>
-                            <td class="py-2.5 px-4 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                                <button onclick='openDetailModal(${escapeHtml(JSON.stringify(newLog))})' class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition">
-                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                                </button>
-                            </td>
-                        `;
-                        if (!tbody.querySelector('tr[data-live-row]') && tbody.querySelector('td[colspan]')) {
-                            tbody.innerHTML = '';
-                        }
-                        tempRow.dataset.liveRow = 'true';
-                        tbody.insertBefore(tempRow, tbody.firstChild);
-                        const limit = Number(document.getElementById('filter-limit').value);
-                        while (tbody.children.length > limit) tbody.lastElementChild.remove();
-                        lucide.createIcons();
-                    } else {
-                        // Coalesce filtered-table refreshes; never request once per message.
-                        pendingLogRefresh = true;
-                    }
-                } catch (e) {
-                    console.error('WS parse error:', e);
-                }
+                    JSON.parse(event.data);
+                    // Refresh in batches so the server keeps ordering and pagination correct.
+                    pendingLogRefresh = true;
+                } catch (error) { console.error('WS parse error:', error); }
             };
 
             ws.onclose = () => {
@@ -951,7 +939,9 @@
                 search: search,
                 level: level,
                 host: host,
-                app: app
+                app: app,
+                sort_by: logSortBy,
+                sort_order: logSortOrder
             });
 
             const period = document.getElementById('filter-period').value;
@@ -1040,6 +1030,7 @@
         // Init on page load
         document.addEventListener('DOMContentLoaded', () => {
             showWorkflow();
+            updateSortIndicators();
             lucide.createIcons();
             loadVersionInfo();
             setInterval(loadVersionInfo, 60000);

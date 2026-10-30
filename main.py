@@ -9,7 +9,7 @@ import io
 import json
 import logging
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 from fastapi import (
     FastAPI,
@@ -198,6 +198,8 @@ async def api_get_logs(
     app: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     hours: Optional[int] = Query(None, ge=1, le=8760),
+    sort_by: Literal['timestamp', 'level', 'host', 'app', 'message'] = Query('timestamp'),
+    sort_order: Literal['asc', 'desc'] = Query('desc'),
 ):
     """Retrieves paginated and filtered logs."""
     logs, total = get_logs(
@@ -208,6 +210,8 @@ async def api_get_logs(
         app=app,
         search=search,
         hours=hours,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
     return {
         "logs": logs,
@@ -317,6 +321,8 @@ async def api_export_logs(
     app: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     hours: Optional[int] = Query(None, ge=1, le=8760),
+    sort_by: Literal['timestamp', 'level', 'host', 'app', 'message'] = Query('timestamp'),
+    sort_order: Literal['asc', 'desc'] = Query('desc'),
 ):
     """Exports matching logs as a downloadable CSV or JSON file."""
     # Retrieve all matching rows (up to 10,000 for export)
@@ -328,6 +334,8 @@ async def api_export_logs(
         app=app,
         search=search,
         hours=hours,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
     if format == "json":

@@ -76,11 +76,33 @@ class DashboardTests(unittest.TestCase):
                 self.assertEqual(logs['total'], 1)
                 exported = (await client.get('/api/logs/export?format=json&level=WARN&hours=24')).json()
                 self.assertEqual(len(exported), 1)
+                invalid = await client.get('/api/logs?sort_by=invalid')
+                self.assertEqual(invalid.status_code, 422)
+                sorted_export = await client.get('/api/logs/export?format=json&sort_by=host&sort_order=asc')
+                self.assertEqual(sorted_export.status_code, 200)
             def close():
                 database._local.connection.close()
                 database._local.connection = None
             await asyncio.to_thread(close)
         asyncio.run(check())
+
+    def test_sorting_is_global_and_uses_severity_and_real_time(self):
+        database.insert_log('Zulu', 'z-service', 'INFO', 'z-message', timestamp='2020-01-01T00:00:00+02:00')
+        database.insert_log('alpha', 'a-service', 'CRITICAL', 'a-message', timestamp='2019-12-31T23:00:00Z')
+        database.insert_log('Bravo', 'b-service', 'WARN', 'b-message', timestamp='2020-01-01T00:00:00Z')
+        first, total = database.get_logs(sort_by='host', sort_order='asc', per_page=1)
+        second, _ = database.get_logs(sort_by='host', sort_order='asc', per_page=1, page=2)
+        self.assertEqual(total, 3)
+        self.assertEqual([first[0]['host'], second[0]['host']], ['alpha', 'Bravo'])
+        rows, _ = database.get_logs(sort_by='level', sort_order='desc')
+        self.assertEqual([row['level'] for row in rows], ['CRITICAL', 'WARN', 'INFO'])
+        rows, _ = database.get_logs(sort_by='timestamp', sort_order='asc')
+        self.assertEqual([row['host'] for row in rows], ['Zulu', 'alpha', 'Bravo'])
+        for column in ('app', 'message'):
+            rows, _ = database.get_logs(sort_by=column, sort_order='asc')
+            self.assertEqual(rows[0]['host'], 'alpha')
+        with self.assertRaises(ValueError):
+            database.get_logs(sort_by='id; DROP TABLE logs')
 
     def test_version_patch_follows_revision_and_fallback(self):
         with patch.object(version, 'get_revision_number', return_value=15), patch.object(version, 'get_git_revision', return_value='abc'):

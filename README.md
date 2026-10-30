@@ -62,7 +62,7 @@ abgelehnt; dieses Skript unterstützt die Standardinstallation des Installers.
 ## Erste Schritte
 
 1. **Gerät anbinden:** In der Weboberfläche dein System auswählen und die Anleitung ausführen.
-2. **Logs prüfen:** Eingang kontrollieren, nach Host, Dienst oder Level filtern.
+2. **Logs prüfen:** Alle Filter sind dauerhaft sichtbar. Spaltenköpfe sortieren Zeit, Schweregrad, Host, Dienst und Nachricht auf- oder absteigend – auch über mehrere Seiten und im Export.
 3. **Benachrichtigungen:** Unter Einstellungen Telegram oder Ntfy einrichten, testen und Alarmregeln festlegen.
 
 Empfang: **UDP/TCP Port 5514**. Die Firewall muss diesen Port für deine Geräte
