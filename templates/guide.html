@@ -83,14 +83,15 @@
 
         <div>
             <p class="text-xs text-sky-700 mb-2">EINRICHTUNG</p>
-            <h2 class="text-2xl font-semibold">Ein Gerät in drei Schritten anbinden</h2>
+            <h2 class="text-2xl font-semibold">Geräte in drei Schritten anbinden</h2>
             <p class="text-sm text-slate-600 mt-2">Wähle dein System. Du siehst anschließend nur die passende Anleitung.</p>
         </div>
         <section class="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
             <label for="device-type" class="block font-semibold">1. Welches Gerät möchtest du anbinden?</label>
             <select id="device-type" onchange="selectDevice(this.value)" class="w-full sm:max-w-lg bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm">
                 <option value="">System auswählen …</option>
-                <option value="linux">Linux / Proxmox VE / Proxmox PBS</option>
+                <option value="linux">Linux / Proxmox VE / Proxmox PBS (einzeln)</option>
+                <option value="pve">Proxmox: Alle Gäste anbinden</option>
                 <option value="nas">QNAP / Synology</option>
                 <option value="network">UniFi / Firewall / Switch</option>
                 <option value="docker">Docker</option>
@@ -226,6 +227,40 @@
                 </div>
             </div>
 
+            <section data-device="pve" hidden class="bg-white border border-indigo-200 rounded-2xl p-6 shadow-sm space-y-5">
+                <div class="border-b border-slate-200 pb-4">
+                    <h3 class="text-lg font-semibold text-slate-900">Proxmox: Alle Gäste anbinden</h3>
+                    <p class="text-sm text-slate-600 mt-2">Diese Befehle als root in der Shell des PVE-Hosts ausführen. Sie richten rsyslog und die Weiterleitung in dessen laufenden Gästen ein.</p>
+                </div>
+                <div class="rounded-xl bg-indigo-50 border border-indigo-200 p-4 text-xs text-slate-700">
+                    <strong>Unterstützt:</strong> Debian-basierte LXC und Debian-/Ubuntu-VMs. VMs benötigen einen aktivierten und laufenden QEMU Guest Agent.
+                    Gestoppte Gäste, Vorlagen und ungeeignete Systeme werden mit Begründung übersprungen. Auf jedem PVE-Host separat ausführen; der Host selbst wird dabei nicht eingerichtet.
+                </div>
+                <div class="space-y-2"><h4 class="text-sm font-semibold">A. Skript auf dem PVE-Host vorbereiten</h4>
+                    <div class="relative"><pre class="bg-slate-50 border border-slate-200 rounded-xl p-4 pr-24 text-xs font-mono text-indigo-800 overflow-x-auto"><code id="code-pve-prepare">Befehle werden geladen …</code></pre>
+                    <button type="button" aria-label="Proxmox-Vorbereitung kopieren" onclick="copyCode('code-pve-prepare')" class="absolute top-3 right-3 px-2 py-1 rounded bg-white border border-slate-300 text-xs hover:bg-slate-100">Kopieren</button></div>
+                </div>                <div class="space-y-2"><h4 class="text-sm font-semibold">B. Geeignete Gäste prüfen – ohne Installation</h4>
+                    <div class="relative"><pre class="bg-slate-50 border border-slate-200 rounded-xl p-4 pr-24 text-xs font-mono text-indigo-800 overflow-x-auto"><code id="code-pve-preview">Befehl wird geladen …</code></pre>
+                    <button type="button" aria-label="Proxmox-Vorschau kopieren" onclick="copyCode('code-pve-preview')" class="absolute top-3 right-3 px-2 py-1 rounded bg-white border border-slate-300 text-xs hover:bg-slate-100">Kopieren</button></div>
+                </div>                <label class="flex items-start gap-3 rounded-xl bg-sky-50 border border-sky-200 p-4 text-sm">
+                    <input id="pve-monitor" type="checkbox" onchange="updateAllSnippets()" class="mt-1">
+                    <span><strong>CPU, RAM und Speicherplatz zusätzlich überwachen</strong><span class="block text-xs text-slate-600 mt-1">Standard: CPU/RAM ab 90 % für 10 Minuten, Dateisystem / ab 90 %. Installiert außerdem Lebenszeichen für die Ausfallerkennung.</span></span>
+                </label>
+                <div class="space-y-2"><h4 class="text-sm font-semibold">C. Auf den geeigneten Gästen installieren</h4>
+                    <div class="relative"><pre class="bg-slate-50 border border-slate-200 rounded-xl p-4 pr-24 text-xs font-mono text-indigo-800 overflow-x-auto"><code id="code-pve-install">Befehl wird geladen …</code></pre>
+                    <button type="button" aria-label="Proxmox-Installation kopieren" onclick="copyCode('code-pve-install')" class="absolute top-3 right-3 px-2 py-1 rounded bg-white border border-slate-300 text-xs hover:bg-slate-100">Kopieren</button></div>
+                </div>                <p class="text-xs text-slate-600">Das Skript arbeitet die Gäste nacheinander ab und zeigt am Ende Erfolge, übersprungene Gäste und Fehler. Paketquellen müssen aus den Gästen erreichbar sein. Sobald Logs eingehen, erscheinen die Absender in RSyslog.</p>
+                <details class="border-t border-slate-200 pt-4"><summary class="cursor-pointer text-sm font-medium text-indigo-800">Nur bestimmte Gäste auswählen</summary><div class="space-y-4 mt-4">
+                <div class="space-y-2"><h4 class="text-sm font-semibold">Nur diese IDs installieren (Beispiel: 101 und 102)</h4>
+                    <div class="relative"><pre class="bg-slate-50 border border-slate-200 rounded-xl p-4 pr-24 text-xs font-mono text-indigo-800 overflow-x-auto"><code id="code-pve-only">Befehl wird geladen …</code></pre>
+                    <button type="button" aria-label="Gästeauswahl kopieren" onclick="copyCode('code-pve-only')" class="absolute top-3 right-3 px-2 py-1 rounded bg-white border border-slate-300 text-xs hover:bg-slate-100">Kopieren</button></div>
+                </div>                <div class="space-y-2"><h4 class="text-sm font-semibold">Diese ID überspringen (Beispiel: 103)</h4>
+                    <div class="relative"><pre class="bg-slate-50 border border-slate-200 rounded-xl p-4 pr-24 text-xs font-mono text-indigo-800 overflow-x-auto"><code id="code-pve-exclude">Befehl wird geladen …</code></pre>
+                    <button type="button" aria-label="Gästeausschluss kopieren" onclick="copyCode('code-pve-exclude')" class="absolute top-3 right-3 px-2 py-1 rounded bg-white border border-slate-300 text-xs hover:bg-slate-100">Kopieren</button></div>
+                </div>                </div></details>
+                <a href="/#devices" class="inline-block text-sm text-sky-700">Anschließend Absender prüfen →</a>
+            </section>
+
             <!-- Card: Linux Server (Ubuntu, Debian, Proxmox, Pi) -->
             <div data-device="linux" hidden class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
                 <div class="flex items-center space-x-3 border-b border-slate-200 pb-3">
@@ -239,6 +274,7 @@
                 </div>
 
                 <div class="space-y-3 text-xs text-slate-700">
+                    <p><a href="/guide?device=pve" class="text-sky-700 hover:underline">Mehrere Proxmox-Gäste auf einmal anbinden →</a></p>
                     <p>Dieser Befehl installiert rsyslog, richtet die Weiterleitung ein und startet den Dienst. Er funktioniert als root oder mit sudo auf Debian-basierten Systemen.</p>
 
                     <div class="relative group">
@@ -486,6 +522,20 @@
             document.querySelectorAll('.dynamic-ip').forEach(el => el.innerText = activeIP);
             document.querySelectorAll('.dynamic-udp-port').forEach(el => el.innerText = udpPort);
 
+            const target = "'" + String(activeIP).replace(/'/g, "'\\''") + "'";
+            const monitor = document.getElementById('pve-monitor').checked ? ' --monitor' : '';
+            const pveCommand = `python3 /opt/rsyslog-tools/scripts/install-pve-guests.py --server ${target} --port ${udpPort}`;
+            document.getElementById('code-pve-prepare').innerText = `apt update && apt install -y git &&
+if [ -d /opt/rsyslog-tools/.git ]; then
+  git -C /opt/rsyslog-tools pull --ff-only
+else
+  git clone https://github.com/Schello805/rsyslog.git /opt/rsyslog-tools
+fi`;
+            document.getElementById('code-pve-preview').innerText = pveCommand + monitor + ' --dry-run';
+            document.getElementById('code-pve-install').innerText = pveCommand + monitor;
+            document.getElementById('code-pve-only').innerText = pveCommand + monitor + ' --only 101,102';
+            document.getElementById('code-pve-exclude').innerText = pveCommand + monitor + ' --exclude 103';
+
             // Update Code snippets
             document.getElementById('code-terminal-logger').innerText = 
                 `logger -n ${activeIP} -P ${udpPort} -t test-dienst "Hallo von meinem Terminal an den Syslog-Server!"`;
@@ -617,6 +667,12 @@
             loadVersionInfo();
             setInterval(loadVersionInfo, 60000);
             loadNetworkInfo();
+            const requestedDevice = new URLSearchParams(location.search).get('device');
+            const picker = document.getElementById('device-type');
+            if ([...picker.options].some(option => option.value === requestedDevice)) {
+                picker.value = requestedDevice;
+                selectDevice(requestedDevice);
+            }
         });
     </script>
     <script src="/assets/update-footer.js" defer></script>

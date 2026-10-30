@@ -151,6 +151,10 @@ QNAP und UniFi können ihre Ereignisse per Syslog senden; das Linux-Skript ist d
 
 ## Auf einem PVE-Host für alle Gäste einrichten
 
+In der Weboberfläche unter **Geräte anbinden → Proxmox: Alle Gäste anbinden**
+stehen Vorbereitung, Vorschau und Installation mit Kopierbuttons bereit. Serveradresse,
+Port und die optionale Ressourcenüberwachung werden in die Befehle übernommen.
+
 Auf **jedem PVE-Host separat** als root ausführen. Das Skript installiert rsyslog
 und die Weiterleitung auf laufenden Debian-/Ubuntu-VMs und Debian-basierten
 LXC-Containern des Hosts. VMs benötigen einen aktivierten, laufenden QEMU Guest Agent.
