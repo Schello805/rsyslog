@@ -116,6 +116,7 @@
             <nav aria-label="Einstellungen" class="flex gap-2 flex-wrap">
                 <a href="#channels" data-settings-link="channels" class="settings-tab">1. Benachrichtigungskanal</a>
                 <a href="#rules" data-settings-link="rules" class="settings-tab">2. Alarmregeln</a>
+                <a href="#message-rules" data-settings-link="message-rules" class="settings-tab">Zusatzregeln</a>
                 <a href="#system" data-settings-link="system" class="settings-tab">System</a>
                 <a href="#maintenance" data-settings-link="maintenance" class="settings-tab">Daten aufbewahren</a>
             </nav>
@@ -318,6 +319,20 @@
             </div>
 
             </section>
+            <section data-settings-panel="message-rules" hidden class="space-y-5">
+                <div class="bg-sky-50 border border-sky-200 rounded-xl p-4 text-sm text-slate-700">
+                    Benachrichtige mich bei bestimmten Texten in Geräte-Logs – auch bei INFO.
+                    Die Geräte müssen diese Meldungen selbst senden. Globale Host-Ausschlüsse bleiben gültig;
+                    bei mehreren Treffern gilt die erste passende Zusatzregel mit ihrer eigenen Pause.
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button type="button" onclick="addMessageRule(true)" class="px-4 py-2 rounded-lg bg-sky-700 text-white text-sm">Vorlage: Update verfügbar</button>
+                    <button type="button" onclick="addMessageRule(false)" class="px-4 py-2 rounded-lg bg-white border border-slate-300 text-sm">Eigene Regel hinzufügen</button>
+                </div>
+                <div id="message-rules-list" class="space-y-4"></div>
+                <datalist id="message-rule-hosts"></datalist>
+                <p class="text-xs text-slate-500">Versand über die aktivierten Telegram-/Ntfy-Kanäle. Änderungen mit „Alle Einstellungen speichern“ übernehmen.</p>
+            </section>
             <section data-settings-panel="maintenance" hidden class="space-y-4">
             <!-- Card 4: Wartung & Datenbank -->
             <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
@@ -433,12 +448,61 @@
 
     <!-- Logic Script -->
     <script>
+        let messageRules = [];
+        function addMessageRule(update) {
+            messageRules.push({id:'rule-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8), name:update ? 'Update verfügbar' : 'Eigene Regel', enabled:true, host:'', app:'', cooldown_seconds:3600,
+                contains:update ? ['update available','updates available','update verfügbar','updates verfügbar','new version available','neue version verfügbar'] : [],
+                excludes:update ? ['no update available','no updates available','kein update verfügbar','keine updates verfügbar','no new version available','keine neue version verfügbar'] : []});
+            renderMessageRules();
+        }
+        function renderMessageRules() {
+            const list = document.getElementById('message-rules-list'); list.replaceChildren();
+            if (!messageRules.length) { const empty = document.createElement('p'); empty.className='p-6 text-sm text-slate-500'; empty.textContent='Noch keine Zusatzregeln. Starte mit einer Vorlage oder einer eigenen Regel.'; list.append(empty); }
+            messageRules.forEach((rule,index) => {
+                const card=document.createElement('section'); card.className='bg-white border border-slate-200 rounded-2xl p-5 space-y-4';
+                const header=document.createElement('div'); header.className='flex flex-wrap justify-between gap-3';
+                const enabled=document.createElement('label'); enabled.className='flex items-center gap-2 text-sm font-medium';
+                const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.checked=rule.enabled; checkbox.addEventListener('change',()=>rule.enabled=checkbox.checked);
+                enabled.append(checkbox,document.createTextNode(`Regel ${index+1} aktiv`));
+                const remove=document.createElement('button'); remove.type='button'; remove.className='text-xs text-rose-700'; remove.textContent='Entfernen'; remove.addEventListener('click',()=>{messageRules.splice(index,1);renderMessageRules();}); header.append(enabled,remove); card.append(header);
+                const grid=document.createElement('div'); grid.className='grid sm:grid-cols-2 gap-4';
+                function field(title,key,multiline=false,placeholder='') {
+                    const label=document.createElement('label'); label.className='block text-xs text-slate-600 space-y-2';
+                    const caption=document.createElement('span'); caption.textContent=title;
+                    const input=document.createElement(multiline?'textarea':'input'); input.className='block w-full p-2.5 rounded-lg bg-slate-50 border border-slate-300 text-sm text-slate-900';
+                    if (multiline) { input.rows=3; input.value=(rule[key]||[]).join('\n'); }
+                    else input.value=key==='cooldown_seconds'?rule[key]/60:rule[key];
+                    input.placeholder=placeholder;
+                    if(key==='host') input.setAttribute('list','message-rule-hosts');
+                    if(['name','host','app'].includes(key)) input.maxLength={name:80,host:255,app:128}[key];
+                    if(key==='cooldown_seconds') {input.type='number';input.min=1;input.max=10080;}
+                    input.addEventListener('input',()=>rule[key]=multiline?input.value.split('\n').map(text=>text.trim()).filter(Boolean):key==='cooldown_seconds'?Number(input.value)*60:input.value);
+                    label.append(caption,input);grid.append(label);
+                }
+                field('Regelname','name',false,'Zum Beispiel Update verfügbar');
+                field('Wiederholungspause je Host und Dienst (Minuten)','cooldown_seconds');
+                field('Host-Kennung (optional)','host',false,'Leer = alle Hosts');
+                field('Dienst / App (optional)','app',false,'Leer = alle Dienste');
+                field('Mindestens einer dieser Texte · ein Text pro Zeile','contains',true,'Update verfügbar');
+                field('Nicht melden, wenn einer dieser Texte vorkommt','excludes',true,'Keine Updates verfügbar');
+                card.append(grid); list.append(card);
+            });
+        }
+        async function loadRuleHosts() {
+            try {
+                const response=await fetch('/api/filters');const data=await response.json();const list=document.getElementById('message-rule-hosts');
+                data.hosts.forEach(host=>{const option=document.createElement('option');option.value=host;option.label=data.host_labels?.[host]||host;list.append(option);});
+            } catch(error) {}
+        }
+
         // Load Settings on Start
         async function loadSettings() {
             try {
                 const res = await fetch('/api/settings');
                 const data = await res.json();
 
+                messageRules = data.alert_rules || [];
+                renderMessageRules();
                 // Alert Thresholds
                 document.getElementById('alert_min_level').value = data.alert_min_level || 'ERROR';
                 document.getElementById('alert_threshold_count').value = data.alert_threshold_count || 1;
@@ -472,6 +536,7 @@
                 alert_threshold_window_minutes: parseInt(document.getElementById('alert_threshold_window_minutes').value) || 5,
                 alert_throttle_seconds: parseInt(document.getElementById('alert_throttle_seconds').value) || 30,
                 alert_ignore_hosts: document.getElementById('alert_ignore_hosts').value.trim(),
+                alert_rules: messageRules,
 
                 telegram_enabled: document.getElementById('telegram_enabled').checked,
                 telegram_bot_token: document.getElementById('telegram_bot_token').value.trim(),
@@ -494,7 +559,7 @@
                 if (res.ok) {
                     showToast('Einstellungen erfolgreich gespeichert!', 'success');
                 } else {
-                    showToast('Fehler beim Speichern der Einstellungen', 'error');
+                    showToast('Speichern fehlgeschlagen. Zusatzregeln auf Namen, Suchtexte und Wiederholungspause prüfen.', 'error');
                 }
             } catch (err) {
                 showToast('Verbindungsfehler beim Speichern', 'error');
@@ -673,8 +738,8 @@
         }
 
         function showSettingsPanel() {
-            const key = ['channels', 'rules', 'maintenance', 'system'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'channels';
-            const titles = {system: ['Wie läuft dein RSyslog-Server?', 'Empfang, Speicherbelegung und Geräteaktivität – alle 10 Sekunden aktualisiert.'], channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Wie lange möchtest du Logs behalten?', 'Lege die Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
+            const key = ['channels', 'rules', 'maintenance', 'system', 'message-rules'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'channels';
+            const titles = {'message-rules': ['Welche Ereignisse möchtest du melden?', 'Eigene Benachrichtigungen für Update-Hinweise und andere Texte in Geräte-Logs.'], system: ['Wie läuft dein RSyslog-Server?', 'Empfang, Speicherbelegung und Geräteaktivität – alle 10 Sekunden aktualisiert.'], channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Wie lange möchtest du Logs behalten?', 'Lege die Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
             document.getElementById('settings-title').textContent = titles[key][0];
             document.getElementById('settings-description').textContent = titles[key][1];
             document.querySelectorAll('[data-settings-panel]').forEach(panel => panel.hidden = panel.dataset.settingsPanel !== key);
@@ -689,6 +754,7 @@
             loadVersionInfo();
             setInterval(loadVersionInfo, 60000);
             loadSettings();
+            loadRuleHosts();
             setInterval(() => { if (location.hash === '#system' && !document.hidden) loadSystemMetrics(); }, 10000);
         });
     </script>

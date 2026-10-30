@@ -65,6 +65,8 @@ def init_db() -> None:
 
         conn.execute("CREATE TABLE IF NOT EXISTS host_aliases (host TEXT PRIMARY KEY, name TEXT NOT NULL)")
 
+        conn.execute("CREATE TABLE IF NOT EXISTS rule_notifications (rule_id TEXT, host TEXT, app TEXT, channel TEXT, last_sent REAL NOT NULL, PRIMARY KEY(rule_id,host,app,channel))")
+
         # Settings Key-Value Table
         conn.execute(
             """
@@ -122,7 +124,15 @@ def get_all_settings() -> Dict[str, Any]:
     ntfy_topic = db_settings.get("ntfy_topic", config.NTFY_TOPIC)
     ntfy_server = db_settings.get("ntfy_server", config.NTFY_SERVER or "https://ntfy.sh")
 
+    try:
+        rules = json.loads(db_settings.get('alert_rules', '[]'))
+        from custom_alerts import validate_rules
+        rules = validate_rules(rules)
+    except (ValueError, TypeError):
+        rules = []
+
     return {
+        'alert_rules': rules,
         # Telegram
         "telegram_enabled": as_bool(db_settings.get("telegram_enabled"), bool(telegram_token and telegram_chat)),
         "telegram_bot_token": telegram_token or "",
@@ -147,6 +157,14 @@ def save_all_settings(settings: Dict[str, Any]) -> None:
     conn = get_db_connection()
     with conn:
         for k, v in settings.items():
+            if k == 'alert_rules':
+                from custom_alerts import validate_rules
+                rules = validate_rules(v)
+                v = json.dumps(rules, ensure_ascii=False)
+                if rules:
+                    conn.execute('DELETE FROM rule_notifications WHERE rule_id NOT IN (' + ','.join('?' for _ in rules) + ')', [rule['id'] for rule in rules])
+                else:
+                    conn.execute('DELETE FROM rule_notifications')
             conn.execute(
                 "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (str(k), str(v)),
@@ -490,3 +508,18 @@ def set_host_alias(host, name):
 def get_host_display_name(host):
     row = get_db_connection().execute('SELECT name FROM host_aliases WHERE host=?', (host,)).fetchone()
     return row['name'] if row else host
+
+
+def claim_rule_notification(key, cooldown, now):
+    conn = get_db_connection()
+    with conn:
+        cursor = conn.execute("""INSERT INTO rule_notifications(rule_id,host,app,channel,last_sent) VALUES(?,?,?,?,?)
+            ON CONFLICT(rule_id,host,app,channel) DO UPDATE SET last_sent=excluded.last_sent
+            WHERE rule_notifications.last_sent <= ?""", (*key, now, now-cooldown))
+    return cursor.rowcount == 1
+
+
+def release_rule_notification(key, now):
+    conn = get_db_connection()
+    with conn:
+        conn.execute('DELETE FROM rule_notifications WHERE rule_id=? AND host=? AND app=? AND channel=? AND last_sent=?', (*key,now))

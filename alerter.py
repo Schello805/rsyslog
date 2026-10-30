@@ -93,7 +93,7 @@ async def send_telegram_alert(
     if not token or not chat_id:
         return False
 
-    level_emoji = "🔥" if log.get("level") in ("CRITICAL", "EMERGENCY", "ALERT") else "⚠️"
+    level_emoji = "🔥" if log.get("level") in ("CRITICAL", "EMERGENCY", "ALERT") else "⚠️" if get_severity_score(log.get("level", "INFO")) >= 30 else "ℹ️"
     msg_preview = html.escape(str(log.get("message", ""))[:1200])
     host_clean = html.escape(str(log.get("host", "unknown")))
     app_clean = html.escape(str(log.get("app", "syslog")))
@@ -150,8 +150,9 @@ async def send_ntfy_alert(
     url = f"{srv}/{topic}"
 
     is_crit = log.get("level") in ("CRITICAL", "EMERGENCY", "ALERT")
-    priority = "5" if is_crit else "4"
-    tags = "rotating_light,fire" if is_crit else "warning,bell"
+    is_warning = get_severity_score(log.get("level", "INFO")) >= 30
+    priority = "5" if is_crit else "4" if is_warning else "3"
+    tags = "rotating_light,fire" if is_crit else "warning,bell" if is_warning else "information_source,bell"
 
     title = f"Syslog {log.get('level')}: {log.get('host')} - {log.get('app')}"
     if occurrence_count > 1:
@@ -186,14 +187,18 @@ async def process_alert(log: Dict[str, Any]) -> None:
     """
     settings = database.get_all_settings()
 
-    min_level = settings.get("alert_min_level", "ERROR")
-    log_level = log.get("level", "INFO")
-    if not should_evaluate_level(log_level, min_level):
-        return
-
     host = log.get("host", "unknown")
     if is_host_ignored(host, settings.get("alert_ignore_hosts", "")):
         logger.debug(f"Alert ignored for host: {host}")
+        return
+
+    from custom_alerts import process_message_rules
+    if await process_message_rules(log, settings):
+        return
+
+    min_level = settings.get("alert_min_level", "ERROR")
+    log_level = log.get("level", "INFO")
+    if not should_evaluate_level(log_level, min_level):
         return
 
     # Evaluate occurrences within the time window

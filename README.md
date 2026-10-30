@@ -255,3 +255,23 @@ dem Host-Filter bei einem ausgewählten Absender. Anzeigenamen gelten zentral f�
 alle Browser und bereits gespeicherte Meldungen, sind durchsuchbar und erscheinen
 im Export. Der ursprüngliche Host bleibt die eindeutige Kennung für Filter und
 Ausschlüsse. Ein leeres Namensfeld setzt die Anzeige zurück.
+
+
+## Zusatzregeln für Geräte-Meldungen
+
+Unter **Einstellungen → Zusatzregeln** kannst du etwa „Update verfügbar“ als Vorlage
+hinzufügen. Die Regel reagiert auf eingehende Geräte-Logs, auch wenn sie nur INFO
+haben. Suchtexte lassen sich an die tatsächlichen Meldungen deiner Geräte anpassen;
+Ausschlusstexte verhindern Treffer wie „keine Updates verfügbar“. Die Suche ist ohne
+Beachtung der Groß-/Kleinschreibung und ohne reguläre Ausdrücke.
+
+Optional auf einen ursprünglichen Host und einen Dienst eingrenzen. Versand erfolgt
+über die aktivierten Telegram-/Ntfy-Kanäle. Jede Regel hat eine eigene Pause je Host,
+Dienst und Kanal, die auch Neustarts übersteht. Fehlgeschlagene Kanäle dürfen bei
+der nächsten passenden Meldung erneut versuchen zu senden. Bei mehreren passenden
+Regeln wird nur die erste verwendet; für diese Meldung gilt ihre Pause anstelle der
+allgemeinen Level-/Häufigkeitsregel. Globale Alarm-Hostausschlüsse gelten weiterhin.
+Regeln aktivieren, bearbeiten oder entfernen und anschließend Einstellungen speichern.
+
+Es werden keine Paketstände aktiv abgefragt: Das Gerät muss den Update-Hinweis
+selbst per Syslog senden. Diese Funktion betrifft keine Updates von RSyslog Web.
