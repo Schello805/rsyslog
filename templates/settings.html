@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de" class="dark">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,28 +25,29 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #111827; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
-        .system-card { background:#0f172a; border:1px solid #1e293b; border-radius:1rem; padding:1.25rem; }
-        .system-card p, .system-card small { font-size:.75rem; color:#94a3b8; }
+        ::-webkit-scrollbar-track { background: #edf2f7; }
+        ::-webkit-scrollbar-thumb { background: #b6c2d1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .system-card { background:#ffffff; border:1px solid #dbe3ee; border-radius:1rem; padding:1.25rem; }
+        .system-card p, .system-card small { font-size:.75rem; color:#526176; }
         .system-card strong { display:block; margin:.75rem 0; font-size:1.75rem; font-weight:600; }
-        #system-storage-progress { appearance:none; height:8px; border:0; border-radius:4px; background:#1e293b; overflow:hidden; }
-        #system-storage-progress::-webkit-progress-bar { background:#1e293b; }
+        #system-storage-progress { appearance:none; height:8px; border:0; border-radius:4px; background:#dbe3ee; overflow:hidden; }
+        #system-storage-progress::-webkit-progress-bar { background:#dbe3ee; }
         #system-storage-progress::-webkit-progress-value { background:var(--storage-color,#38bdf8); }
         #system-storage-progress::-moz-progress-bar { background:var(--storage-color,#38bdf8); }
         .system-list { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.75rem; font-size:.875rem; }
-        .system-list dt { color:#94a3b8; } .system-list dd { text-align:right; }
+        .system-list dt { color:#526176; } .system-list dd { text-align:right; }
         [hidden] { display:none !important; }
-        .settings-tab { padding:.7rem 1rem; border-radius:.75rem; color:#94a3b8; font-size:.875rem; border:1px solid #1e293b; }
-        .settings-tab[aria-current="page"] { color:#e0f2fe; background:#0c4a6e; border-color:#075985; }
+        .settings-tab { padding:.7rem 1rem; border-radius:.75rem; color:#526176; font-size:.875rem; border:1px solid #dbe3ee; }
+        .settings-tab[aria-current="page"] { color:#075985; background:#e0f2fe; border-color:#7dd3fc; }
         @media(max-width:700px) { header > div { height:auto !important; min-height:64px; flex-wrap:wrap; gap:.75rem; padding-top:.75rem; padding-bottom:.75rem; } #header-rev-badge { display:none; } }
     </style>
+    <link rel="stylesheet" href="/assets/theme.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
 
     <!-- Top Navigation Bar -->
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+    <header class="border-b border-slate-200 bg-white/80 backdrop-blur sticky top-0 z-30">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-6">
                 <a href="/" class="flex items-center space-x-3 group">
@@ -55,24 +56,24 @@
                     </div>
                     <div>
                         <div class="flex items-center space-x-2">
-                            <h1 class="text-lg font-bold tracking-tight text-white">RSyslog <span class="text-sky-400">Web</span></h1>
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">Version …</span>
+                            <h1 class="text-lg font-bold tracking-tight text-slate-900">RSyslog <span class="text-sky-700">Web</span></h1>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200/60 font-mono" id="header-rev-badge">Version …</span>
                         </div>
-                        <p class="text-xs text-slate-400">Systemeinstellungen & Alarmregeln</p>
+                        <p class="text-xs text-slate-600">Systemeinstellungen & Alarmregeln</p>
                     </div>
                 </a>
 
                 <!-- Navigation Tabs -->
-                <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-800">
-                    <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-200">
+                    <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
                         <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
                         <span>Überblick</span>
                     </a>
-                    <a href="/guide" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    <a href="/guide" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
                         <i data-lucide="radio" class="w-4 h-4"></i>
                         <span>Geräte anbinden</span>
                     </a>
-                    <a href="/settings" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-950/60 text-sky-400 border border-sky-800/50 transition">
+                    <a href="/settings" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50/60 text-sky-700 border border-sky-200/50 transition">
                         <i data-lucide="settings" class="w-4 h-4"></i>
                         <span>Einstellungen</span>
                     </a>
@@ -80,13 +81,13 @@
             </div>
 
             <div class="flex items-center space-x-3">
-                <a href="/guide" class="flex sm:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white" title="Geräte anbinden">
+                <a href="/guide" class="flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Geräte anbinden">
                     <i data-lucide="radio" class="w-4 h-4"></i>
                 </a>
-                <a href="/" class="flex sm:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white" title="Zurück zum Dashboard">
+                <a href="/" class="flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Zurück zum Dashboard">
                     <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
                 </a>
-                <button data-settings-save onclick="saveSettings()" class="flex items-center space-x-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition shadow-sm">
+                <button data-settings-save onclick="saveSettings()" class="flex items-center space-x-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-sky-700 hover:bg-sky-600 text-white transition shadow-sm">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     <span>Einstellungen speichern</span>
                 </button>
@@ -98,13 +99,13 @@
     <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         <!-- Intro Banner -->
-        <div class="bg-gradient-to-r from-sky-950/40 via-indigo-950/20 to-slate-900 border border-sky-900/40 rounded-2xl p-6 relative overflow-hidden">
+        <div class="bg-gradient-to-r from-sky-50/40 via-indigo-50/20 to-white border border-sky-200/40 rounded-2xl p-6 relative overflow-hidden">
             <div class="relative z-10">
-                <h2 class="text-xl font-bold text-white flex items-center space-x-2">
-                    <i data-lucide="sliders" class="w-5 h-5 text-sky-400"></i>
+                <h2 class="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                    <i data-lucide="sliders" class="w-5 h-5 text-sky-700"></i>
                     <span id="settings-title">Benachrichtigungen einrichten</span>
                 </h2>
-                <p id="settings-description" class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                <p id="settings-description" class="text-xs sm:text-sm text-slate-700 mt-1 max-w-2xl">
                     Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.
                 </p>
             </div>
@@ -119,38 +120,38 @@
                 <a href="#maintenance" data-settings-link="maintenance" class="settings-tab">Daten aufbewahren</a>
             </nav>
             <section data-settings-panel="channels" class="space-y-4">
-                <p class="text-sm text-slate-400">Wähle einen Kanal. Trage die Zugangsdaten ein und teste die Verbindung vor dem Speichern.</p>
-<details class="rounded-2xl border border-slate-800"><summary class="cursor-pointer p-5 font-medium">Telegram einrichten</summary>            <!-- Card 2: Telegram Bot Einstellungen -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <p class="text-sm text-slate-600">Wähle einen Kanal. Trage die Zugangsdaten ein und teste die Verbindung vor dem Speichern.</p>
+<details class="rounded-2xl border border-slate-200"><summary class="cursor-pointer p-5 font-medium">Telegram einrichten</summary>            <!-- Card 2: Telegram Bot Einstellungen -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                        <div class="text-white w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-700">
                             <i data-lucide="send" class="w-4 h-4"></i>
                         </div>
                         <div>
-                            <h3 class="text-base font-semibold text-white">Telegram Benachrichtigung</h3>
-                            <p class="text-xs text-slate-400">Erhalte Alarme direkt als Nachricht auf dein Smartphone.</p>
+                            <h3 class="text-base font-semibold text-slate-900">Telegram Benachrichtigung</h3>
+                            <p class="text-xs text-slate-600">Erhalte Alarme direkt als Nachricht auf dein Smartphone.</p>
                         </div>
                     </div>
 
                     <!-- Enabled Toggle -->
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="telegram_enabled" class="sr-only peer">
-                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
-                        <span class="ml-2 text-xs font-medium text-slate-300">Aktiviert</span>
+                        <div class="w-11 h-6 bg-slate-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-700"></div>
+                        <span class="ml-2 text-xs font-medium text-slate-700">Aktiviert</span>
                     </label>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Token -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Telegram Bot Token
                         </label>
                         <div class="relative">
                             <input type="password" id="telegram_bot_token" placeholder="z. B. 7123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ"
-                                class="w-full pl-3.5 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
-                            <button type="button" onclick="togglePasswordVisibility('telegram_bot_token', this)" class="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
+                                class="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
+                            <button type="button" onclick="togglePasswordVisibility('telegram_bot_token', this)" class="absolute right-3 top-3 text-slate-500 hover:text-slate-700">
                                 <i data-lucide="eye" class="w-4 h-4"></i>
                             </button>
                         </div>
@@ -159,96 +160,96 @@
 
                     <!-- Chat ID -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Telegram Chat-ID
                         </label>
                         <input type="text" id="telegram_chat_id" placeholder="z. B. 123456789"
-                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
                         <p class="text-[11px] text-slate-500 mt-1">Deine persönliche ID erfährst du sofort beim Bot <strong>@userinfobot</strong>.</p>
                     </div>
                 </div>
 
                 <div class="flex justify-end pt-2">
-                    <button type="button" onclick="testTelegram()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
-                        <i data-lucide="send" class="w-3.5 h-3.5 text-sky-400"></i>
+                    <button type="button" onclick="testTelegram()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-800 border border-slate-300 transition">
+                        <i data-lucide="send" class="w-3.5 h-3.5 text-sky-700"></i>
                         <span>Telegram-Verbindung jetzt testen</span>
                     </button>
                 </div>
             </div>
 
 </details>
-<details class="rounded-2xl border border-slate-800"><summary class="cursor-pointer p-5 font-medium">Ntfy einrichten</summary>            <!-- Card 3: Ntfy Push-Dienst Einstellungen -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+<details class="rounded-2xl border border-slate-200"><summary class="cursor-pointer p-5 font-medium">Ntfy einrichten</summary>            <!-- Card 3: Ntfy Push-Dienst Einstellungen -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <div class="text-white w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-700">
                             <i data-lucide="bell" class="w-4 h-4"></i>
                         </div>
                         <div>
-                            <h3 class="text-base font-semibold text-white">Ntfy Push-Dienst</h3>
-                            <p class="text-xs text-slate-400">Kostenlose, offene Push-Benachrichtigungen ohne Registrierung oder Account.</p>
+                            <h3 class="text-base font-semibold text-slate-900">Ntfy Push-Dienst</h3>
+                            <p class="text-xs text-slate-600">Kostenlose, offene Push-Benachrichtigungen ohne Registrierung oder Account.</p>
                         </div>
                     </div>
 
                     <!-- Enabled Toggle -->
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="ntfy_enabled" class="sr-only peer">
-                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                        <span class="ml-2 text-xs font-medium text-slate-300">Aktiviert</span>
+                        <div class="w-11 h-6 bg-slate-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <span class="ml-2 text-xs font-medium text-slate-700">Aktiviert</span>
                     </label>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Thema -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Ntfy Thema (Topic)
                         </label>
                         <input type="text" id="ntfy_topic" placeholder="z. B. mein-syslog-alarm-9482"
-                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
                         <p class="text-[11px] text-slate-500 mt-1">Wähle einen individuellen, geheimen Themennamen und abonniere ihn in der ntfy-App.</p>
                     </div>
 
                     <!-- Server -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Ntfy Server
                         </label>
                         <input type="text" id="ntfy_server" value="https://ntfy.sh"
-                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
                         <p class="text-[11px] text-slate-500 mt-1">Standard: <code>https://ntfy.sh</code> (kann bei Bedarf auf eigene Instanz geändert werden).</p>
                     </div>
                 </div>
 
                 <div class="flex justify-end pt-2">
-                    <button type="button" onclick="testNtfy()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
-                        <i data-lucide="bell" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <button type="button" onclick="testNtfy()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-800 border border-slate-300 transition">
+                        <i data-lucide="bell" class="w-3.5 h-3.5 text-emerald-700"></i>
                         <span>Ntfy-Verbindung jetzt testen</span>
                     </button>
                 </div>
             </div>
 
 </details>
-                <a href="#rules" class="inline-block text-sm text-sky-400">Weiter zu den Alarmregeln →</a>
+                <a href="#rules" class="inline-block text-sm text-sky-700">Weiter zu den Alarmregeln →</a>
             </section>
             <section data-settings-panel="rules" hidden class="space-y-4">
             <!-- Card 1: Alarmbedingungen & Schwellenwerte -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
-                <div class="border-b border-slate-800 pb-4">
-                    <h3 class="text-base font-semibold text-white flex items-center space-x-2">
-                        <i data-lucide="bell-ring" class="w-5 h-5 text-amber-400"></i>
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="border-b border-slate-200 pb-4">
+                    <h3 class="text-base font-semibold text-slate-900 flex items-center space-x-2">
+                        <i data-lucide="bell-ring" class="w-5 h-5 text-amber-700"></i>
                         <span>Alarm-Bedingungen & Schwellenwerte</span>
                     </h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Lege präzise fest, ab welchem Schweregrad und ab wie vielen Ereignissen benachrichtigt wird.</p>
+                    <p class="text-xs text-slate-600 mt-0.5">Lege präzise fest, ab welchem Schweregrad und ab wie vielen Ereignissen benachrichtigt wird.</p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Mindest-Level -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Mindest-Level für Alarme
                         </label>
-                        <select id="alert_min_level" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <select id="alert_min_level" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                             <option value="CRITICAL">🚨 Nur Kritisch (Critical / Notfall)</option>
                             <option value="ERROR" selected>⚠️ Ab Fehler (Error & Critical)</option>
                             <option value="WARN">🟡 Ab Warnung (Warn, Error & Critical)</option>
@@ -259,10 +260,10 @@
 
                     <!-- Häufigkeitsschwelle -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Auslöseschwelle (Häufigkeit)
                         </label>
-                        <select id="alert_threshold_count" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <select id="alert_threshold_count" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                             <option value="1" selected>⚡ Sofort beim 1. Auftreten (Echtzeit)</option>
                             <option value="2">🔁 Erst ab 2 Fehlern innerhalb des Zeitfensters</option>
                             <option value="3">🔁 Erst ab 3 Fehlern innerhalb des Zeitfensters</option>
@@ -274,10 +275,10 @@
 
                     <!-- Zeitfenster für Häufigkeit -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Zeitfenster für Häufigkeitszählung
                         </label>
-                        <select id="alert_threshold_window_minutes" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <select id="alert_threshold_window_minutes" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                             <option value="1">1 Minute</option>
                             <option value="2">2 Minuten</option>
                             <option value="5" selected>5 Minuten (Empfohlen)</option>
@@ -291,10 +292,10 @@
 
                     <!-- Wiederholungssperre / Drosselung (Cooldown) -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Wiederholungssperre (Spamschutz / Cooldown)
                         </label>
-                        <select id="alert_throttle_seconds" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <select id="alert_throttle_seconds" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                             <option value="10">10 Sekunden</option>
                             <option value="30" selected>30 Sekunden (Empfohlen)</option>
                             <option value="60">1 Minute</option>
@@ -306,11 +307,11 @@
 
                     <!-- Ignorierte Hosts -->
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Ignorierte Hosts (Blacklist)
                         </label>
                         <input type="text" id="alert_ignore_hosts" placeholder="z. B. test-device, dev-vm, 192.168.1.99"
-                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <p class="text-[11px] text-slate-500 mt-1">Kommagetrennte Liste von Hostnamen oder IP-Adressen, die niemals Alarme auslösen sollen.</p>
                     </div>
                 </div>
@@ -319,21 +320,21 @@
             </section>
             <section data-settings-panel="maintenance" hidden class="space-y-4">
             <!-- Card 4: Wartung & Datenbank -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
-                <div class="border-b border-slate-800 pb-4">
-                    <h3 class="text-base font-semibold text-white flex items-center space-x-2">
-                        <i data-lucide="database" class="w-5 h-5 text-indigo-400"></i>
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="border-b border-slate-200 pb-4">
+                    <h3 class="text-base font-semibold text-slate-900 flex items-center space-x-2">
+                        <i data-lucide="database" class="w-5 h-5 text-indigo-700"></i>
                         <span>Datenbank & Aufbewahrung</span>
                     </h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Automatische Bereinigung alter Logdaten zur Speicheroptimierung.</p>
+                    <p class="text-xs text-slate-600 mt-0.5">Automatische Bereinigung alter Logdaten zur Speicheroptimierung.</p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label class="block text-xs font-medium text-slate-700 mb-1.5">
                             Aufbewahrungsdauer (Retention)
                         </label>
-                        <select id="retention_days" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <select id="retention_days" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                             <option value="0" selected>Unbegrenzt behalten (Keine automatische Löschung)</option>
                             <option value="7">Logs älter als 7 Tage löschen</option>
                             <option value="14">Logs älter als 14 Tage löschen</option>
@@ -344,8 +345,8 @@
                     </div>
 
                     <div>
-                        <button type="button" onclick="triggerManualCleanup()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
-                            <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                        <button type="button" onclick="triggerManualCleanup()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-800 border border-slate-300 transition">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-amber-700"></i>
                             <span>Jetzt nach Aufbewahrungsdauer bereinigen</span>
                         </button>
                     </div>
@@ -361,35 +362,35 @@
                     <div class="system-card"><p>Laufzeit der Webapp</p><strong id="system-uptime">…</strong><small>Seit letztem App-Start</small></div>
                 </div>
                 <div class="grid lg:grid-cols-2 gap-6">
-                    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <section class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                         <h3 class="font-semibold">Speicher des RSyslog-Servers</h3>
-                        <p class="text-xs text-slate-400">Dateisystem, auf dem die Log-Datenbank liegt. Keine Messwerte der angebundenen Geräte.</p>
+                        <p class="text-xs text-slate-600">Dateisystem, auf dem die Log-Datenbank liegt. Keine Messwerte der angebundenen Geräte.</p>
                         <p id="system-storage-label" class="text-lg font-semibold">…</p>
                         <progress id="system-storage-progress" max="100" value="0" aria-label="Belegung des Datenbank-Dateisystems" style="width:100%;accent-color:#38bdf8"></progress>
                         <dl class="system-list"><dt>Belegt</dt><dd id="system-storage-used">…</dd><dt>Verfügbar</dt><dd id="system-storage-free">…</dd><dt>Gesamtkapazität</dt><dd id="system-storage-total">…</dd></dl>
                     </section>
-                    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <section class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                         <h3 class="font-semibold">Log-Datenbank</h3>
                         <dl class="system-list"><dt>Datenbankdatei</dt><dd id="system-db-size">…</dd><dt>Schreibprotokoll (WAL)</dt><dd id="system-db-wal">…</dd><dt>Verwaltung (SHM)</dt><dd id="system-db-shm">…</dd><dt>Dateien insgesamt</dt><dd id="system-db-total">…</dd><dt>Aufbewahrungsfrist</dt><dd id="system-retention">…</dd></dl>
                         <p id="system-db-path" class="text-xs text-slate-500 break-all"></p>
-                        <a href="#maintenance" class="inline-block text-sm text-sky-400">Aufbewahrung ändern →</a>
+                        <a href="#maintenance" class="inline-block text-sm text-sky-700">Aufbewahrung ändern →</a>
                     </section>
                 </div>
-                <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <section class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                     <h3 class="font-semibold">Empfang & Überwachung</h3>
                     <dl class="system-list"><dt>UDP-Empfang</dt><dd id="system-udp">…</dd><dt>TCP-Empfang</dt><dd id="system-tcp">…</dd><dt>Empfangswarteschlange</dt><dd id="system-queue">…</dd><dt>UDP wegen Überlast verworfen</dt><dd id="system-dropped">…</dd><dt>TCP-Verbindungen</dt><dd id="system-tcp-clients">…</dd><dt>Live-Dashboards</dt><dd id="system-ws-clients">…</dd><dt>Lebenszeichen-Überwachung</dt><dd id="system-heartbeats">…</dd></dl>
-                    <p id="system-rate-detail" class="text-xs text-slate-400"></p>
+                    <p id="system-rate-detail" class="text-xs text-slate-600"></p>
                 </section>
                 <p id="system-metrics-updated" role="status" class="text-xs text-slate-500">Kennzahlen werden geladen …</p>
             </section>
             <!-- Bottom Sticky Action Bar -->
             <div class="flex items-center justify-between pt-4">
-                <a href="/" class="text-xs text-slate-400 hover:text-white flex items-center space-x-1">
+                <a href="/" class="text-xs text-slate-600 hover:text-slate-900 flex items-center space-x-1">
                     <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
                     <span>Zurück zum Dashboard</span>
                 </a>
 
-                <button data-settings-save type="submit" class="flex items-center space-x-2 text-sm font-semibold px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white transition shadow-lg shadow-sky-600/30">
+                <button data-settings-save type="submit" class="flex items-center space-x-2 text-sm font-semibold px-6 py-3 rounded-xl bg-sky-700 hover:bg-sky-600 text-white transition shadow-lg shadow-sky-600/30">
                     <i data-lucide="check" class="w-4 h-4"></i>
                     <span>Alle Einstellungen speichern</span>
                 </button>
@@ -402,26 +403,26 @@
     <div id="toast-container" class="fixed bottom-16 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
     <!-- Footer -->
-    <footer class="border-t border-slate-800 bg-slate-950/90 text-xs text-slate-400 py-5 mt-auto">
+    <footer class="border-t border-slate-200 bg-slate-50/90 text-xs text-slate-600 py-5 mt-auto">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="flex items-center space-x-2">
                 <span>Open Source von <strong>Michael Schellenberger</strong></span>
                 <span class="text-slate-600">•</span>
-                <span class="text-slate-400">Freie Nutzung (Non-Commercial, CC BY-NC 4.0)</span>
+                <span class="text-slate-600">Freie Nutzung (Non-Commercial, CC BY-NC 4.0)</span>
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
                 <div id="footer-update" class="flex flex-wrap items-center gap-2 text-xs">
-                    <span id="footer-update-status" role="status" class="text-slate-400">Prüfe auf Updates …</span>
-                    <button id="footer-update-button" type="button" hidden class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white">Update starten</button>
+                    <span id="footer-update-status" role="status" class="text-slate-600">Prüfe auf Updates …</span>
+                    <button id="footer-update-button" type="button" hidden class="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-white">Update starten</button>
                 </div>
-                <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300 font-mono">
-                    <i data-lucide="git-commit" class="w-3.5 h-3.5 text-sky-400"></i>
+                <div class="flex items-center space-x-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-md text-slate-700 font-mono">
+                    <i data-lucide="git-commit" class="w-3.5 h-3.5 text-sky-700"></i>
                     <span id="footer-rev-text">Version wird geladen …</span>
                 </div>
                 <a id="footer-github-link" href="https://github.com/Schello805/rsyslog" target="_blank" rel="noopener noreferrer" 
-                   class="flex items-center space-x-1.5 text-slate-300 hover:text-white transition px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800">
-                    <svg class="w-4 h-4 fill-current text-white" viewBox="0 0 24 24" aria-hidden="true">
+                   class="flex items-center space-x-1.5 text-slate-700 hover:text-slate-900 transition px-2.5 py-1 rounded-md bg-white hover:bg-slate-100 border border-slate-200">
+                    <svg class="w-4 h-4 fill-current text-slate-900" viewBox="0 0 24 24" aria-hidden="true">
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
                     </svg>
                     <span class="font-medium">GitHub</span>
@@ -611,8 +612,8 @@
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            const bgClass = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-600' : 'bg-slate-800 border border-slate-700');
-            toast.className = `${bgClass} text-white text-xs px-4 py-2.5 rounded-lg shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto`;
+            const bgClass = type === 'success' ? 'bg-emerald-700' : (type === 'error' ? 'bg-rose-700' : 'bg-slate-100 border border-slate-300');
+            toast.className = `${bgClass} ${type === 'info' ? 'text-slate-800' : 'text-white'} text-xs px-4 py-2.5 rounded-lg shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto`;
             toast.innerHTML = `<span>${message}</span>`;
             container.appendChild(toast);
 

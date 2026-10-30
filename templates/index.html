@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de" class="dark">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,20 +26,20 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* Custom scrollbar for modern dark theme */
+        /* Custom scrollbar for light theme */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
         ::-webkit-scrollbar-track {
-            background: #111827;
+            background: #edf2f7;
         }
         ::-webkit-scrollbar-thumb {
-            background: #374151;
+            background: #b6c2d1;
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #4b5563;
+            background: #94a3b8;
         }
         .live-pulse {
             box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
@@ -50,22 +50,23 @@
             70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
-        .dashboard-card { display:block; background:#0f172a; border:1px solid #1e293b; border-radius:1rem; padding:1.25rem; }
+        .dashboard-card { display:block; background:#ffffff; border:1px solid #dbe3ee; border-radius:1rem; padding:1.25rem; }
         .dashboard-card:hover { border-color:#0369a1; }
-        .dashboard-label { font-size:.75rem; color:#94a3b8; }
+        .dashboard-label { font-size:.75rem; color:#526176; }
         .dashboard-number { font-size:1.875rem; font-weight:600; margin-top:.65rem; }
         [hidden] { display: none !important; }
-        .workflow-link { padding: .65rem 1rem; border-radius: .65rem; font-size: .875rem; white-space: nowrap; color: #94a3b8; }
-        .workflow-link[aria-current="page"] { background: #0c4a6e; color: #e0f2fe; }
-        .workflow-link:hover { color: white; }
+        .workflow-link { padding: .65rem 1rem; border-radius: .65rem; font-size: .875rem; white-space: nowrap; color: #526176; }
+        .workflow-link[aria-current="page"] { background: #e0f2fe; color: #075985; }
+        .workflow-link:hover { color: #075985; }
         summary { list-style-position: inside; }
         @media (max-width: 700px) { header > div { height: auto !important; min-height: 64px; flex-wrap: wrap; gap: .75rem; padding-top: .75rem; padding-bottom: .75rem; } #header-rev-badge { display:none; } #connection-status { padding:.4rem; white-space:nowrap; } }
     </style>
+    <link rel="stylesheet" href="/assets/theme.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
 
     <!-- Top Navigation Bar -->
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+    <header class="border-b border-slate-200 bg-white/80 backdrop-blur sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-6">
                 <a href="/" class="flex items-center space-x-3 group">
@@ -74,24 +75,24 @@
                     </div>
                     <div>
                         <div class="flex items-center space-x-2">
-                            <h1 class="text-lg font-bold tracking-tight text-white">RSyslog <span class="text-sky-400">Web</span></h1>
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">Version …</span>
+                            <h1 class="text-lg font-bold tracking-tight text-slate-900">RSyslog <span class="text-sky-700">Web</span></h1>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200/60 font-mono" id="header-rev-badge">Version …</span>
                         </div>
-                        <p class="text-xs text-slate-400">Deine Systeme im Blick</p>
+                        <p class="text-xs text-slate-600">Deine Systeme im Blick</p>
                     </div>
                 </a>
 
                 <!-- Navigation Tabs -->
-                <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-800">
-                    <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-950/60 text-sky-400 border border-sky-800/50 transition">
+                <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-200">
+                    <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50/60 text-sky-700 border border-sky-200/50 transition">
                         <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
                         <span>Überblick</span>
                     </a>
-                    <a href="/guide" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    <a href="/guide" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
                         <i data-lucide="radio" class="w-4 h-4"></i>
                         <span>Geräte anbinden</span>
                     </a>
-                    <a href="/settings" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    <a href="/settings" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
                         <i data-lucide="settings" class="w-4 h-4"></i>
                         <span>Einstellungen</span>
                     </a>
@@ -100,29 +101,29 @@
 
             <div class="flex items-center space-x-3">
                 <!-- Mobile Guide & Settings Links -->
-                <a href="/guide" class="flex sm:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white" title="Geräte anbinden">
+                <a href="/guide" class="flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Geräte anbinden">
                     <i data-lucide="radio" class="w-4 h-4"></i>
                 </a>
-                <a href="/settings" class="flex sm:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white" title="Einstellungen">
+                <a href="/settings" class="flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Einstellungen">
                     <i data-lucide="settings" class="w-4 h-4"></i>
                 </a>
 
                 <!-- Live Connection Badge -->
-                <div id="connection-status" class="flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700">
+                <div id="connection-status" class="flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-slate-100 border border-slate-300">
                     <span id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 live-pulse"></span>
-                    <span id="status-text" class="text-slate-300">Live verbunden</span>
+                    <span id="status-text" class="text-slate-700">Live verbunden</span>
                 </div>
 
                 <!-- Live Stream Pause/Play Toggle -->
-                <button id="toggle-stream-btn" onclick="toggleLiveStream()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Live Stream anhalten/fortsetzen">
+                <button id="toggle-stream-btn" onclick="toggleLiveStream()" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition" title="Live Stream anhalten/fortsetzen">
                     <i id="stream-icon" data-lucide="pause" class="w-4 h-4"></i>
                 </button>
 
                 <details class="relative">
-                    <summary class="cursor-pointer px-3 py-2 rounded-lg border border-slate-700 text-xs text-slate-300">Werkzeuge</summary>
-                    <div class="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-700 rounded-xl p-2 shadow-xl space-y-1">
-                        <button onclick="openTestLogModal(); this.closest('details').open=false" class="w-full text-left p-2 text-xs rounded-lg hover:bg-slate-800">Test-Log senden</button>
-                        <button onclick="triggerTestAlert(); this.closest('details').open=false" class="w-full text-left p-2 text-xs rounded-lg hover:bg-slate-800">Alarm testen</button>
+                    <summary class="cursor-pointer px-3 py-2 rounded-lg border border-slate-300 text-xs text-slate-700">Werkzeuge</summary>
+                    <div class="absolute right-0 mt-2 w-48 bg-white border border-slate-300 rounded-xl p-2 shadow-xl space-y-1">
+                        <button onclick="openTestLogModal(); this.closest('details').open=false" class="w-full text-left p-2 text-xs rounded-lg hover:bg-slate-100">Test-Log senden</button>
+                        <button onclick="triggerTestAlert(); this.closest('details').open=false" class="w-full text-left p-2 text-xs rounded-lg hover:bg-slate-100">Alarm testen</button>
                     </div>
                 </details>
             </div>
@@ -133,13 +134,13 @@
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         <div class="flex flex-wrap items-end justify-between gap-4">
-            <div><p class="text-xs text-sky-400 font-medium mb-2">BETRIEB</p>
+            <div><p class="text-xs text-sky-700 font-medium mb-2">BETRIEB</p>
                 <h2 id="workflow-title" class="text-2xl font-semibold tracking-tight">Was braucht Aufmerksamkeit?</h2>
-                <p id="workflow-description" class="text-sm text-slate-400 mt-2">Prüfe den Zustand deiner Umgebung und wähle den nächsten Schritt.</p>
+                <p id="workflow-description" class="text-sm text-slate-600 mt-2">Prüfe den Zustand deiner Umgebung und wähle den nächsten Schritt.</p>
             </div>
-            <a href="/guide" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-sm font-medium">Gerät anbinden</a>
+            <a href="/guide" class="text-white px-4 py-2 rounded-lg bg-sky-700 hover:bg-sky-600 text-sm font-medium">Gerät anbinden</a>
         </div>
-        <nav aria-label="Arbeitsbereich" class="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+        <nav aria-label="Arbeitsbereich" class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
             <a href="#overview" data-workflow="overview" class="workflow-link">Überblick</a>
             <a href="#logs" data-workflow="logs" class="workflow-link">Logs prüfen</a>
             <a href="#devices" data-workflow="devices" class="workflow-link">Gerätestatus <span id="offline-badge"></span></a>
@@ -148,58 +149,58 @@
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <a href="#devices" class="dashboard-card"><p class="dashboard-label">Bekannte Absender</p><p id="overview-known" class="dashboard-number">…</p><p id="overview-recent" class="dashboard-label mt-2">Aktivität wird geladen</p></a>
                 <a href="#logs" class="dashboard-card"><p class="dashboard-label">Meldungen · 24 Stunden</p><p id="overview-volume" class="dashboard-number">…</p><p id="overview-rate" class="dashboard-label mt-2">Logs pro Minute werden geladen …</p></a>
-                <button type="button" onclick="openLogFilter('ERROR_CRITICAL', 'ALL', '24')" class="dashboard-card text-left"><p class="dashboard-label">Fehler · 24 Stunden</p><p id="overview-errors" class="dashboard-number text-rose-400">…</p><p class="dashboard-label mt-2">Fehler untersuchen →</p></button>
-                <button type="button" onclick="openLogFilter('WARN', 'ALL', '24')" class="dashboard-card text-left"><p class="dashboard-label">Warnungen · 24 Stunden</p><p id="overview-warnings" class="dashboard-number text-amber-400">…</p><p class="dashboard-label mt-2">Warnungen prüfen →</p></button>
+                <button type="button" onclick="openLogFilter('ERROR_CRITICAL', 'ALL', '24')" class="dashboard-card text-left"><p class="dashboard-label">Fehler · 24 Stunden</p><p id="overview-errors" class="dashboard-number text-rose-700">…</p><p class="dashboard-label mt-2">Fehler untersuchen →</p></button>
+                <button type="button" onclick="openLogFilter('WARN', 'ALL', '24')" class="dashboard-card text-left"><p class="dashboard-label">Warnungen · 24 Stunden</p><p id="overview-warnings" class="dashboard-number text-amber-700">…</p><p class="dashboard-label mt-2">Warnungen prüfen →</p></button>
             </div>
-            <div id="overview-monitoring" class="rounded-xl border border-slate-800 bg-slate-900/50 px-5 py-3 text-sm text-slate-300">Überwachung wird geladen …</div>
-            <div id="onboarding-hint" hidden class="rounded-2xl border border-sky-900 bg-sky-950/20 p-6">
+            <div id="overview-monitoring" class="rounded-xl border border-slate-200 bg-white/50 px-5 py-3 text-sm text-slate-700">Überwachung wird geladen …</div>
+            <div id="onboarding-hint" hidden class="rounded-2xl border border-sky-200 bg-sky-50/20 p-6">
                 <h3 class="font-semibold">Noch keine Meldungen eingegangen</h3>
-                <a href="/guide" class="inline-block mt-3 text-sky-400 text-sm">Erstes Gerät anbinden →</a>
+                <a href="/guide" class="inline-block mt-3 text-sky-700 text-sm">Erstes Gerät anbinden →</a>
             </div>
             <div class="grid lg:grid-cols-2 gap-6">
-                <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                    <h3 class="font-semibold">Warnungen & Fehler</h3><p class="text-xs text-slate-400 mt-1 mb-4">Letzte Ereignisse aus 24 Stunden · keine Liste offener Vorfälle</p>
+                <section class="bg-white border border-slate-200 rounded-2xl p-5">
+                    <h3 class="font-semibold">Warnungen & Fehler</h3><p class="text-xs text-slate-600 mt-1 mb-4">Letzte Ereignisse aus 24 Stunden · keine Liste offener Vorfälle</p>
                     <div id="overview-attention" class="space-y-2"></div>
                 </section>
-                <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                    <h3 class="font-semibold">Zuletzt eingegangen</h3><p class="text-xs text-slate-400 mt-1 mb-4">Die neuesten Meldungen deiner Geräte</p>
+                <section class="bg-white border border-slate-200 rounded-2xl p-5">
+                    <h3 class="font-semibold">Zuletzt eingegangen</h3><p class="text-xs text-slate-600 mt-1 mb-4">Die neuesten Meldungen deiner Geräte</p>
                     <div id="overview-latest" class="space-y-2"></div>
                 </section>
             </div>
-            <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <div class="flex justify-between gap-4 mb-4"><h3 class="font-semibold">Absender & Aktivität</h3><a href="#devices" class="text-sm text-sky-400">Alle Absender →</a></div>
+            <section class="bg-white border border-slate-200 rounded-2xl p-5">
+                <div class="flex justify-between gap-4 mb-4"><h3 class="font-semibold">Absender & Aktivität</h3><a href="#devices" class="text-sm text-sky-700">Alle Absender →</a></div>
                 <div id="overview-devices" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
             </section>
-            <a href="/settings#system" class="inline-block text-sm text-sky-400 hover:underline">Systemkennzahlen & Speicherplatz →</a>
+            <a href="/settings#system" class="inline-block text-sm text-sky-700 hover:underline">Systemkennzahlen & Speicherplatz →</a>
             <p id="dashboard-updated" role="status" class="text-xs text-slate-500"></p>
         </section>
         <section data-panel="devices" hidden class="space-y-4">
-        <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
-            <h2 class="text-sm font-semibold text-white">Alle bekannten Absender</h2>
-            <p class="text-xs text-slate-400 mt-1">Syslog zeigt Meldungsaktivität. Nur Geräte mit Lebenszeichen können als online oder offline eingestuft werden.</p>
-            <div id="monitored-hosts" class="text-xs text-slate-300 mt-3 space-y-2">Noch keine Lebenszeichen.</div>
-            <p id="udp-dropped" class="text-xs text-amber-400 mt-2"></p>
+        <section class="bg-white border border-slate-200 rounded-2xl p-4 mb-6">
+            <h2 class="text-sm font-semibold text-slate-900">Alle bekannten Absender</h2>
+            <p class="text-xs text-slate-600 mt-1">Syslog zeigt Meldungsaktivität. Nur Geräte mit Lebenszeichen können als online oder offline eingestuft werden.</p>
+            <div id="monitored-hosts" class="text-xs text-slate-700 mt-3 space-y-2">Noch keine Lebenszeichen.</div>
+            <p id="udp-dropped" class="text-xs text-amber-700 mt-2"></p>
         </section>
 
-            <a href="/guide" class="inline-block text-sm text-sky-400">Überwachung für ein Gerät einrichten →</a>
+            <a href="/guide" class="inline-block text-sm text-sky-700">Überwachung für ein Gerät einrichten →</a>
         </section>
         <section data-panel="logs" hidden class="space-y-4">
         <!-- Filter and Search Toolbar -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm space-y-3">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
                 <!-- Search input -->
                 <div class="sm:col-span-4 relative">
-                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                    <i data-lucide="search" class="w-4 h-4 text-slate-600 absolute left-3 top-3"></i>
                     <input type="text" aria-label="Logs durchsuchen" id="filter-search" oninput="debounceFetchLogs()" placeholder="Volltextsuche in Nachricht, Host, App..."
-                        class="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent">
+                        class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent">
                 </div>
 
                 <div class="sm:col-span-8" id="advanced-filters">
-                    <p class="text-xs text-slate-400 mb-2">Filter <span id="active-filter-count" class="text-sky-400"></span></p>
+                    <p class="text-xs text-slate-600 mb-2">Filter <span id="active-filter-count" class="text-sky-700"></span></p>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
                 <!-- Level Dropdown -->
                 <div class="sm:col-span-1">
-                    <select aria-label="Schweregrad" id="filter-level" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <select aria-label="Schweregrad" id="filter-level" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Level</option>
                         <option value="ERROR_CRITICAL">🚨 Nur Fehler & Kritisch</option>
                         <option value="CRITICAL">Critical / Notfall</option>
@@ -213,34 +214,34 @@
 
                 <!-- Host Dropdown -->
                 <div class="sm:col-span-1">
-                    <select aria-label="Host" id="filter-host" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <select aria-label="Host" id="filter-host" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Hosts</option>
                     </select>
                 </div>
 
                 <!-- App Dropdown -->
                 <div class="sm:col-span-1">
-                    <select aria-label="Dienst" id="filter-app" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <select aria-label="Dienst" id="filter-app" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Dienste</option>
                     </select>
                 </div>
 
                 <div>
-                    <select id="filter-period" aria-label="Zeitraum" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm">
+                    <select id="filter-period" aria-label="Zeitraum" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
                         <option value="ALL">Gesamter Zeitraum</option><option value="24">Letzte 24 Stunden</option>
                     </select>
                 </div>
                 <details id="host-exclusion-picker" class="relative">
-                    <summary class="cursor-pointer px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-sm"><span id="excluded-host-title">Hosts ausschließen</span></summary>
-                    <div class="absolute right-0 left-0 top-full z-20 mt-2 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-xl min-w-[240px]">
-                        <input id="excluded-host-search" aria-label="Hosts zum Ausschließen suchen" placeholder="Host suchen …" oninput="renderExcludedHosts()" class="w-full mb-2 p-2 rounded bg-slate-950 border border-slate-700 text-xs">
+                    <summary class="cursor-pointer px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm"><span id="excluded-host-title">Hosts ausschließen</span></summary>
+                    <div class="absolute right-0 left-0 top-full z-20 mt-2 p-3 bg-white border border-slate-300 rounded-xl shadow-xl min-w-[240px]">
+                        <input id="excluded-host-search" aria-label="Hosts zum Ausschließen suchen" placeholder="Host suchen …" oninput="renderExcludedHosts()" class="w-full mb-2 p-2 rounded bg-slate-50 border border-slate-300 text-xs">
                         <div id="excluded-host-options" class="max-h-60 overflow-y-auto space-y-1"></div>
-                        <button type="button" onclick="clearExcludedHosts()" class="mt-3 text-xs text-sky-400">Alle wieder anzeigen</button>
+                        <button type="button" onclick="clearExcludedHosts()" class="mt-3 text-xs text-sky-700">Alle wieder anzeigen</button>
                     </div>
                 </details>
                 <!-- Page Size -->
                 <div class="sm:col-span-1">
-                    <select aria-label="Einträge pro Seite" id="filter-limit" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    <select aria-label="Einträge pro Seite" id="filter-limit" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="25">25 pro Seite</option>
                         <option value="50" selected>50 pro Seite</option>
                         <option value="100">100 pro Seite</option>
@@ -252,29 +253,29 @@
             </div>
             <div id="excluded-host-summary" hidden class="space-y-2">
                 <div id="excluded-host-chips" class="flex flex-wrap gap-2"></div>
-                <p class="text-xs text-slate-400">Diese Hosts sind nur in der Logansicht und im Export ausgeblendet. Speicherung und Alarme bleiben aktiv.</p>
+                <p class="text-xs text-slate-600">Diese Hosts sind nur in der Logansicht und im Export ausgeblendet. Speicherung und Alarme bleiben aktiv.</p>
             </div>
             <!-- Secondary Action Row -->
-            <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800/80">
-                <div class="flex items-center space-x-2 text-slate-400">
+            <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-200/80">
+                <div class="flex items-center space-x-2 text-slate-600">
                     <span>Ergebnisse:</span>
-                    <span id="filtered-count" class="font-semibold text-slate-200">0</span>
-                    <button onclick="resetFilters()" class="text-sky-400 hover:text-sky-300 ml-2 hover:underline">Filter zurücksetzen</button>
+                    <span id="filtered-count" class="font-semibold text-slate-800">0</span>
+                    <button onclick="resetFilters()" class="text-sky-700 hover:text-sky-700 ml-2 hover:underline">Filter zurücksetzen</button>
                 </div>
 
-                <details class="relative"><summary class="cursor-pointer text-slate-300 px-3 py-1">Aktionen</summary><div class="absolute right-0 top-full z-20 bg-slate-900 border border-slate-700 rounded-xl shadow-xl p-3 mt-2 flex flex-col gap-2 min-w-[180px]">
+                <details class="relative"><summary class="cursor-pointer text-slate-700 px-3 py-1">Aktionen</summary><div class="absolute right-0 top-full z-20 bg-white border border-slate-300 rounded-xl shadow-xl p-3 mt-2 flex flex-col gap-2 min-w-[180px]">
                     <!-- Export CSV -->
-                    <button onclick="exportLogs('csv')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1">
+                    <button onclick="exportLogs('csv')" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center space-x-1">
                         <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
                         <span>CSV Export</span>
                     </button>
                     <!-- Export JSON -->
-                    <button onclick="exportLogs('json')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1">
+                    <button onclick="exportLogs('json')" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center space-x-1">
                         <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
                         <span>JSON</span>
                     </button>
                     <!-- Clear logs -->
-                    <button onclick="confirmClearLogs()" class="px-2.5 py-1 rounded bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-900/50 transition flex items-center space-x-1">
+                    <button onclick="confirmClearLogs()" class="px-2.5 py-1 rounded bg-rose-50/40 hover:bg-rose-100/50 text-rose-700 border border-rose-200/50 transition flex items-center space-x-1">
                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                         <span>Leeren</span>
                     </button>
@@ -283,20 +284,20 @@
         </div>
 
         <!-- Log Table Card -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
-                        <tr class="bg-slate-950/60 border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                            <th data-sort-column="timestamp" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('timestamp')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Zeitstempel sortieren">Zeitstempel<span data-sort-arrow="timestamp" aria-hidden="true">↕︎</span></button></th>
-                            <th data-sort-column="level" aria-sort="none" class="py-3 px-4 w-28"><button type="button" onclick="sortLogs('level')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Level sortieren">Level<span data-sort-arrow="level" aria-hidden="true">↕︎</span></button></th>
-                            <th data-sort-column="host" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('host')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Host sortieren">Host<span data-sort-arrow="host" aria-hidden="true">↕︎</span></button></th>
-                            <th data-sort-column="app" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('app')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Dienst / App sortieren">Dienst / App<span data-sort-arrow="app" aria-hidden="true">↕︎</span></button></th>
-                            <th data-sort-column="message" aria-sort="none" class="py-3 px-4"><button type="button" onclick="sortLogs('message')" class="flex items-center gap-2 hover:text-white focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Nachricht sortieren">Nachricht<span data-sort-arrow="message" aria-hidden="true">↕︎</span></button></th>
+                        <tr class="bg-slate-50/60 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                            <th data-sort-column="timestamp" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('timestamp')" class="flex items-center gap-2 hover:text-slate-900 focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Zeitstempel sortieren">Zeitstempel<span data-sort-arrow="timestamp" aria-hidden="true">↕︎</span></button></th>
+                            <th data-sort-column="level" aria-sort="none" class="py-3 px-4 w-28"><button type="button" onclick="sortLogs('level')" class="flex items-center gap-2 hover:text-slate-900 focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Level sortieren">Level<span data-sort-arrow="level" aria-hidden="true">↕︎</span></button></th>
+                            <th data-sort-column="host" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('host')" class="flex items-center gap-2 hover:text-slate-900 focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Host sortieren">Host<span data-sort-arrow="host" aria-hidden="true">↕︎</span></button></th>
+                            <th data-sort-column="app" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('app')" class="flex items-center gap-2 hover:text-slate-900 focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Dienst / App sortieren">Dienst / App<span data-sort-arrow="app" aria-hidden="true">↕︎</span></button></th>
+                            <th data-sort-column="message" aria-sort="none" class="py-3 px-4"><button type="button" onclick="sortLogs('message')" class="flex items-center gap-2 hover:text-slate-900 focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Nachricht sortieren">Nachricht<span data-sort-arrow="message" aria-hidden="true">↕︎</span></button></th>
                             <th class="py-3 px-4 w-20 text-right">Aktion</th>
                         </tr>
                     </thead>
-                    <tbody id="logs-table-body" class="divide-y divide-slate-800 font-mono text-xs">
+                    <tbody id="logs-table-body" class="divide-y divide-slate-200 font-mono text-xs">
                         <tr>
                             <td colspan="6" class="py-12 text-center text-slate-500 font-sans">
                                 <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
@@ -308,14 +309,14 @@
             </div>
 
             <!-- Pagination Bar -->
-            <div class="px-4 py-3 bg-slate-950/40 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <div class="px-4 py-3 bg-slate-50/40 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
                 <div id="pagination-info">Seite 1 von 1</div>
                 <div class="flex items-center space-x-2">
-                    <button id="btn-prev-page" onclick="changePage(-1)" disabled class="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                    <button id="btn-prev-page" onclick="changePage(-1)" disabled class="px-3 py-1 rounded bg-slate-100 border border-slate-300 text-slate-700 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">
                         Zurück
                     </button>
-                    <span id="current-page-num" class="px-2 font-semibold text-slate-200">1</span>
-                    <button id="btn-next-page" onclick="changePage(1)" disabled class="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                    <span id="current-page-num" class="px-2 font-semibold text-slate-800">1</span>
+                    <button id="btn-next-page" onclick="changePage(1)" disabled class="px-3 py-1 rounded bg-slate-100 border border-slate-300 text-slate-700 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">
                         Weiter
                     </button>
                 </div>
@@ -326,65 +327,65 @@
     </main>
 
     <!-- Detail Modal -->
-    <div id="detail-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div id="detail-modal" class="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-300 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div class="flex items-center space-x-2">
                     <span id="modal-level-badge" class="px-2.5 py-1 rounded text-xs font-bold uppercase">INFO</span>
-                    <h3 class="text-base font-semibold text-white">Log-Details</h3>
+                    <h3 class="text-base font-semibold text-slate-900">Log-Details</h3>
                 </div>
-                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-200">
+                <button onclick="closeDetailModal()" class="text-slate-600 hover:text-slate-800">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
             <div class="grid grid-cols-2 gap-3 text-xs">
-                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                    <span class="text-slate-400 block mb-0.5">Zeitstempel:</span>
-                    <span id="modal-timestamp" class="font-mono text-slate-200"></span>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span class="text-slate-600 block mb-0.5">Zeitstempel:</span>
+                    <span id="modal-timestamp" class="font-mono text-slate-800"></span>
                 </div>
-                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                    <span class="text-slate-400 block mb-0.5">Host:</span>
-                    <span id="modal-host" class="font-mono text-slate-200"></span>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span class="text-slate-600 block mb-0.5">Host:</span>
+                    <span id="modal-host" class="font-mono text-slate-800"></span>
                 </div>
-                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                    <span class="text-slate-400 block mb-0.5">Dienst / App:</span>
-                    <span id="modal-app" class="font-mono text-slate-200"></span>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span class="text-slate-600 block mb-0.5">Dienst / App:</span>
+                    <span id="modal-app" class="font-mono text-slate-800"></span>
                 </div>
-                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                    <span class="text-slate-400 block mb-0.5">Facility:</span>
-                    <span id="modal-facility" class="font-mono text-slate-200"></span>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span class="text-slate-600 block mb-0.5">Facility:</span>
+                    <span id="modal-facility" class="font-mono text-slate-800"></span>
                 </div>
             </div>
 
             <div>
-                <label class="text-xs font-medium text-slate-400 block mb-1">Nachricht:</label>
-                <div id="modal-message" class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs font-mono text-slate-100 break-words whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
+                <label class="text-xs font-medium text-slate-600 block mb-1">Nachricht:</label>
+                <div id="modal-message" class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs font-mono text-slate-900 break-words whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
             </div>
 
             <div>
-                <label class="text-xs font-medium text-slate-400 block mb-1">Rohes Syslog-Paket (Raw):</label>
-                <div id="modal-raw" class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs font-mono text-slate-400 break-words whitespace-pre-wrap max-h-36 overflow-y-auto"></div>
+                <label class="text-xs font-medium text-slate-600 block mb-1">Rohes Syslog-Paket (Raw):</label>
+                <div id="modal-raw" class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs font-mono text-slate-600 break-words whitespace-pre-wrap max-h-36 overflow-y-auto"></div>
             </div>
 
-            <details id="modal-cef-section" hidden class="text-xs text-slate-300">
-                <summary class="cursor-pointer text-sky-400">UniFi-Ereignisdetails</summary>
+            <details id="modal-cef-section" hidden class="text-xs text-slate-700">
+                <summary class="cursor-pointer text-sky-700">UniFi-Ereignisdetails</summary>
                 <dl class="grid grid-cols-2 gap-2 mt-3">
                     <dt>Ereignis</dt><dd id="modal-cef-event"></dd>
                     <dt>Kategorie</dt><dd id="modal-cef-category"></dd>
                     <dt>Meldender Controller</dt><dd id="modal-cef-reporter"></dd>
                     <dt>CEF-Schweregrad</dt><dd id="modal-cef-severity"></dd>
                 </dl>
-                <details class="mt-3"><summary class="cursor-pointer text-slate-400">Alle CEF-Felder anzeigen</summary>
-                <pre id="modal-cef-fields" class="mt-2 p-3 bg-slate-950 rounded-lg whitespace-pre-wrap break-words max-h-48 overflow-auto"></pre>
+                <details class="mt-3"><summary class="cursor-pointer text-slate-600">Alle CEF-Felder anzeigen</summary>
+                <pre id="modal-cef-fields" class="mt-2 p-3 bg-slate-50 rounded-lg whitespace-pre-wrap break-words max-h-48 overflow-auto"></pre>
                 </details>
             </details>
-            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-                <button onclick="copyModalMessage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition">
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-200">
+                <button onclick="copyModalMessage()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs text-slate-800 border border-slate-300 flex items-center space-x-1.5 transition">
                     <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                     <span>Nachricht kopieren</span>
                 </button>
-                <button onclick="closeDetailModal()" class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs text-white transition">
+                <button onclick="closeDetailModal()" class="px-4 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-xs text-white transition">
                     Schließen
                 </button>
             </div>
@@ -392,22 +393,22 @@
     </div>
 
     <!-- Test Log Modal -->
-    <div id="test-log-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div id="test-log-modal" class="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-300 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div class="flex items-center space-x-2">
-                    <i data-lucide="send" class="w-5 h-5 text-sky-400"></i>
-                    <h3 class="text-base font-semibold text-white">Test-Log senden</h3>
+                    <i data-lucide="send" class="w-5 h-5 text-sky-700"></i>
+                    <h3 class="text-base font-semibold text-slate-900">Test-Log senden</h3>
                 </div>
-                <button onclick="closeTestLogModal()" class="text-slate-400 hover:text-slate-200">
+                <button onclick="closeTestLogModal()" class="text-slate-600 hover:text-slate-800">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
             <div class="space-y-3 text-xs">
                 <div>
-                    <label class="block text-slate-300 font-medium mb-1">Log-Level</label>
-                    <select id="test-log-level" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100">
+                    <label class="block text-slate-700 font-medium mb-1">Log-Level</label>
+                    <select id="test-log-level" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900">
                         <option value="INFO">INFO</option>
                         <option value="WARN">WARN</option>
                         <option value="ERROR" selected>ERROR (Löst Alarm aus)</option>
@@ -416,24 +417,24 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-slate-300 font-medium mb-1">Host / Absender</label>
-                    <input type="text" id="test-log-host" value="web-dashboard.local" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100">
+                    <label class="block text-slate-700 font-medium mb-1">Host / Absender</label>
+                    <input type="text" id="test-log-host" value="web-dashboard.local" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900">
                 </div>
                 <div>
-                    <label class="block text-slate-300 font-medium mb-1">Dienst / App-Name</label>
-                    <input type="text" id="test-log-app" value="demo-service" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100">
+                    <label class="block text-slate-700 font-medium mb-1">Dienst / App-Name</label>
+                    <input type="text" id="test-log-app" value="demo-service" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900">
                 </div>
                 <div>
-                    <label class="block text-slate-300 font-medium mb-1">Nachricht</label>
-                    <textarea id="test-log-message" rows="3" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-100">Dies ist ein manuell gesendeter Test-Log über das Web-Dashboard.</textarea>
+                    <label class="block text-slate-700 font-medium mb-1">Nachricht</label>
+                    <textarea id="test-log-message" rows="3" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900">Dies ist ein manuell gesendeter Test-Log über das Web-Dashboard.</textarea>
                 </div>
             </div>
 
-            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-                <button onclick="closeTestLogModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-200">
+                <button onclick="closeTestLogModal()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs text-slate-700 transition">
                     Abbrechen
                 </button>
-                <button onclick="submitTestLog()" class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs text-white transition flex items-center space-x-1.5">
+                <button onclick="submitTestLog()" class="px-4 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-xs text-white transition flex items-center space-x-1.5">
                     <i data-lucide="send" class="w-3.5 h-3.5"></i>
                     <span>Jetzt senden</span>
                 </button>
@@ -445,30 +446,30 @@
     <div id="toast-container" class="fixed bottom-16 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
     <!-- Footer Required by User Prompt -->
-    <footer class="border-t border-slate-800 bg-slate-950/90 text-xs text-slate-400 py-5 mt-auto">
+    <footer class="border-t border-slate-200 bg-slate-50/90 text-xs text-slate-600 py-5 mt-auto">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="flex items-center space-x-2">
                 <span>Open Source von <strong>Michael Schellenberger</strong></span>
                 <span class="text-slate-600">•</span>
-                <span class="text-slate-400">Freie Nutzung (Non-Commercial, CC BY-NC 4.0)</span>
+                <span class="text-slate-600">Freie Nutzung (Non-Commercial, CC BY-NC 4.0)</span>
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
                 <!-- Rev. Nr. Badge (dynamisch) -->
                 <div id="footer-update" class="flex flex-wrap items-center gap-2 text-xs">
-                    <span id="footer-update-status" role="status" class="text-slate-400">Prüfe auf Updates …</span>
-                    <button id="footer-update-button" type="button" hidden class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white">Update starten</button>
+                    <span id="footer-update-status" role="status" class="text-slate-600">Prüfe auf Updates …</span>
+                    <button id="footer-update-button" type="button" hidden class="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 text-white">Update starten</button>
                 </div>
-                <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300 font-mono">
-                    <i data-lucide="git-commit" class="w-3.5 h-3.5 text-sky-400"></i>
+                <div class="flex items-center space-x-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-md text-slate-700 font-mono">
+                    <i data-lucide="git-commit" class="w-3.5 h-3.5 text-sky-700"></i>
                     <span id="footer-rev-text">Version wird geladen …</span>
                 </div>
 
                 <!-- GitHub Link with GitHub Icon -->
                 <a id="footer-github-link" href="https://github.com/Schello805/rsyslog" target="_blank" rel="noopener noreferrer" 
-                   class="flex items-center space-x-1.5 text-slate-300 hover:text-white transition px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800">
+                   class="flex items-center space-x-1.5 text-slate-700 hover:text-slate-900 transition px-2.5 py-1 rounded-md bg-white hover:bg-slate-100 border border-slate-200">
                     <!-- GitHub SVG Icon -->
-                    <svg class="w-4 h-4 fill-current text-white" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg class="w-4 h-4 fill-current text-slate-900" viewBox="0 0 24 24" aria-hidden="true">
                         <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
                     </svg>
                     <span class="font-medium">GitHub</span>
@@ -516,9 +517,9 @@
             list.replaceChildren();
             const hosts = [...new Set([...availableExcludeHosts, ...excludedHosts])].sort((a, b) => a.localeCompare(b));
             const matches = hosts.filter(host => host.toLowerCase().includes(search));
-            if (!matches.length) { const empty = document.createElement('p'); empty.textContent = 'Keine passenden Hosts'; empty.className = 'text-xs text-slate-400 py-2'; list.append(empty); }
+            if (!matches.length) { const empty = document.createElement('p'); empty.textContent = 'Keine passenden Hosts'; empty.className = 'text-xs text-slate-600 py-2'; list.append(empty); }
             matches.forEach(host => {
-                const label = document.createElement('label'); label.className = 'flex items-center gap-2 p-2 text-xs rounded hover:bg-slate-800 cursor-pointer';
+                const label = document.createElement('label'); label.className = 'flex items-center gap-2 p-2 text-xs rounded hover:bg-slate-100 cursor-pointer';
                 const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.dataset.host = host; checkbox.checked = excludedHosts.has(host);
                 checkbox.addEventListener('change', () => {
                     if (checkbox.checked && excludedHosts.size >= 200) { checkbox.checked = false; showToast('Maximal 200 Hosts ausschließbar.', 'error'); return; }
@@ -535,7 +536,7 @@
             const chips = document.getElementById('excluded-host-chips'); chips.replaceChildren();
             excludedHosts.forEach(host => {
                 const button = document.createElement('button'); button.type = 'button';
-                button.className = 'text-xs px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300';
+                button.className = 'text-xs px-2 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-700';
                 button.textContent = `${host} ×`; button.setAttribute('aria-label', `${host} wieder anzeigen`);
                 button.addEventListener('click', () => { excludedHosts.delete(host); saveExcludedHosts(); fetchLogs(1); }); chips.append(button);
             });
@@ -548,19 +549,19 @@
                 case 'CRITICAL':
                 case 'EMERGENCY':
                 case 'ALERT':
-                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">CRITICAL</span>';
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-700 border border-rose-500/30">CRITICAL</span>';
                 case 'ERROR':
-                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">ERROR</span>';
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/20 text-red-700 border border-red-500/30">ERROR</span>';
                 case 'WARN':
                 case 'WARNING':
-                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">WARN</span>';
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 text-amber-700 border border-amber-500/30">WARN</span>';
                 case 'NOTICE':
-                    return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">NOTICE</span>';
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-cyan-500/20 text-cyan-700 border border-cyan-500/30">NOTICE</span>';
                 case 'DEBUG':
-                    return '<span class="px-2 py-0.5 rounded text-[11px] font-normal bg-slate-800 text-slate-400 border border-slate-700">DEBUG</span>';
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-normal bg-slate-100 text-slate-600 border border-slate-300">DEBUG</span>';
                 case 'INFO':
                 default:
-                    return '<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-sky-500/20 text-sky-400 border border-sky-500/30">INFO</span>';
+                    return '<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-sky-500/20 text-sky-700 border border-sky-500/30">INFO</span>';
             }
         }
 
@@ -652,7 +653,7 @@
                         <td colspan="6" class="py-12 text-center text-slate-500 font-sans">
                             <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
                             Keine passenden Meldungen vorhanden.
-                            <div class="mt-3"><a href="/guide" class="text-sky-400 hover:underline">Gerät anbinden oder Verbindung prüfen →</a></div>
+                            <div class="mt-3"><a href="/guide" class="text-sky-700 hover:underline">Gerät anbinden oder Verbindung prüfen →</a></div>
                         </td>
                     </tr>
                 `;
@@ -668,14 +669,14 @@
                 const levelBadge = getLevelBadge(log.level);
 
                 return `
-                    <tr class="hover:bg-slate-800/50 transition cursor-pointer group" onclick="openDetailModal(${escapeHtml(JSON.stringify(log))})">
-                        <td class="py-2.5 px-4 text-slate-400 whitespace-nowrap">${formattedTime}</td>
+                    <tr class="hover:bg-slate-100/50 transition cursor-pointer group" onclick="openDetailModal(${escapeHtml(JSON.stringify(log))})">
+                        <td class="py-2.5 px-4 text-slate-600 whitespace-nowrap">${formattedTime}</td>
                         <td class="py-2.5 px-4 whitespace-nowrap">${levelBadge}</td>
-                        <td class="py-2.5 px-4 text-slate-300 font-medium whitespace-nowrap truncate max-w-[140px]" title="${escapedHost}">${escapedHost}</td>
-                        <td class="py-2.5 px-4 text-slate-300 whitespace-nowrap truncate max-w-[140px]" title="${escapedApp}">${escapedApp}</td>
-                        <td class="py-2.5 px-4 text-slate-200 truncate max-w-md" title="${escapedMsg}">${escapedMsg}</td>
+                        <td class="py-2.5 px-4 text-slate-700 font-medium whitespace-nowrap truncate max-w-[140px]" title="${escapedHost}">${escapedHost}</td>
+                        <td class="py-2.5 px-4 text-slate-700 whitespace-nowrap truncate max-w-[140px]" title="${escapedApp}">${escapedApp}</td>
+                        <td class="py-2.5 px-4 text-slate-800 truncate max-w-md" title="${escapedMsg}">${escapedMsg}</td>
                         <td class="py-2.5 px-4 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                            <button onclick='openDetailModal(${escapeHtml(JSON.stringify(log))})' class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition" title="Details ansehen">
+                            <button onclick='openDetailModal(${escapeHtml(JSON.stringify(log))})' class="p-1 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition" title="Details ansehen">
                                 <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                             </button>
                         </td>
@@ -718,11 +719,11 @@
         function deviceCard(host) {
             const card = document.createElement('button');
             card.type = 'button';
-            card.className = 'text-left p-3 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-sky-700 min-w-0';
+            card.className = 'text-left p-3 rounded-xl bg-slate-50/60 border border-slate-200 hover:border-sky-300 min-w-0';
             const name = document.createElement('p');
             name.className = 'text-sm font-medium truncate'; name.textContent = host.host;
             const status = document.createElement('p');
-            status.className = 'text-xs mt-1 ' + (host.status === 'offline' ? 'text-rose-400' : host.status === 'online' ? 'text-emerald-400' : 'text-slate-400');
+            status.className = 'text-xs mt-1 ' + (host.status === 'offline' ? 'text-rose-700' : host.status === 'online' ? 'text-emerald-700' : 'text-slate-600');
             status.textContent = host.status === 'offline' ? 'Offline · Lebenszeichen fehlt' : host.status === 'online' ? 'Online · Lebenszeichen empfangen' : 'Syslog-Absender · Erreichbarkeit unbekannt';
             const activity = document.createElement('p');
             activity.className = 'text-xs text-slate-500 mt-2';
@@ -735,16 +736,16 @@
         function renderOverviewEvents(id, logs, empty) {
             const container = document.getElementById(id);
             container.replaceChildren();
-            if (!logs.length) { const text = document.createElement('p'); text.className = 'text-sm text-slate-400 py-4'; text.textContent = empty; container.append(text); }
+            if (!logs.length) { const text = document.createElement('p'); text.className = 'text-sm text-slate-600 py-4'; text.textContent = empty; container.append(text); }
             logs.forEach(log => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = 'block w-full text-left rounded-xl p-3 bg-slate-950/50 hover:bg-slate-800';
+                button.className = 'block w-full text-left rounded-xl p-3 bg-slate-50/50 hover:bg-slate-100';
                 const meta = document.createElement('p');
-                meta.className = 'text-xs ' + (['ERROR','CRITICAL','EMERGENCY','ALERT'].includes(log.level) ? 'text-rose-400' : log.level === 'WARN' ? 'text-amber-400' : 'text-sky-400');
+                meta.className = 'text-xs ' + (['ERROR','CRITICAL','EMERGENCY','ALERT'].includes(log.level) ? 'text-rose-700' : log.level === 'WARN' ? 'text-amber-700' : 'text-sky-700');
                 meta.textContent = `${log.level} · ${log.host} · ${formatTimestamp(log.timestamp)}`;
                 const message = document.createElement('p');
-                message.className = 'text-sm text-slate-300 mt-1 truncate'; message.textContent = log.message;
+                message.className = 'text-sm text-slate-700 mt-1 truncate'; message.textContent = log.message;
                 button.append(meta, message); button.addEventListener('click', () => openDetailModal(log)); container.append(button);
             });
         }
@@ -851,11 +852,11 @@
             const icon = document.getElementById('stream-icon');
             if (isLiveStreamActive) {
                 icon.setAttribute('data-lucide', 'pause');
-                btn.className = "p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition";
+                btn.className = "p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition";
                 showToast('Live Stream aktiv', 'info');
             } else {
                 icon.setAttribute('data-lucide', 'play');
-                btn.className = "p-2 rounded-lg bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-800 transition";
+                btn.className = "p-2 rounded-lg bg-amber-50/60 hover:bg-amber-100 text-amber-700 border border-amber-200 transition";
                 showToast('Live Stream pausiert', 'info');
             }
             lucide.createIcons();
@@ -865,9 +866,9 @@
         function openDetailModal(log) {
             activeModalLog = log;
             document.getElementById('modal-level-badge').className = `px-2.5 py-1 rounded text-xs font-bold uppercase ${
-                log.level === 'CRITICAL' ? 'bg-rose-500/20 text-rose-300' :
-                log.level === 'ERROR' ? 'bg-red-500/20 text-red-400' :
-                log.level === 'WARN' ? 'bg-amber-500/20 text-amber-400' : 'bg-sky-500/20 text-sky-400'
+                log.level === 'CRITICAL' ? 'bg-rose-500/20 text-rose-700' :
+                log.level === 'ERROR' ? 'bg-red-500/20 text-red-700' :
+                log.level === 'WARN' ? 'bg-amber-500/20 text-amber-700' : 'bg-sky-500/20 text-sky-700'
             }`;
             document.getElementById('modal-level-badge').innerText = log.level;
             document.getElementById('modal-timestamp').innerText = log.timestamp;
@@ -1044,8 +1045,8 @@
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            const bgClass = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-600' : 'bg-slate-800 border border-slate-700');
-            toast.className = `${bgClass} text-white text-xs px-4 py-2.5 rounded-lg shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto`;
+            const bgClass = type === 'success' ? 'bg-emerald-700' : (type === 'error' ? 'bg-rose-700' : 'bg-slate-100 border border-slate-300');
+            toast.className = `${bgClass} ${type === 'info' ? 'text-slate-800' : 'text-white'} text-xs px-4 py-2.5 rounded-lg shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto`;
             toast.innerHTML = `<span>${message}</span>`;
             container.appendChild(toast);
 

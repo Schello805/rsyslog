@@ -6,16 +6,16 @@
     let polling = false;
     let waiting = sessionStorage.getItem('rsyslog-update-pending') === '1';
     const dialog = document.createElement('dialog');
-    dialog.style.cssText = 'width:min(92vw,440px);border:1px solid #334155;border-radius:16px;padding:24px;background:#0f172a;color:#e2e8f0';
+    dialog.style.cssText = 'width:min(92vw,440px);border:1px solid #cbd5e1;border-radius:16px;padding:24px;background:#ffffff;color:#0f172a';
     dialog.innerHTML = `<form method="dialog"><h2 style="font-size:18px;font-weight:600">App aktualisieren</h2>
-        <p id="update-dialog-description" style="font-size:14px;color:#94a3b8;margin:12px 0"></p>
-        <p style="font-size:13px;color:#94a3b8">Die App wird kurz neu gestartet. Logs und Einstellungen werden gesichert.</p>
+        <p id="update-dialog-description" style="font-size:14px;color:#475569;margin:12px 0"></p>
+        <p style="font-size:13px;color:#475569">Die App wird kurz neu gestartet. Logs und Einstellungen werden gesichert.</p>
         <label for="web-update-key" style="display:block;margin-top:16px;font-size:14px">Update-Schlüssel</label>
-        <input id="web-update-key" type="password" autocomplete="off" required style="width:100%;box-sizing:border-box;margin:8px 0;padding:10px;background:#020617;color:white;border:1px solid #475569;border-radius:8px">
-        <p id="update-dialog-error" role="alert" style="font-size:13px;color:#fda4af"></p>
+        <input id="web-update-key" type="password" autocomplete="off" required style="width:100%;box-sizing:border-box;margin:8px 0;padding:10px;background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;border-radius:8px">
+        <p id="update-dialog-error" role="alert" style="font-size:13px;color:#be123c"></p>
         <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:16px">
             <button type="button" id="update-cancel">Abbrechen</button>
-            <button type="submit" id="update-confirm" style="padding:8px 12px;border-radius:8px;background:#0284c7;color:white">Update starten</button>
+            <button type="submit" id="update-confirm" style="padding:8px 12px;border-radius:8px;background:#0369a1;color:white">Update starten</button>
         </div></form>`;
     document.body.append(dialog);
     const field = dialog.querySelector('#web-update-key');
