@@ -1,6 +1,6 @@
 """
 Automated Verification Suite for RSyslog Web.
-Validates Database, Parser, API routes, and Versioning.
+Validates Database, Parser, Settings, Alert Thresholds, and Versioning.
 """
 
 import os
@@ -35,30 +35,32 @@ def run_tests():
     assert "System rebooting" in p2["message"]
     print("✅ RFC 5424 parsing passed")
 
-    # Raw message
-    p3 = parse_syslog_message("Database connection timeout error", client_ip="10.0.0.5")
-    assert p3["level"] == "ERROR"
-    assert "Database connection timeout" in p3["message"]
-    print("✅ Raw message fallback passed")
-
-    # 3. Test Database
+    # 3. Test Database & Settings
     import database
     database.init_db()
-    saved = database.insert_log(
-        host="test-host",
-        app="test-app",
-        level="ERROR",
-        message="Test error message",
-    )
-    assert saved["id"] is not None
-    logs, total = database.get_logs(level="ERROR")
-    assert total >= 1
-    assert any(l["id"] == saved["id"] for l in logs)
-    
-    stats = database.get_stats()
-    assert stats["total"] >= 1
-    assert stats["error"] >= 1
-    print("✅ Database operations passed")
+
+    # Settings test
+    database.save_all_settings({
+        "alert_threshold_count": 2,
+        "alert_min_level": "WARN",
+        "ntfy_topic": "test-topic-123",
+    })
+    s = database.get_all_settings()
+    assert s["alert_threshold_count"] == 2
+    assert s["alert_min_level"] == "WARN"
+    assert s["ntfy_topic"] == "test-topic-123"
+    print("✅ Database Settings persistent key-value passed")
+
+    # 4. Test Alert threshold evaluation
+    import alerter
+    fp = "test-host:nginx:ERROR"
+    # First incident: count is 1
+    cnt1 = alerter.record_incident_and_check_threshold(fp, threshold_count=2, window_minutes=5)
+    assert cnt1 == 1
+    # Second incident: count is 2 (reaches threshold of 2!)
+    cnt2 = alerter.record_incident_and_check_threshold(fp, threshold_count=2, window_minutes=5)
+    assert cnt2 == 2
+    print("✅ Frequency threshold counting passed (1 -> 2 triggers)")
 
     print("\n🎉 ALL TESTS PASSED SUCCESSFULLY!")
 

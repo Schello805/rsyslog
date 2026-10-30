@@ -48,9 +48,15 @@ Viele Router, Switches, Server und Smart-Home-Zentralen erzeugen Syslog-Nachrich
   - Filter nach Host / Absender und App / Dienst-Name mit Autovervollständigung.
   - Volltextsuche über alle Felder.
 - 📊 **Statistik-Karten:** Übersicht über Gesamtzahl, Fehlerquoten, Warnungen und aktive Hosts auf einen Blick.
-- 🚨 **Automatische Alarmierung:**
-  - Benachrichtigt sofort via **Telegram-Bot** und/oder **Ntfy**, sobald Logs mit `ERROR` oder `CRITICAL` eintreffen.
-  - Integrierter Spamschutz / Rate-Limiting gegen Flutanfälle.
+- ⚙️ **Eigene Einstellungsseite (`/settings`):**
+  - Alle Benachrichtigungseinstellungen für **Telegram** und **Ntfy** direkt über die Web-Oberfläche konfigurieren und sofort per Klick testen.
+  - **Präzise Alarm-Bedingungen:** Konfigurierbar, ab welchem Level alarmiert wird (*Warnung, Fehler, Nur Kritisch*) und ab welcher Häufigkeit (*sofort beim 1. Fehler, ab 2 Fehlern innerhalb von 5 Min, ab 3 Fehlern...*).
+  - **Host-Blacklist:** Bestimmte Entwicklungs- oder Test-Geräte gezielt von Alarmen ausschließen.
+  - **Drosselung & Spamschutz:** Einstellbare Mindestpause zwischen Wiederholungen.
+  - Einstellungen werden persistent in der SQLite-Datenbank gespeichert – kein manuelles Editieren von Textdateien nötig!
+- 🚨 **Automatische Alarmierung (Telegram & Ntfy):**
+  - Benachrichtigt auf dein Smartphone via **Telegram-Bot** und/oder **Ntfy Push-Dienst**.
+  - Intelligente Vorfall-Aggregation mit Angabe der Häufigkeit im Alarmtext.
 - 💾 **Export-Funktion:** Ein-Klick-Download aller gefilterten Logs als **CSV** (Excel-kompatibel) oder **JSON**.
 - 🧹 **Bereinigen:** Datenbank kann bei Bedarf direkt über das Dashboard geleert werden.
 - 🏷️ **Dynamische Revisionsanzeige:** Versionsnummer und Git-Commit werden im Dashboard automatisch aktualisiert.

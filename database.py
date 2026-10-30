@@ -54,6 +54,111 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_host ON logs(host)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_app ON logs(app)")
 
+        # Settings Key-Value Table
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """
+        )
+
+
+def get_setting(key: str, default: Any = None) -> Any:
+    """Retrieves a single setting from the database or returns default."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    if row:
+        return row["value"]
+    return default
+
+
+def set_setting(key: str, value: Any) -> None:
+    """Saves a setting value in the database."""
+    conn = get_db_connection()
+    with conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, str(value)),
+        )
+
+
+def get_all_settings() -> Dict[str, Any]:
+    """Retrieves all settings, falling back to .env / config defaults."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT key, value FROM settings")
+    db_settings = {row["key"]: row["value"] for row in cursor.fetchall()}
+
+    # Helper for boolean conversion
+    def as_bool(val, default_val):
+        if val is None:
+            return default_val
+        return str(val).lower() in ("true", "1", "yes", "on")
+
+    # Helper for int conversion
+    def as_int(val, default_val):
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return default_val
+
+    telegram_token = db_settings.get("telegram_bot_token", config.TELEGRAM_BOT_TOKEN)
+    telegram_chat = db_settings.get("telegram_chat_id", config.TELEGRAM_CHAT_ID)
+    ntfy_topic = db_settings.get("ntfy_topic", config.NTFY_TOPIC)
+    ntfy_server = db_settings.get("ntfy_server", config.NTFY_SERVER or "https://ntfy.sh")
+
+    return {
+        # Telegram
+        "telegram_enabled": as_bool(db_settings.get("telegram_enabled"), bool(telegram_token and telegram_chat)),
+        "telegram_bot_token": telegram_token or "",
+        "telegram_chat_id": telegram_chat or "",
+        # Ntfy
+        "ntfy_enabled": as_bool(db_settings.get("ntfy_enabled"), bool(ntfy_topic)),
+        "ntfy_topic": ntfy_topic or "",
+        "ntfy_server": ntfy_server or "https://ntfy.sh",
+        # Thresholds & Rules
+        "alert_min_level": db_settings.get("alert_min_level", config.ALERT_MIN_LEVEL or "ERROR").upper(),
+        "alert_threshold_count": as_int(db_settings.get("alert_threshold_count"), 1),
+        "alert_threshold_window_minutes": as_int(db_settings.get("alert_threshold_window_minutes"), 5),
+        "alert_throttle_seconds": as_int(db_settings.get("alert_throttle_seconds"), config.ALERT_THROTTLE_SECONDS or 30),
+        "alert_ignore_hosts": db_settings.get("alert_ignore_hosts", ""),
+        # Retention
+        "retention_days": as_int(db_settings.get("retention_days"), 0),
+    }
+
+
+def save_all_settings(settings: Dict[str, Any]) -> None:
+    """Persists a dictionary of settings into the SQLite database."""
+    conn = get_db_connection()
+    with conn:
+        for k, v in settings.items():
+            conn.execute(
+                "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (str(k), str(v)),
+            )
+
+
+def delete_logs_older_than(days: int) -> int:
+    """Deletes logs older than a given number of days. If days <= 0, does nothing."""
+    if days <= 0:
+        return 0
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+    conn = get_db_connection()
+    with conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM logs WHERE timestamp < ?", (cutoff,))
+        count = cursor.fetchone()[0]
+        cursor.execute("DELETE FROM logs WHERE timestamp < ?", (cutoff,))
+        if count > 0:
+            cursor.execute("VACUUM")
+    return count
+
 
 def insert_log(
     host: str,

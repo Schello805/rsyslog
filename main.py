@@ -23,16 +23,24 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from alerter import process_alert, send_test_alert
+from alerter import (
+    process_alert,
+    send_test_alert,
+    test_ntfy_config,
+    test_telegram_config,
+)
 from config import config
 from database import (
     clear_all_logs,
+    delete_logs_older_than,
+    get_all_settings,
     get_db_connection,
     get_filter_options,
     get_logs,
     get_stats,
     init_db,
     insert_log,
+    save_all_settings,
 )
 from syslog_parser import parse_syslog_message
 from syslog_server import (
@@ -72,6 +80,14 @@ async def lifespan(app: FastAPI):
     """Application lifecycle: initializes DB, Syslog server, and listeners."""
     logger.info("Initializing RSyslog Web database...")
     init_db()
+
+    # Optional retention cleanup on startup
+    settings = get_all_settings()
+    retention_days = int(settings.get("retention_days", 0))
+    if retention_days > 0:
+        deleted = delete_logs_older_than(retention_days)
+        if deleted > 0:
+            logger.info(f"Cleaned up {deleted} logs older than {retention_days} days.")
 
     # Register broadcaster for real-time live logs
     register_log_subscriber(websocket_broadcaster)
@@ -118,6 +134,17 @@ async def serve_dashboard():
     template_path = Path(__file__).parent / "templates" / "index.html"
     if not template_path.exists():
         raise HTTPException(status_code=404, detail="Dashboard template not found")
+    return HTMLResponse(content=template_path.read_text(encoding="utf-8"))
+
+
+@app.get("/settings", response_class=HTMLResponse)
+async def serve_settings():
+    """Serves the dedicated Settings HTML page."""
+    from pathlib import Path
+
+    template_path = Path(__file__).parent / "templates" / "settings.html"
+    if not template_path.exists():
+        raise HTTPException(status_code=404, detail="Settings template not found")
     return HTMLResponse(content=template_path.read_text(encoding="utf-8"))
 
 
@@ -284,6 +311,52 @@ async def api_trigger_test_alert():
     """Sends a test alert to configured channels (Telegram / Ntfy)."""
     results = await send_test_alert()
     return {"success": True, "results": results}
+
+
+@app.get("/api/settings")
+async def api_get_settings():
+    """Returns all current notification and threshold settings."""
+    return get_all_settings()
+
+
+@app.post("/api/settings")
+async def api_save_settings(request: Request):
+    """Saves updated notification and threshold settings."""
+    try:
+        body = await request.json()
+        save_all_settings(body)
+        return {"success": True, "settings": get_all_settings()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/settings/test-telegram")
+async def api_test_telegram(request: Request):
+    """Tests Telegram bot credentials provided in payload."""
+    body = await request.json()
+    token = body.get("token", "").strip()
+    chat_id = body.get("chat_id", "").strip()
+    res = await test_telegram_config(token, chat_id)
+    return res
+
+
+@app.post("/api/settings/test-ntfy")
+async def api_test_ntfy(request: Request):
+    """Tests Ntfy configuration provided in payload."""
+    body = await request.json()
+    topic = body.get("topic", "").strip()
+    server = body.get("server", "https://ntfy.sh").strip()
+    res = await test_ntfy_config(topic, server)
+    return res
+
+
+@app.post("/api/database/cleanup")
+async def api_database_cleanup(request: Request):
+    """Deletes logs older than the specified retention days."""
+    body = await request.json()
+    days = int(body.get("days", 0))
+    deleted = delete_logs_older_than(days)
+    return {"success": True, "deleted": deleted}
 
 
 @app.websocket("/ws/logs")

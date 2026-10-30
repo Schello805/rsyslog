@@ -57,20 +57,39 @@
     <!-- Top Navigation Bar -->
     <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
-                    <i data-lucide="server" class="w-5 h-5 text-white"></i>
-                </div>
-                <div>
-                    <div class="flex items-center space-x-2">
-                        <h1 class="text-lg font-bold tracking-tight text-white">RSyslog <span class="text-sky-400">Web</span></h1>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">v1.0.0</span>
+            <div class="flex items-center space-x-6">
+                <a href="/" class="flex items-center space-x-3 group">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition">
+                        <i data-lucide="server" class="w-5 h-5 text-white"></i>
                     </div>
-                    <p class="text-xs text-slate-400">Zentraler Syslog-Empfänger & Live-Monitor</p>
-                </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h1 class="text-lg font-bold tracking-tight text-white">RSyslog <span class="text-sky-400">Web</span></h1>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">v1.0.0</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Zentraler Syslog-Empfänger & Live-Monitor</p>
+                    </div>
+                </a>
+
+                <!-- Navigation Tabs -->
+                <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-800">
+                    <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-950/60 text-sky-400 border border-sky-800/50 transition">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/settings" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                        <span>Einstellungen</span>
+                    </a>
+                </nav>
             </div>
 
             <div class="flex items-center space-x-3">
+                <!-- Mobile Settings Link -->
+                <a href="/settings" class="flex sm:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white" title="Einstellungen">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                </a>
+
                 <!-- Live Connection Badge -->
                 <div id="connection-status" class="flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700">
                     <span id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 live-pulse"></span>

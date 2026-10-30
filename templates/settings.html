@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Einstellungen — RSyslog Web</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            500: '#0284c7',
+                            600: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-6">
+                <a href="/" class="flex items-center space-x-3 group">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition">
+                        <i data-lucide="server" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h1 class="text-lg font-bold tracking-tight text-white">RSyslog <span class="text-sky-400">Web</span></h1>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800/60 font-mono" id="header-rev-badge">v1.0.0</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Systemeinstellungen & Alarmregeln</p>
+                    </div>
+                </a>
+
+                <!-- Navigation Tabs -->
+                <nav class="hidden sm:flex items-center space-x-1 pl-4 border-l border-slate-800">
+                    <a href="/" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/settings" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-950/60 text-sky-400 border border-sky-800/50 transition">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                        <span>Einstellungen</span>
+                    </a>
+                </nav>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <a href="/" class="flex sm:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white" title="Zurück zum Dashboard">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                </a>
+                <button onclick="saveSettings()" class="flex items-center space-x-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition shadow-sm">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span>Einstellungen speichern</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Intro Banner -->
+        <div class="bg-gradient-to-r from-sky-950/40 via-indigo-950/20 to-slate-900 border border-sky-900/40 rounded-2xl p-6 relative overflow-hidden">
+            <div class="relative z-10">
+                <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                    <i data-lucide="sliders" class="w-5 h-5 text-sky-400"></i>
+                    <span>Alarmierungs- & Benachrichtigungseinstellungen</span>
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                    Konfiguriere hier flexibel, wann Alarme ausgelöst werden (z. B. sofort beim ersten Fehler oder erst bei wiederholtem Auftreten) sowie deine Zugangsdaten für Telegram und Ntfy.
+                </p>
+            </div>
+        </div>
+
+        <form id="settings-form" onsubmit="event.preventDefault(); saveSettings();" class="space-y-6">
+
+            <!-- Card 1: Alarmbedingungen & Schwellenwerte -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="border-b border-slate-800 pb-4">
+                    <h3 class="text-base font-semibold text-white flex items-center space-x-2">
+                        <i data-lucide="bell-ring" class="w-5 h-5 text-amber-400"></i>
+                        <span>Alarm-Bedingungen & Schwellenwerte</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Lege präzise fest, ab welchem Schweregrad und ab wie vielen Ereignissen benachrichtigt wird.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Mindest-Level -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Mindest-Level für Alarme
+                        </label>
+                        <select id="alert_min_level" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="CRITICAL">🚨 Nur Kritisch (Critical / Notfall)</option>
+                            <option value="ERROR" selected>⚠️ Ab Fehler (Error & Critical)</option>
+                            <option value="WARN">🟡 Ab Warnung (Warn, Error & Critical)</option>
+                            <option value="INFO">ℹ️ Ab Information (Alle Logs)</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1">Logs unterhalb dieses Levels lösen niemals einen Alarm aus.</p>
+                    </div>
+
+                    <!-- Häufigkeitsschwelle -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Auslöseschwelle (Häufigkeit)
+                        </label>
+                        <select id="alert_threshold_count" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="1" selected>⚡ Sofort beim 1. Auftreten (Echtzeit)</option>
+                            <option value="2">🔁 Erst ab 2 Fehlern innerhalb des Zeitfensters</option>
+                            <option value="3">🔁 Erst ab 3 Fehlern innerhalb des Zeitfensters</option>
+                            <option value="5">🔥 Erst ab 5 Fehlern innerhalb des Zeitfensters</option>
+                            <option value="10">💥 Erst ab 10 Fehlern (Extremer Schwellenwert)</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1">Verhindert Fehlalarme bei einzelnen, flüchtigen Aussetzern.</p>
+                    </div>
+
+                    <!-- Zeitfenster für Häufigkeit -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Zeitfenster für Häufigkeitszählung
+                        </label>
+                        <select id="alert_threshold_window_minutes" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="1">1 Minute</option>
+                            <option value="2">2 Minuten</option>
+                            <option value="5" selected>5 Minuten (Empfohlen)</option>
+                            <option value="10">10 Minuten</option>
+                            <option value="15">15 Minuten</option>
+                            <option value="30">30 Minuten</option>
+                            <option value="60">60 Minuten</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1">Über diesen Zeitraum werden Fehler derselben Quelle summiert.</p>
+                    </div>
+
+                    <!-- Wiederholungssperre / Drosselung (Cooldown) -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Wiederholungssperre (Spamschutz / Cooldown)
+                        </label>
+                        <select id="alert_throttle_seconds" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="10">10 Sekunden</option>
+                            <option value="30" selected>30 Sekunden (Empfohlen)</option>
+                            <option value="60">1 Minute</option>
+                            <option value="300">5 Minuten</option>
+                            <option value="900">15 Minuten</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1">Mindestpause zwischen zwei Alarmen für die gleiche Fehlerquelle.</p>
+                    </div>
+
+                    <!-- Ignorierte Hosts -->
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Ignorierte Hosts (Blacklist)
+                        </label>
+                        <input type="text" id="alert_ignore_hosts" placeholder="z. B. test-device, dev-vm, 192.168.1.99"
+                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <p class="text-[11px] text-slate-500 mt-1">Kommagetrennte Liste von Hostnamen oder IP-Adressen, die niemals Alarme auslösen sollen.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Telegram Bot Einstellungen -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-white">Telegram Benachrichtigung</h3>
+                            <p class="text-xs text-slate-400">Erhalte Alarme direkt als Nachricht auf dein Smartphone.</p>
+                        </div>
+                    </div>
+
+                    <!-- Enabled Toggle -->
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="telegram_enabled" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                        <span class="ml-2 text-xs font-medium text-slate-300">Aktiviert</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Token -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Telegram Bot Token
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="telegram_bot_token" placeholder="z. B. 7123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ"
+                                class="w-full pl-3.5 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
+                            <button type="button" onclick="togglePasswordVisibility('telegram_bot_token', this)" class="absolute right-3 top-3 text-slate-500 hover:text-slate-300">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-1">Erstelle einen Bot bei <strong>@BotFather</strong> auf Telegram, um diesen Token zu erhalten.</p>
+                    </div>
+
+                    <!-- Chat ID -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Telegram Chat-ID
+                        </label>
+                        <input type="text" id="telegram_chat_id" placeholder="z. B. 123456789"
+                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono">
+                        <p class="text-[11px] text-slate-500 mt-1">Deine persönliche ID erfährst du sofort beim Bot <strong>@userinfobot</strong>.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="button" onclick="testTelegram()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
+                        <i data-lucide="send" class="w-3.5 h-3.5 text-sky-400"></i>
+                        <span>Telegram-Verbindung jetzt testen</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 3: Ntfy Push-Dienst Einstellungen -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <i data-lucide="bell" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-white">Ntfy Push-Dienst</h3>
+                            <p class="text-xs text-slate-400">Kostenlose, offene Push-Benachrichtigungen ohne Registrierung oder Account.</p>
+                        </div>
+                    </div>
+
+                    <!-- Enabled Toggle -->
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="ntfy_enabled" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <span class="ml-2 text-xs font-medium text-slate-300">Aktiviert</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Thema -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Ntfy Thema (Topic)
+                        </label>
+                        <input type="text" id="ntfy_topic" placeholder="z. B. mein-syslog-alarm-9482"
+                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                        <p class="text-[11px] text-slate-500 mt-1">Wähle einen individuellen, geheimen Themennamen und abonniere ihn in der ntfy-App.</p>
+                    </div>
+
+                    <!-- Server -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Ntfy Server
+                        </label>
+                        <input type="text" id="ntfy_server" value="https://ntfy.sh"
+                            class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                        <p class="text-[11px] text-slate-500 mt-1">Standard: <code>https://ntfy.sh</code> (kann bei Bedarf auf eigene Instanz geändert werden).</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="button" onclick="testNtfy()" class="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
+                        <i data-lucide="bell" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Ntfy-Verbindung jetzt testen</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 4: Wartung & Datenbank -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-6">
+                <div class="border-b border-slate-800 pb-4">
+                    <h3 class="text-base font-semibold text-white flex items-center space-x-2">
+                        <i data-lucide="database" class="w-5 h-5 text-indigo-400"></i>
+                        <span>Datenbank & Aufbewahrung</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Automatische Bereinigung alter Logdaten zur Speicheroptimierung.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">
+                            Aufbewahrungsdauer (Retention)
+                        </label>
+                        <select id="retention_days" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="0" selected>Unbegrenzt behalten (Keine automatische Löschung)</option>
+                            <option value="7">Logs älter als 7 Tage löschen</option>
+                            <option value="14">Logs älter als 14 Tage löschen</option>
+                            <option value="30">Logs älter als 30 Tage löschen</option>
+                            <option value="90">Logs älter als 90 Tage löschen</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1">Alte Logs werden automatisch beim Serverstart oder manuell per Klick aufgeräumt.</p>
+                    </div>
+
+                    <div>
+                        <button type="button" onclick="triggerManualCleanup()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                            <span>Jetzt nach Aufbewahrungsdauer bereinigen</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Sticky Action Bar -->
+            <div class="flex items-center justify-between pt-4">
+                <a href="/" class="text-xs text-slate-400 hover:text-white flex items-center space-x-1">
+                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                    <span>Zurück zum Dashboard</span>
+                </a>
+
+                <button type="submit" class="flex items-center space-x-2 text-sm font-semibold px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white transition shadow-lg shadow-sky-600/30">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Alle Einstellungen speichern</span>
+                </button>
+            </div>
+        </form>
+
+    </main>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-16 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950/90 text-xs text-slate-400 py-5 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center space-x-2">
+                <span>Open Source von <strong>Michael Schellenberger</strong></span>
+                <span class="text-slate-600">•</span>
+                <span class="text-slate-400">Freie Nutzung (Non-Commercial, CC BY-NC 4.0)</span>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300 font-mono">
+                    <i data-lucide="git-commit" class="w-3.5 h-3.5 text-sky-400"></i>
+                    <span id="footer-rev-text">Rev. v1.0.0</span>
+                </div>
+                <a id="footer-github-link" href="https://github.com/Schello805/rsyslog" target="_blank" rel="noopener noreferrer" 
+                   class="flex items-center space-x-1.5 text-slate-300 hover:text-white transition px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800">
+                    <svg class="w-4 h-4 fill-current text-white" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+                    </svg>
+                    <span class="font-medium">GitHub</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Logic Script -->
+    <script>
+        // Load Settings on Start
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+
+                // Alert Thresholds
+                document.getElementById('alert_min_level').value = data.alert_min_level || 'ERROR';
+                document.getElementById('alert_threshold_count').value = data.alert_threshold_count || 1;
+                document.getElementById('alert_threshold_window_minutes').value = data.alert_threshold_window_minutes || 5;
+                document.getElementById('alert_throttle_seconds').value = data.alert_throttle_seconds || 30;
+                document.getElementById('alert_ignore_hosts').value = data.alert_ignore_hosts || '';
+
+                // Telegram
+                document.getElementById('telegram_enabled').checked = Boolean(data.telegram_enabled);
+                document.getElementById('telegram_bot_token').value = data.telegram_bot_token || '';
+                document.getElementById('telegram_chat_id').value = data.telegram_chat_id || '';
+
+                // Ntfy
+                document.getElementById('ntfy_enabled').checked = Boolean(data.ntfy_enabled);
+                document.getElementById('ntfy_topic').value = data.ntfy_topic || '';
+                document.getElementById('ntfy_server').value = data.ntfy_server || 'https://ntfy.sh';
+
+                // Retention
+                document.getElementById('retention_days').value = data.retention_days || 0;
+            } catch (err) {
+                console.error('Error loading settings:', err);
+                showToast('Fehler beim Laden der Einstellungen', 'error');
+            }
+        }
+
+        // Save Settings
+        async function saveSettings() {
+            const payload = {
+                alert_min_level: document.getElementById('alert_min_level').value,
+                alert_threshold_count: parseInt(document.getElementById('alert_threshold_count').value) || 1,
+                alert_threshold_window_minutes: parseInt(document.getElementById('alert_threshold_window_minutes').value) || 5,
+                alert_throttle_seconds: parseInt(document.getElementById('alert_throttle_seconds').value) || 30,
+                alert_ignore_hosts: document.getElementById('alert_ignore_hosts').value.trim(),
+
+                telegram_enabled: document.getElementById('telegram_enabled').checked,
+                telegram_bot_token: document.getElementById('telegram_bot_token').value.trim(),
+                telegram_chat_id: document.getElementById('telegram_chat_id').value.trim(),
+
+                ntfy_enabled: document.getElementById('ntfy_enabled').checked,
+                ntfy_topic: document.getElementById('ntfy_topic').value.trim(),
+                ntfy_server: document.getElementById('ntfy_server').value.trim(),
+
+                retention_days: parseInt(document.getElementById('retention_days').value) || 0
+            };
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    showToast('Einstellungen erfolgreich gespeichert!', 'success');
+                } else {
+                    showToast('Fehler beim Speichern der Einstellungen', 'error');
+                }
+            } catch (err) {
+                showToast('Verbindungsfehler beim Speichern', 'error');
+            }
+        }
+
+        // Test Telegram Connection
+        async function testTelegram() {
+            const token = document.getElementById('telegram_bot_token').value.trim();
+            const chatId = document.getElementById('telegram_chat_id').value.trim();
+
+            if (!token || !chatId) {
+                alert('Bitte gib zuerst Bot-Token und Chat-ID ein.');
+                return;
+            }
+
+            showToast('Sende Testnachricht an Telegram...', 'info');
+            try {
+                const res = await fetch('/api/settings/test-telegram', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, chat_id: chatId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('✅ Telegram-Test erfolgreich! Die Nachricht wurde in deinem Chat zugestellt.');
+                } else {
+                    alert(`❌ Telegram-Fehler:\n${data.error}`);
+                }
+            } catch (err) {
+                alert('Verbindungsfehler beim Telegram-Test.');
+            }
+        }
+
+        // Test Ntfy Connection
+        async function testNtfy() {
+            const topic = document.getElementById('ntfy_topic').value.trim();
+            const server = document.getElementById('ntfy_server').value.trim() || 'https://ntfy.sh';
+
+            if (!topic) {
+                alert('Bitte gib zuerst ein Ntfy-Thema (Topic) ein.');
+                return;
+            }
+
+            showToast('Sende Testnachricht an Ntfy...', 'info');
+            try {
+                const res = await fetch('/api/settings/test-ntfy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, server })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ Ntfy-Test erfolgreich! Die Push-Nachricht wurde an ${server}/${topic} gesendet.`);
+                } else {
+                    alert(`❌ Ntfy-Fehler:\n${data.error}`);
+                }
+            } catch (err) {
+                alert('Verbindungsfehler beim Ntfy-Test.');
+            }
+        }
+
+        // Manual Cleanup
+        async function triggerManualCleanup() {
+            const days = parseInt(document.getElementById('retention_days').value) || 0;
+            if (days <= 0) {
+                alert('Die Aufbewahrungsdauer steht auf "Unbegrenzt". Wähle z. B. 7 oder 30 Tage, um alte Logs zu bereinigen.');
+                return;
+            }
+
+            if (confirm(`Möchtest du jetzt alle Logs löschen, die älter als ${days} Tage sind?`)) {
+                try {
+                    const res = await fetch('/api/database/cleanup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ days })
+                    });
+                    const data = await res.json();
+                    alert(`Bereinigung abgeschlossen: ${data.deleted} alte Logs wurden entfernt.`);
+                } catch (e) {
+                    alert('Fehler bei der Bereinigung.');
+                }
+            }
+        }
+
+        // Toggle password show/hide
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerHTML = '<i data-lucide="eye-off" class="w-4 h-4"></i>';
+            } else {
+                input.type = 'password';
+                btn.innerHTML = '<i data-lucide="eye" class="w-4 h-4"></i>';
+            }
+            lucide.createIcons();
+        }
+
+        // Version info
+        async function loadVersionInfo() {
+            try {
+                const res = await fetch('/api/version');
+                const data = await res.json();
+                document.getElementById('header-rev-badge').innerText = `v${data.version}`;
+                document.getElementById('footer-rev-text').innerText = `Rev. ${data.display}`;
+                if (data.github_url) {
+                    document.getElementById('footer-github-link').href = data.github_url;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Toast Helper
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-600' : 'bg-slate-800 border border-slate-700');
+            toast.className = `${bgClass} text-white text-xs px-4 py-2.5 rounded-lg shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 transform translate-y-2 pointer-events-auto`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => { toast.classList.remove('opacity-0', 'translate-y-2'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            loadVersionInfo();
+            loadSettings();
+        });
+    </script>
+</body>
+</html>
