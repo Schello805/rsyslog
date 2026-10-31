@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Geräte anbinden & Remote Syslog — RSyslog Web</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="256x256" href="/assets/branding/logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/branding/apple-touch-icon.png">
+    <meta name="theme-color" content="#0369a1">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -31,7 +35,7 @@
         [hidden] { display:none !important; }
         @media(max-width:700px) { header > div { height:auto !important; min-height:64px; flex-wrap:wrap; gap:.75rem; padding-top:.75rem; padding-bottom:.75rem; } #header-rev-badge { display:none; } }
     </style>
-    <link rel="stylesheet" href="/assets/theme.css">
+    <link rel="stylesheet" href="/assets/theme.css?v=28">
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
 
@@ -40,9 +44,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-6">
                 <a href="/" class="flex items-center space-x-3 group">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition">
-                        <i data-lucide="server" class="w-5 h-5 text-white"></i>
-                    </div>
+                    <img src="/assets/branding/logo.png" alt="" width="48" height="48" class="app-logo" fetchpriority="high">
                     <div>
                         <div class="flex items-center space-x-2">
                             <h1 class="text-lg font-bold tracking-tight text-slate-900">RSyslog <span class="text-sky-700">Web</span></h1>
@@ -76,6 +78,7 @@
                 </a>
             </div>
         </div>
+        <nav class="mobile-nav" aria-label="Hauptnavigation"><a href="/">Überblick</a><a href="/guide" aria-current="page">Geräte anbinden</a><a href="/settings">Einstellungen</a></nav>
     </header>
 
     <!-- Main Container -->

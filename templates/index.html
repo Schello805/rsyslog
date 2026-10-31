@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSyslog Web — Zentraler Syslog Monitor</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="256x256" href="/assets/branding/logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/branding/apple-touch-icon.png">
+    <meta name="theme-color" content="#0369a1">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -61,7 +65,7 @@
         summary { list-style-position: inside; }
         @media (max-width: 700px) { header > div { height: auto !important; min-height: 64px; flex-wrap: wrap; gap: .75rem; padding-top: .75rem; padding-bottom: .75rem; } #header-rev-badge { display:none; } #connection-status { padding:.4rem; white-space:nowrap; } }
     </style>
-    <link rel="stylesheet" href="/assets/theme.css">
+    <link rel="stylesheet" href="/assets/theme.css?v=28">
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
 
@@ -70,9 +74,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-6">
                 <a href="/" class="flex items-center space-x-3 group">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition">
-                        <i data-lucide="server" class="w-5 h-5 text-white"></i>
-                    </div>
+                    <img src="/assets/branding/logo.png" alt="" width="48" height="48" class="app-logo" fetchpriority="high">
                     <div>
                         <div class="flex items-center space-x-2">
                             <h1 class="text-lg font-bold tracking-tight text-slate-900">RSyslog <span class="text-sky-700">Web</span></h1>
@@ -101,10 +103,10 @@
 
             <div class="flex items-center space-x-3">
                 <!-- Mobile Guide & Settings Links -->
-                <a href="/guide" class="flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Geräte anbinden">
+                <a href="/guide" class="mobile-shortcut flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Geräte anbinden">
                     <i data-lucide="radio" class="w-4 h-4"></i>
                 </a>
-                <a href="/settings" class="flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Einstellungen">
+                <a href="/settings" class="mobile-shortcut flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Einstellungen">
                     <i data-lucide="settings" class="w-4 h-4"></i>
                 </a>
 
@@ -128,6 +130,7 @@
                 </details>
             </div>
         </div>
+        <nav class="mobile-nav" aria-label="Hauptnavigation"><a href="/" aria-current="page">Überblick</a><a href="/guide">Geräte anbinden</a><a href="/settings">Einstellungen</a></nav>
     </header>
 
     <!-- Main Content Container -->
@@ -294,7 +297,7 @@
         <!-- Log Table Card -->
         <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
+                <table class="log-table w-full text-left border-collapse text-sm" aria-label="Syslog-Meldungen">
                     <thead>
                         <tr class="bg-slate-50/60 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                             <th data-sort-column="timestamp" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('timestamp')" class="flex items-center gap-2 hover:text-slate-900 focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Zeitstempel sortieren">Zeitstempel<span data-sort-arrow="timestamp" aria-hidden="true">↕︎</span></button></th>
@@ -317,7 +320,7 @@
             </div>
 
             <!-- Pagination Bar -->
-            <div class="px-4 py-3 bg-slate-50/40 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+            <div class="log-pagination px-4 py-3 bg-slate-50/40 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
                 <div id="pagination-info">Seite 1 von 1</div>
                 <div class="flex items-center space-x-2">
                     <button id="btn-prev-page" onclick="changePage(-1)" disabled class="px-3 py-1 rounded bg-slate-100 border border-slate-300 text-slate-700 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">
@@ -687,12 +690,12 @@
                     <tr class="log-row ${severityClass(log.level)} transition cursor-pointer group" onclick="openDetailModal(${escapeHtml(JSON.stringify(log))})">
                         <td class="py-2.5 px-4 text-slate-600 whitespace-nowrap">${formattedTime}</td>
                         <td class="py-2.5 px-4 whitespace-nowrap">${levelBadge}</td>
-                        <td class="py-2.5 px-4 text-slate-700 font-medium whitespace-nowrap truncate max-w-[140px]" title="${sourceHost}">${escapedHost}${escapedHost !== sourceHost ? `<span class="block text-[10px] text-slate-500">${sourceHost}</span>` : ''}</td>
-                        <td class="py-2.5 px-4 text-slate-700 whitespace-nowrap truncate max-w-[140px]" title="${escapedApp}">${escapedApp}</td>
+                        <td data-label="Host" class="py-2.5 px-4 text-slate-700 font-medium whitespace-nowrap truncate max-w-[140px]" title="${sourceHost}">${escapedHost}${escapedHost !== sourceHost ? `<span class="block text-[10px] text-slate-500">${sourceHost}</span>` : ''}</td>
+                        <td data-label="Dienst / App" class="py-2.5 px-4 text-slate-700 whitespace-nowrap truncate max-w-[140px]" title="${escapedApp}">${escapedApp}</td>
                         <td class="py-2.5 px-4 text-slate-800 truncate max-w-md" title="${escapedMsg}">${escapedMsg}</td>
                         <td class="py-2.5 px-4 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                            <button onclick='openDetailModal(${escapeHtml(JSON.stringify(log))})' class="p-1 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition" title="Details ansehen">
-                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                            <button onclick='openDetailModal(${escapeHtml(JSON.stringify(log))})' class="log-detail-button p-1 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition" title="Details ansehen" aria-label="Details ansehen">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i><span class="mobile-detail-label">Details ansehen</span>
                             </button>
                         </td>
                     </tr>

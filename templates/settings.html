@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Einstellungen — RSyslog Web</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="256x256" href="/assets/branding/logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/branding/apple-touch-icon.png">
+    <meta name="theme-color" content="#0369a1">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -42,7 +46,7 @@
         .settings-tab[aria-current="page"] { color:#075985; background:#e0f2fe; border-color:#7dd3fc; }
         @media(max-width:700px) { header > div { height:auto !important; min-height:64px; flex-wrap:wrap; gap:.75rem; padding-top:.75rem; padding-bottom:.75rem; } #header-rev-badge { display:none; } }
     </style>
-    <link rel="stylesheet" href="/assets/theme.css">
+    <link rel="stylesheet" href="/assets/theme.css?v=28">
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
 
@@ -51,9 +55,7 @@
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-6">
                 <a href="/" class="flex items-center space-x-3 group">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 group-hover:scale-105 transition">
-                        <i data-lucide="server" class="w-5 h-5 text-white"></i>
-                    </div>
+                    <img src="/assets/branding/logo.png" alt="" width="48" height="48" class="app-logo" fetchpriority="high">
                     <div>
                         <div class="flex items-center space-x-2">
                             <h1 class="text-lg font-bold tracking-tight text-slate-900">RSyslog <span class="text-sky-700">Web</span></h1>
@@ -81,10 +83,10 @@
             </div>
 
             <div class="flex items-center space-x-3">
-                <a href="/guide" class="flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Geräte anbinden">
+                <a href="/guide" class="mobile-shortcut flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Geräte anbinden">
                     <i data-lucide="radio" class="w-4 h-4"></i>
                 </a>
-                <a href="/" class="flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Zurück zum Dashboard">
+                <a href="/" class="mobile-shortcut flex sm:hidden p-2 rounded-lg bg-slate-100 text-slate-700 hover:text-slate-900" title="Zurück zum Dashboard">
                     <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
                 </a>
                 <button data-settings-save onclick="saveSettings()" class="flex items-center space-x-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-sky-700 hover:bg-sky-600 text-white transition shadow-sm">
@@ -93,6 +95,7 @@
                 </button>
             </div>
         </div>
+        <nav class="mobile-nav" aria-label="Hauptnavigation"><a href="/">Überblick</a><a href="/guide">Geräte anbinden</a><a href="/settings" aria-current="page">Einstellungen</a></nav>
     </header>
 
     <!-- Main Container -->
