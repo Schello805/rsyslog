@@ -115,3 +115,15 @@ main, main section, main .grid > *, header a, footer > div { min-width:0; }
 @media (max-width:639px) {
     .overview-metrics .dashboard-card { padding:12px; }
 }
+
+/* The device status remains a table on all screen sizes; scroll locally on phones. */
+.device-table th, .device-table td { padding:12px 14px; vertical-align:middle; border-bottom:1px solid #e2e8f0; }
+.device-table th { font-weight:600; white-space:nowrap; }
+.device-table td:first-child { min-width:170px; overflow-wrap:anywhere; }
+.device-table tbody tr:last-child td { border-bottom:0; }
+.device-table tbody tr:hover { background:#f8fafc; }
+.device-state { display:inline-block; border-radius:999px; padding:4px 9px; font-size:11px; font-weight:600; white-space:nowrap; }
+.device-state-online { color:#047857; background:#d1fae5; }
+.device-state-offline { color:#be123c; background:#ffe4e6; }
+.device-state-unknown { color:#475569; background:#f1f5f9; }
+@media(max-width:639px) { .device-table th, .device-table td { padding:10px; } }

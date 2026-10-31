@@ -182,7 +182,13 @@
         <section class="bg-white border border-slate-200 rounded-2xl p-4 mb-6">
             <h2 class="text-sm font-semibold text-slate-900">Alle bekannten Absender</h2>
             <p class="text-xs text-slate-600 mt-1">Über „Benennen“ vergibst du Anzeigenamen. Nur Geräte mit Lebenszeichen können als online oder offline eingestuft werden.</p>
-            <div id="monitored-hosts" class="text-xs text-slate-700 mt-3 space-y-2">Noch keine Lebenszeichen.</div>
+            <p id="device-list-count" class="text-xs text-slate-500 mt-3" role="status"></p>
+            <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+                <table class="device-table w-full text-left text-sm" aria-label="Alle bekannten Geräte">
+                    <thead class="bg-slate-50 text-xs text-slate-600"><tr><th scope="col">Gerät / Host</th><th scope="col">Status</th><th scope="col">Letzte Meldung</th><th scope="col">Logs gesamt</th><th scope="col">Fehler · 24 h</th><th scope="col">Aktionen</th></tr></thead>
+                    <tbody id="monitored-hosts"><tr><td colspan="6">Geräteliste wird geladen …</td></tr></tbody>
+                </table>
+            </div>
             <p id="udp-dropped" class="text-xs text-amber-700 mt-2"></p>
         </section>
 
@@ -786,6 +792,44 @@
             return card;
         }
 
+        function renderDeviceTable(hosts) {
+            const tbody = document.getElementById('monitored-hosts');
+            tbody.replaceChildren();
+            document.getElementById('device-list-count').textContent = `${hosts.length} ${hosts.length === 1 ? 'bekanntes Gerät' : 'bekannte Geräte'}`;
+            if (!hosts.length) {
+                const row = document.createElement('tr'), cell = document.createElement('td');
+                cell.colSpan = 6; cell.textContent = 'Noch keine Geräte bekannt. Geräte erscheinen nach der ersten Meldung oder einem Lebenszeichen.';
+                row.append(cell); tbody.append(row); return;
+            }
+            for (const host of hosts) {
+                const row = document.createElement('tr');
+                const cell = text => {const td = document.createElement('td'); td.textContent = text; row.append(td); return td;};
+                const identity = cell(host.display_host || hostLabels[host.host] || host.host);
+                identity.className = 'font-medium';
+                if (identity.textContent !== host.host) {
+                    const original = document.createElement('small'); original.className = 'block text-xs text-slate-500 mt-1';
+                    original.textContent = host.host; identity.append(original);
+                }
+                const state = cell(''); const badge = document.createElement('span');
+                badge.className = 'device-state device-state-' + (host.status === 'online' ? 'online' : host.status === 'offline' ? 'offline' : 'unknown');
+                badge.textContent = host.status === 'online' ? 'Online' : host.status === 'offline' ? 'Offline' : 'Syslog · unbekannt';
+                state.append(badge);
+                const latest = cell(host.last_message ? formatTimestamp(host.last_message) : 'Noch keine Meldung');
+                latest.className = 'whitespace-nowrap text-xs text-slate-600';
+                cell((host.log_count || 0).toLocaleString('de-DE'));
+                const errors = cell((host.errors_24h || 0).toLocaleString('de-DE'));
+                if (host.errors_24h) errors.className = 'font-semibold text-rose-700';
+                const actions = cell(''); const group = document.createElement('div'); group.className = 'flex gap-3 whitespace-nowrap';
+                const logs = document.createElement('button'); logs.type = 'button'; logs.textContent = 'Logs ansehen';
+                logs.className = 'text-sky-700'; logs.setAttribute('aria-label', `Logs von ${host.display_host || host.host} ansehen`);
+                logs.addEventListener('click', () => openLogFilter('ALL', host.host));
+                const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Benennen'; edit.className = 'text-sky-700';
+                edit.setAttribute('aria-label', `${host.display_host || host.host} benennen`);
+                edit.addEventListener('click', () => openHostNameDialog(host));
+                group.append(logs, edit); actions.append(group); tbody.append(row);
+            }
+        }
+
         function renderOverviewEvents(id, logs, empty) {
             const container = document.getElementById(id);
             container.replaceChildren();
@@ -824,10 +868,9 @@
                 document.getElementById('udp-dropped').textContent = data.udp_dropped ? `${data.udp_dropped} UDP-Meldungen seit Start wegen Überlast verworfen` : '';
                 renderOverviewEvents('overview-attention', data.attention, 'Keine Warnungen oder Fehler in den letzten 24 Stunden.');
                 renderOverviewEvents('overview-latest', data.latest, 'Noch keine Ereignisse vorhanden.');
-                for (const [id, devices] of [['overview-devices', data.hosts.slice(0, 6)], ['monitored-hosts', data.hosts]]) {
-                    const list = document.getElementById(id); list.replaceChildren();
-                    devices.forEach(host => list.append(deviceCard(host)));
-                }
+                const overviewDevices = document.getElementById('overview-devices'); overviewDevices.replaceChildren();
+                data.hosts.slice(0, 6).forEach(host => overviewDevices.append(deviceCard(host)));
+                renderDeviceTable(data.hosts);
                 document.getElementById('dashboard-updated').textContent = `Aktualisiert ${new Date().toLocaleTimeString('de-DE')} · alle 10 Sekunden`;
             } catch (error) {
                 document.getElementById('dashboard-updated').textContent = 'Aktualisierung fehlgeschlagen. Angezeigte Daten können veraltet sein.';
