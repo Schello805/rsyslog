@@ -47,3 +47,39 @@ class OperationalTests(unittest.TestCase):
         self.assertGreater(storage_policy.status()['reusable_bytes'],0)
         for bad in (-1,1,True,'bad'):
             with self.assertRaises(ValueError): database.save_all_settings({'max_database_mb':bad})
+
+
+    def test_incidents_group_resolve_reopen_and_backfill_without_duplicates(self):
+        import asyncio, httpx, main
+        for _ in range(3): database.insert_log('nas','backup','ERROR','Connection failed')
+        database.insert_log('other','backup','ERROR','Connection failed')
+        database.insert_log('nas','backup','INFO','fine')
+        async def check():
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app),base_url='http://test') as client:
+                result=(await client.get('/api/incidents')).json()
+                self.assertEqual(result['total'],2)
+                incident=next(item for item in result['incidents'] if item['host']=='nas')
+                self.assertEqual(incident['occurrences'],3)
+                response=await client.post('/api/incidents/'+incident['fingerprint'],json={'status':'resolved'})
+                self.assertEqual(response.status_code,200)
+                self.assertEqual((await client.get('/api/incidents?state=resolved')).json()['total'],1)
+                database.insert_log('nas','backup','ERROR','Connection failed')
+                result=(await client.get('/api/incidents?search=nas')).json()
+                self.assertEqual(result['incidents'][0]['status'],'open')
+                self.assertEqual(result['incidents'][0]['occurrences'],4)
+                database.init_db()
+                self.assertEqual((await client.get('/api/incidents?search=nas')).json()['incidents'][0]['occurrences'],4)
+                database.clear_all_logs()
+                self.assertEqual((await client.get('/api/incidents')).json()['total'],0)
+        asyncio.run(check())
+
+    def test_incident_migration_backfills_existing_records_once(self):
+        import incidents
+        conn=database.get_db_connection()
+        with conn:
+            conn.execute("DELETE FROM settings WHERE key='migration_incidents_v1'")
+            for _ in range(4):
+                conn.execute("INSERT INTO logs(timestamp,received_at,host,app,level,message) VALUES('2026-01-01','2026-01-01','old','app','WARN','same')")
+        incidents.initialize(conn); incidents.initialize(conn)
+        row=conn.execute('SELECT occurrences FROM incidents').fetchone()
+        self.assertEqual(row[0],4)

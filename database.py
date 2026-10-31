@@ -79,6 +79,8 @@ def init_db() -> None:
 
     repair_legacy_syslog_hosts()
     repair_configured_source_hosts()
+    from incidents import initialize
+    initialize(conn)
 
 
 def repair_legacy_syslog_hosts():
@@ -282,6 +284,7 @@ def delete_logs_older_than(days: int) -> int:
         cursor.execute("SELECT COUNT(*) FROM logs WHERE julianday(timestamp) < julianday(?)", (cutoff,))
         count = cursor.fetchone()[0]
         cursor.execute("DELETE FROM logs WHERE julianday(timestamp) < julianday(?)", (cutoff,))
+        cursor.execute("DELETE FROM incidents WHERE julianday(last_seen) < julianday(?)", (cutoff,))
     return count
 
 
@@ -346,6 +349,9 @@ def insert_log(
                 ),
             )
             log_id = cursor.lastrowid
+            from incidents import record
+            record(conn, dict(host=clean_host,app=clean_app,level=normalized_level,message=clean_msg,
+                              timestamp=timestamp,received_at=datetime.now(timezone.utc).isoformat()))
     except sqlite3.OperationalError as exc:
         if apply_ingestion_rules and getattr(exc, 'sqlite_errorcode', None) == sqlite3.SQLITE_FULL:
             from ingestion_counters import discarded
@@ -530,6 +536,7 @@ def clear_all_logs() -> int:
         cursor.execute("SELECT COUNT(*) FROM logs")
         count = cursor.fetchone()[0]
         cursor.execute("DELETE FROM logs")
+        cursor.execute("DELETE FROM incidents")
     return count
 
 
@@ -594,7 +601,8 @@ def get_dashboard_summary():
             entry['display_host'] = aliases.get(entry['host'], entry['host'])
             entry['metadata'] = json.loads(entry['metadata'] or '{}')
         return result
-    return dict(**totals, hosts=devices, known_hosts=len(devices),
+    from incidents import open_count
+    return dict(**totals, open_incidents=open_count(), hosts=devices, known_hosts=len(devices),
         recent_hosts=sum(bool(host['recent']) for host in devices),
         heartbeat_hosts=sum(host['heartbeat_last_seen'] is not None for host in devices),
         offline_hosts=sum(host['status']=='offline' for host in devices),

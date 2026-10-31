@@ -536,6 +536,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
 from ai_analysis import router as ai_router
 app.include_router(ai_router)
+from incidents import router as incident_router
+app.include_router(incident_router)
 
 
 if __name__ == "__main__":

@@ -53,6 +53,9 @@ def trim_database():
         if not result.rowcount:
             break
     if deleted:
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE name='incidents'").fetchone():
+            with conn:
+                conn.execute("DELETE FROM incidents WHERE julianday(last_seen) < COALESCE((SELECT MIN(julianday(COALESCE(NULLIF(received_at,''),timestamp))) FROM logs),julianday('now'))")
         conn.execute('PRAGMA wal_checkpoint(PASSIVE)')
     return deleted
 

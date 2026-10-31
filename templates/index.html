@@ -128,6 +128,7 @@
         <nav aria-label="Arbeitsbereich" class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
             <a href="#overview" data-workflow="overview" class="workflow-link">Überblick</a>
             <a href="#logs" data-workflow="logs" class="workflow-link">Logs prüfen</a>
+            <a href="#incidents" data-workflow="incidents" class="workflow-link">Vorfälle</a>
             <a href="#devices" data-workflow="devices" class="workflow-link">Gerätestatus <span id="offline-badge"></span></a>
         </nav>
         <section data-panel="overview" class="space-y-6">
@@ -139,6 +140,7 @@
                 <button type="button" onclick="openLogFilter('WARN', 'ALL', '24')" class="dashboard-card metric-amber text-left"><p class="dashboard-label">Warnungen · 24 Stunden</p><p id="overview-warnings" class="dashboard-number text-amber-700">…</p><p class="dashboard-label mt-2">Warnungen prüfen →</p></button>
             </div>
             <a id="overview-storage-warning" hidden href="/settings#system" class="block rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"></a>
+            <a href="#incidents" class="block text-sm text-sky-700"><span id="overview-open-incidents">…</span> offene Vorfälle untersuchen →</a>
             <div id="overview-monitoring" class="rounded-xl border border-slate-200 bg-white/50 px-5 py-3 text-sm text-slate-700">Überwachung wird geladen …</div>
             <div id="onboarding-hint" hidden class="rounded-2xl border border-sky-200 bg-sky-50/20 p-6">
                 <h3 class="font-semibold">Noch keine Meldungen eingegangen</h3>
@@ -160,6 +162,13 @@
             </section>
             <a href="/settings#system" class="inline-block text-sm text-sky-700 hover:underline">Systemkennzahlen & Speicherplatz →</a>
             <p id="dashboard-updated" role="status" class="text-xs text-slate-500"></p>
+        </section>
+        <section data-panel="incidents" hidden class="space-y-4">
+            <p class="text-sm text-slate-600">Gleiche Warnungen und Fehler je Host, Dienst und Level werden zusammengefasst. „Erledigt“ bestätigt deine Bearbeitung; eine neue gleiche Meldung öffnet den Vorfall wieder.</p>
+            <div class="flex flex-wrap gap-3"><input id="incident-search" type="search" aria-label="Vorfälle durchsuchen" placeholder="Host, Dienst oder Meldung suchen …" class="border rounded-lg p-3 text-sm flex-1"><select id="incident-state" aria-label="Vorfälle nach Status filtern" class="border rounded-lg p-3 text-sm"><option value="open">Offen</option><option value="resolved">Erledigt</option><option value="all">Alle</option></select></div>
+            <p id="incident-result-status" role="status" class="text-xs text-slate-600"></p>
+            <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white"><table class="device-table w-full text-left text-sm" aria-label="Gebündelte Vorfälle"><thead class="bg-slate-50 text-xs text-slate-600"><tr><th>Vorfall</th><th>Anzahl</th><th>Erste / letzte Meldung</th><th>Status / Aktion</th></tr></thead><tbody id="incident-rows"></tbody></table></div>
+            <div class="flex justify-between"><button type="button" id="incident-prev" class="border rounded-lg p-2 text-sm">Zurück</button><button type="button" id="incident-next" class="border rounded-lg p-2 text-sm">Weiter</button></div>
         </section>
         <section data-panel="devices" hidden class="space-y-4">
         <section class="bg-white border border-slate-200 rounded-2xl p-4 mb-6">
@@ -861,6 +870,7 @@
                 if (!response.ok) throw new Error('Dashboard konnte nicht geladen werden');
                 const data = await response.json();
                 document.getElementById('overview-known').textContent = data.known_hosts;
+                document.getElementById('overview-open-incidents').textContent = data.open_incidents;
                 document.getElementById('overview-recent').textContent = `${data.recent_hosts} mit Meldungen in den letzten 15 Minuten`;
                 document.getElementById('overview-volume').textContent = data.logs_24h.toLocaleString('de-DE');
                 document.getElementById('overview-rate').textContent = `${data.ingestion.logs_last_minute} Logs in der letzten Minute · Ø ${data.ingestion.logs_per_minute_5m.toLocaleString('de-DE')}/min über 5 min`;
@@ -1191,8 +1201,9 @@
         }
 
         function showWorkflow() {
-            const key = ['overview', 'logs', 'devices'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+            const key = ['overview', 'logs', 'devices', 'incidents'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
             const copy = {
+                incidents: ['Vorfälle bearbeiten', 'Wiederholte Warnungen und Fehler gemeinsam untersuchen und als erledigt markieren.'],
                 overview: ['Deine Systeme auf einen Blick', 'Aktuelle Meldungen, auffällige Ereignisse und die Aktivität deiner Absender.'],
                 logs: ['Meldungen untersuchen', 'Suche nach einem Ereignis und grenze bei Bedarf Host, Dienst oder Level ein.'],
                 devices: ['Sind deine Geräte erreichbar?', 'Prüfe Lebenszeichen und springe direkt zu den Meldungen eines Geräts.']
@@ -1244,5 +1255,6 @@
 <p id="ai-result-status" role="status" class="text-sm"></p><pre id="ai-result" class="whitespace-pre-wrap break-words text-sm leading-relaxed"></pre>
 </dialog>
 <script src="/assets/ai-analysis.js" defer></script>
+<script src="/assets/incidents.js" defer></script>
 </body>
 </html>
