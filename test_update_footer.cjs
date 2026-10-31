@@ -1,6 +1,6 @@
 // No network, browser credentials or real updates. Run: node test_update_footer.cjs
 const assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
-async function load({supported=true,result={status:202,body:{state:'queued'}},blocked=false}={}) {
+async function load({supported=true,result={status:202,body:{state:'queued'}},blocked=false,pending=false,statusJob={state:'queued'}}={}) {
  const elements=new Map();
  const get=id=>{if(!elements.has(id))elements.set(id,{style:{},listeners:{},addEventListener(n,f){this.listeners[n]=f;},async fire(n){return this.listeners[n]?.({preventDefault(){}});}});return elements.get(id);};
  const dialog=get('dialog');dialog.querySelector=get;dialog.showModal=()=>{dialog.open=true;};dialog.close=()=>{dialog.open=false;dialog.fire('close');};
@@ -8,11 +8,11 @@ async function load({supported=true,result={status:202,body:{state:'queued'}},bl
  vm.runInNewContext(fs.readFileSync('static/update-footer.js','utf8'),{
   document:{getElementById:get,createElement:()=>dialog,body:{append(){}}},
   localStorage:{removeItem(){if(blocked)throw Error();removed=true;}},
-  sessionStorage:{getItem(){if(blocked)throw Error();return null;},setItem(){if(blocked)throw Error();},removeItem(){if(blocked)throw Error();}},
+  sessionStorage:{getItem(){if(blocked)throw Error();return pending?'1':null;},setItem(){if(blocked)throw Error();},removeItem(){if(blocked)throw Error();}},
   AbortSignal:{timeout(){}},setTimeout(){},setInterval(){},location:{reload(){}},
   async fetch(url,options){
    if(url==='/api/updates/start'){requests.push(options);return{ok:result.status===202,json:async()=>result.body};}
-   return{ok:true,json:async()=>url.endsWith('/status')?{state:'queued'}:{available:true,can_start:supported,latest_version:'1.0.99',job:{state:'idle'}}};
+   return{ok:true,json:async()=>url.endsWith('/status')?statusJob:{available:true,can_start:supported,latest_version:'1.0.99',job:pending?statusJob:{state:'idle'}}};
   }
  });
  await new Promise(r=>setImmediate(r));await get('footer-update-button').fire('click');
@@ -26,5 +26,13 @@ async function load({supported=true,result={status:202,body:{state:'queued'}},bl
  app=await load({supported:false});await app.get('form').fire('submit');assert.equal(app.requests.length,0);
  app=await load({result:{status:409,body:{detail:'Update läuft bereits'}}});await app.get('form').fire('submit');
  assert.equal(app.get('#update-dialog-error').textContent,'Update läuft bereits');assert.equal(app.dialog.open,true);
+ app=await load({pending:true,statusJob:{state:'idle'}});
+ assert.equal(app.get('footer-update-button').textContent,'Update starten');
+ assert(!app.get('footer-update-status').textContent.includes('läuft'));
+ app=await load({pending:true,statusJob:{state:'failed',message:'helper stopped'}});
+ assert(app.get('footer-update-status').textContent.includes('fehlgeschlagen'));
+ assert.equal(app.get('footer-update-button').hidden,false);
+ app=await load({pending:true,statusJob:{state:'unknown',message:'check server'}});
+ assert(app.get('footer-update-status').textContent.includes('unklar'));
  console.log('Keyless update: confirmation, header, old-key cleanup, blocked storage, unsupported setup and errors OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});

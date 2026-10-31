@@ -75,6 +75,25 @@ class UpdateTests(unittest.TestCase):
             self.assertEqual(missing.exception.status_code, 503)
         asyncio.run(check())
 
+    def test_legacy_running_status_detects_stopped_service(self):
+        (self.root/'status.json').write_text(json.dumps({'state':'running','updated_at':1}))
+        with patch.object(updates, '_service_state', return_value='inactive'):
+            self.assertEqual(updates.job_status()['state'], 'failed')
+        with patch.object(updates, '_service_state', return_value='activating'):
+            self.assertEqual(updates.job_status()['state'], 'running')
+        with patch.object(updates, '_service_state', return_value=None):
+            self.assertEqual(updates.job_status()['state'], 'unknown')
+
+    def test_running_process_identity_detects_dead_or_reused_pid(self):
+        (self.root/'status.json').write_text(json.dumps({'state':'running','pid':123,'process_start':'42'}))
+        real_path = updates.Path
+        class ProcPath:
+            def __init__(self, value): self.value = value
+            def is_dir(self): return True
+            def read_text(self): return '123 (worker name) ' + ' '.join(['S']*19 + ['99'])
+        with patch.object(updates, 'Path', side_effect=lambda value: ProcPath(value) if str(value).startswith('/proc') else real_path(value)):
+            self.assertEqual(updates.job_status()['state'], 'failed')
+
     def test_templates_get_revisioned_assets_and_no_store(self):
         import main
         path = self.root / 'template.html'

@@ -42,9 +42,18 @@ systemctl restart rsyslog-web</pre>
         if (job.state === 'queued' || job.state === 'running') {
             waiting = true;
             storePending(true);
-            status.textContent = job.state === 'queued' ? 'Update wird gestartet …' : 'Update läuft …';
+            const started = job.started_at || job.updated_at;
+            const minutes = started ? Math.max(0, Math.floor((Date.now() / 1000 - started) / 60)) : 0;
+            status.textContent = job.state === 'queued' ? 'Update wird gestartet …' : `Update läuft${minutes ? ` seit ${minutes} Min.` : ''} …`;
+            status.title = job.message || '';
             button.hidden = true;
             poll();
+            return true;
+        }
+        if (job.state === 'unknown') {
+            waiting = false; storePending(false);
+            status.textContent = 'Update-Status unklar · Serverstatus prüfen';
+            status.title = job.message || ''; button.hidden = true;
             return true;
         }
         if (job.state === 'failed') {
@@ -62,6 +71,7 @@ systemctl restart rsyslog-web</pre>
             setTimeout(() => location.reload(), 1500);
             return true;
         }
+        waiting = false; storePending(false);
         return false;
     }
 
@@ -72,7 +82,7 @@ systemctl restart rsyslog-web</pre>
             const response = await fetch('/api/updates/status', {cache:'no-store', signal:AbortSignal.timeout(10000)});
             if (!response.ok) throw new Error('Status nicht verfügbar');
             const job = await response.json();
-            showJob(job);
+            if (!showJob(job)) await check();
         } catch (error) {
             status.textContent = 'Neustart läuft · warte auf Verbindung …';
         } finally {

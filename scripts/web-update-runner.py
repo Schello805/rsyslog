@@ -7,6 +7,7 @@ import subprocess
 import time
 
 CONTROL = Path('/var/lib/rsyslog-web-update')
+_started_at = None
 
 
 def status(state, message):
@@ -15,12 +16,20 @@ def status(state, message):
         boot_id = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
     except OSError:
         boot_id = None
-    temporary.write_text(json.dumps({'state': state, 'message': message, 'updated_at': time.time(), 'boot_id': boot_id}))
+    try:
+        process_start = Path('/proc/self/stat').read_text().rsplit(')', 1)[1].split()[19]
+    except (OSError, IndexError):
+        process_start = None
+    temporary.write_text(json.dumps({'state': state, 'message': message, 'updated_at': time.time(),
+                                     'started_at': _started_at, 'boot_id': boot_id,
+                                     'pid': os.getpid(), 'process_start': process_start}))
     temporary.chmod(0o644)
     os.replace(temporary, CONTROL / 'status.json')
 
 
 def main():
+    global _started_at
+    _started_at = time.time()
     status('running', 'Sicherung und Update werden ausgeführt. Die Webapp startet dabei neu.')
     (CONTROL / 'request/start').unlink(missing_ok=True)
     try:
