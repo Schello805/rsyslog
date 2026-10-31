@@ -161,6 +161,46 @@ class AIAnalysisTests(unittest.TestCase):
             self.assertNotIn('secret', response.text)
         self.run_api(check)
 
+    def test_cache_reuses_results_until_explicit_refresh_and_is_scoped(self):
+        async def check(client):
+            ai._snapshots['test'] = {'created':time.monotonic(),'payload':'same selection','count':2}
+            database.set_setting('ai_openai_key','server-secret')
+            database.set_setting('ai_openai_model','test-model')
+            result={'output':[{'type':'message','content':[{'type':'output_text','text':'Check storage.'}]}]}
+            post=AsyncMock(return_value=httpx.Response(200,json=result))
+            body={'provider':'openai','token':'test'}
+            with patch.object(ai.httpx.AsyncClient,'post',post):
+                first=await client.request('POST','/api/ai/analyze',json=body)
+                self.assertFalse(first.json()['cached'])
+                previous=await client.request('POST','/api/ai/cached',json=body)
+                self.assertTrue(previous.json()['cached'])
+                again=await client.request('POST','/api/ai/analyze',json=body)
+                self.assertTrue(again.json()['cached'])
+                self.assertEqual(post.await_count,1)
+                await client.request('POST','/api/ai/analyze',json=dict(body,refresh=True))
+                self.assertEqual(post.await_count,2)
+                ai._snapshots['test']['payload']='different selection'
+                self.assertFalse((await client.request('POST','/api/ai/cached',json=body)).json()['cached'])
+                ai._snapshots['test']['payload']='same selection'
+                database.set_setting('ai_openai_key','rotated-secret')
+                self.assertFalse((await client.request('POST','/api/ai/cached',json=body)).json()['cached'])
+                self.assertNotIn('server-secret',previous.text)
+                database.clear_all_logs()
+                self.assertEqual(database.get_db_connection().execute('SELECT COUNT(*) FROM analysis_cache').fetchone()[0],0)
+        self.run_api(check)
+
+    def test_cache_is_bounded_and_expires(self):
+        import analysis_cache
+        conn=database.get_db_connection()
+        for number in range(23):
+            analysis_cache.save(conn,str(number),dict(provider='openai',model='test',analysis='answer',count=1,created_at=time.time()+number))
+        self.assertEqual(conn.execute('SELECT COUNT(*) FROM analysis_cache').fetchone()[0],20)
+        self.assertIsNone(analysis_cache.get(conn,'0',1))
+        with conn: conn.execute('UPDATE analysis_cache SET created_at=0')
+        self.assertIsNone(analysis_cache.get(conn,'22',1))
+        analysis_cache.cleanup(conn)
+        self.assertEqual(conn.execute('SELECT COUNT(*) FROM analysis_cache').fetchone()[0],0)
+
 
 if __name__ == '__main__':
     unittest.main()

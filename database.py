@@ -81,6 +81,8 @@ def init_db() -> None:
     repair_configured_source_hosts()
     from incidents import initialize
     initialize(conn)
+    from analysis_cache import initialize as initialize_cache
+    initialize_cache(conn)
 
 
 def repair_legacy_syslog_hosts():
@@ -537,6 +539,7 @@ def clear_all_logs() -> int:
         count = cursor.fetchone()[0]
         cursor.execute("DELETE FROM logs")
         cursor.execute("DELETE FROM incidents")
+        cursor.execute("DELETE FROM analysis_cache")
     return count
 
 

@@ -49,12 +49,33 @@
     refreshSetupLink();
     window.addEventListener('focus', refreshSetupLink);
     window.addEventListener('pageshow', event => { if (event.persisted) refreshSetupLink(); });
-    let token = null, loading = false;
+    let token = null, loading = false, hasCachedAnalysis = false;
     const dialog = byId('ai-dialog');
     byId('ai-close').addEventListener('click', () => dialog.close());
+    function renderAnalysis(data) {
+        const when = new Date(data.created_at * 1000).toLocaleString('de-DE');
+        byId('ai-result-status').textContent = `${data.cached ? 'Gespeicherte' : 'Neue'} Analyse · ${when} · ${data.provider} · ${data.model} · ${data.count} Meldungen${data.incomplete ? ' · Antwort gekürzt.' : ''}${data.cache_saved === false ? ' · Nicht gespeichert; Speicher prüfen oder Antwort unvollständig.' : ''}`;
+        byId('ai-result').textContent = data.analysis;
+        hasCachedAnalysis = data.cache_saved;
+        byId('ai-send').textContent = hasCachedAnalysis ? 'Erneut analysieren (neuer API-Aufruf)' : 'Vorschau senden & analysieren';
+    }
+    async function loadCached() {
+        const currentToken = token, provider = byId('ai-provider').value;
+        hasCachedAnalysis = false;
+        byId('ai-result').textContent = ''; byId('ai-result-status').textContent = '';
+        byId('ai-send').textContent = 'Vorschau senden & analysieren';
+        if (!currentToken || loading) return;
+        try {
+            const data = await api('cached', {provider, token: currentToken});
+            if (token !== currentToken || provider !== byId('ai-provider').value || loading) return;
+            if (data.cached) renderAnalysis(data);
+        } catch (error) { byId('ai-result-status').textContent = error.message; }
+    }
+    byId('ai-provider').addEventListener('change', loadCached);
+
     byId('ai-open').addEventListener('click', async () => {
         if (loading) return;
-        token = null;
+        token = null; hasCachedAnalysis = false;
         byId('ai-send').disabled = true;
         byId('ai-result').textContent = '';
         byId('ai-result-status').textContent = '';
@@ -81,6 +102,7 @@
             if (available) byId('ai-provider').value = available.value;
             else byId('ai-result-status').textContent = 'Bitte zuerst unter Einstellungen → KI-Analyse einen API-Schlüssel und eine Modell-ID speichern.';
             byId('ai-send').disabled = !token || !available;
+            if (token && available) await loadCached();
         } catch (error) {byId('ai-summary').textContent = error.message;}
     });
     byId('ai-send').addEventListener('click', async () => {
@@ -93,9 +115,8 @@
         progress();
         const timer = setInterval(progress, 1000);
         try {
-            const data = await api('analyze', {provider: byId('ai-provider').value, token}, AbortSignal.timeout(55000));
-            byId('ai-result-status').textContent = `${data.provider} · ${data.model} · ${data.count} Meldungen${data.incomplete ? ' · Antwort wurde wegen des Ausgabelimits gekürzt.' : ''}`;
-            byId('ai-result').textContent = data.analysis;
+            const data = await api('analyze', {provider: byId('ai-provider').value, token, refresh: Boolean(hasCachedAnalysis)}, AbortSignal.timeout(55000));
+            renderAnalysis(data);
         } catch (error) {byId('ai-result-status').textContent = ['TimeoutError', 'AbortError'].includes(error.name) ? 'Zeitüberschreitung. Verbindung zum Server prüfen und Analyse erneut starten.' : error.message;}
         finally {clearInterval(timer); loading = false; byId('ai-send').disabled = false; byId('ai-provider').disabled = false;}
     });

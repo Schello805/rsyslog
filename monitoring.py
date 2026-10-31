@@ -31,6 +31,8 @@ async def maintenance():
         try:
             for host in await asyncio.to_thread(database.mark_offline_hosts):
                 await status_event(host, False)
+            from analysis_cache import cleanup as cleanup_analyses
+            await asyncio.to_thread(lambda: cleanup_analyses(database.get_db_connection()))
             from storage_policy import trim_database, status
             await asyncio.to_thread(trim_database)
             storage = await asyncio.to_thread(status)

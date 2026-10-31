@@ -3,6 +3,8 @@ import asyncio
 import json
 import re
 import secrets
+import sqlite3
+import analysis_cache
 import time
 
 import httpx
@@ -10,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 from typing import Literal
 
-from database import get_logs, get_setting, save_all_settings
+from database import get_logs, get_setting, save_all_settings, get_db_connection
 
 router = APIRouter(prefix='/api/ai')
 _snapshots = {}
@@ -129,11 +131,10 @@ async def preview(body: Filters, request: Request):
 class Analysis(BaseModel):
     provider: Literal['openai', 'gemini']
     token: str = Field(..., min_length=1, max_length=100)
+    refresh: bool = False
 
 
-@router.post('/analyze')
-async def analyze(body: Analysis, request: Request):
-    same_origin(request)
+def context(body):
     snapshot = _snapshots.get(body.token)
     if not snapshot or time.monotonic() - snapshot['created'] > 600:
         raise HTTPException(410, 'Vorschau abgelaufen. Bitte neu öffnen.')
@@ -143,6 +144,25 @@ async def analyze(body: Analysis, request: Request):
         raise HTTPException(400, 'Bitte zuerst API-Schlüssel und Modell in Einstellungen → KI-Analyse speichern.')
     if not re.fullmatch(r'[a-zA-Z0-9._-]{1,120}', model):
         raise HTTPException(400, 'Ungültige Modell-ID.')
+    cache_key = analysis_cache.key(body.provider, model, key, INSTRUCTIONS, snapshot['payload'])
+    return snapshot, key, model, cache_key
+
+
+@router.post('/cached')
+async def cached_analysis(body: Analysis, request: Request):
+    same_origin(request)
+    snapshot, key, model, cache_key = context(body)
+    return analysis_cache.get(get_db_connection(), cache_key, snapshot['count']) or {'cached': False}
+
+
+@router.post('/analyze')
+async def analyze(body: Analysis, request: Request):
+    same_origin(request)
+    snapshot, key, model, cache_key = context(body)
+    if not body.refresh:
+        previous = analysis_cache.get(get_db_connection(), cache_key, snapshot['count'])
+        if previous:
+            return previous
     if _busy.locked():
         raise HTTPException(429, 'Eine Analyse läuft bereits. Bitte kurz warten.')
     async with _busy:
@@ -174,8 +194,16 @@ async def analyze(body: Analysis, request: Request):
                 incomplete = bool(candidates and candidates[0].get('finishReason') == 'MAX_TOKENS')
             if not text.strip():
                 raise HTTPException(502, 'Anbieter hat keine Textanalyse geliefert. Modell oder Inhaltsfreigabe prüfen.')
-            return {'analysis': text[:40000], 'provider': body.provider, 'model': model,
-                    'count': snapshot['count'], 'incomplete': incomplete}
+            result = {'analysis': text[:40000], 'provider': body.provider, 'model': model,
+                      'count': snapshot['count'], 'current_count': snapshot['count'],
+                      'incomplete': incomplete, 'cached': False, 'created_at': time.time(), 'cache_saved': False}
+            if not incomplete:
+                try:
+                    analysis_cache.save(get_db_connection(), cache_key, result)
+                    result['cache_saved'] = True
+                except sqlite3.Error:
+                    pass  # Return a paid-for result even when local storage is full.
+            return result
         except (TimeoutError, httpx.TimeoutException):
             raise HTTPException(504, 'Der Anbieter hat nicht rechtzeitig geantwortet (maximal 45 Sekunden). Bitte weniger Meldungen auswählen oder später erneut versuchen.') from None
         except (httpx.HTTPError, ValueError, TypeError, KeyError):
