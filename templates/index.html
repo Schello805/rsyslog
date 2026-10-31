@@ -165,6 +165,11 @@
         <section class="bg-white border border-slate-200 rounded-2xl p-4 mb-6">
             <h2 class="text-sm font-semibold text-slate-900">Alle bekannten Absender</h2>
             <p class="text-xs text-slate-600 mt-1">Über „Benennen“ vergibst du Anzeigenamen. Nur Geräte mit Lebenszeichen können als online oder offline eingestuft werden.</p>
+            <div class="grid sm:grid-cols-3 gap-3 mt-4">
+                <input id="device-search" type="search" aria-label="Geräte durchsuchen" placeholder="Gerät oder Host suchen …" oninput="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full">
+                <select id="device-status-filter" aria-label="Geräte nach Status filtern" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="all">Alle Status</option><option value="offline">Nur offline</option><option value="online">Nur online</option><option value="syslog">Syslog · Erreichbarkeit unbekannt</option></select>
+                <select id="device-sort" aria-label="Geräte sortieren" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="status">Offline zuerst</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="activity">Letzte Meldung: neueste zuerst</option><option value="errors">Fehler: meiste zuerst</option><option value="logs">Logs: meiste zuerst</option></select>
+            </div>
             <p id="device-list-count" class="text-xs text-slate-500 mt-3" role="status"></p>
             <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
                 <table class="device-table w-full text-left text-sm" aria-label="Alle bekannten Geräte">
@@ -775,13 +780,30 @@
             return card;
         }
 
+        let cachedDeviceHosts = [];
         function renderDeviceTable(hosts) {
+            if (hosts) cachedDeviceHosts = hosts;
+            const query = document.getElementById('device-search').value.trim().toLocaleLowerCase('de');
+            const state = document.getElementById('device-status-filter').value;
+            const sort = document.getElementById('device-sort').value;
+            const name = host => host.display_host || hostLabels[host.host] || host.host;
+            const byName = (a,b) => name(a).localeCompare(name(b), 'de', {numeric:true});
+            hosts = cachedDeviceHosts.filter(host => (!query || `${name(host)} ${host.host}`.toLocaleLowerCase('de').includes(query)) && (state === 'all' || host.status === state));
+            const rank = {offline:0, online:1, syslog:2};
+            hosts.sort((a,b) => {
+                if (sort === 'name') return byName(a,b);
+                if (sort === 'name-desc') return byName(b,a);
+                if (sort === 'errors') return b.errors_24h - a.errors_24h || byName(a,b);
+                if (sort === 'logs') return b.log_count - a.log_count || byName(a,b);
+                if (sort === 'activity') return Math.max(b.last_activity || 0,b.heartbeat_last_seen || 0) - Math.max(a.last_activity || 0,a.heartbeat_last_seen || 0) || byName(a,b);
+                return (rank[a.status] ?? 2) - (rank[b.status] ?? 2) || byName(a,b);
+            });
             const tbody = document.getElementById('monitored-hosts');
             tbody.replaceChildren();
-            document.getElementById('device-list-count').textContent = `${hosts.length} ${hosts.length === 1 ? 'bekanntes Gerät' : 'bekannte Geräte'}`;
+            document.getElementById('device-list-count').textContent = `${hosts.length} von ${cachedDeviceHosts.length} Geräten angezeigt`;
             if (!hosts.length) {
                 const row = document.createElement('tr'), cell = document.createElement('td');
-                cell.colSpan = 6; cell.textContent = 'Noch keine Geräte bekannt. Geräte erscheinen nach der ersten Meldung oder einem Lebenszeichen.';
+                cell.colSpan = 6; cell.textContent = cachedDeviceHosts.length ? 'Keine Geräte für diese Suche oder diesen Status.' : 'Noch keine Geräte bekannt. Geräte erscheinen nach der ersten Meldung oder einem Lebenszeichen.';
                 row.append(cell); tbody.append(row); return;
             }
             for (const host of hosts) {
