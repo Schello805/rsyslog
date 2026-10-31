@@ -13,7 +13,11 @@
         for (const provider of ['openai', 'gemini']) {
             byId(`ai-${provider}-status`).textContent = data[provider].configured ? 'Schlüssel gespeichert' : 'Kein Schlüssel gespeichert';
             byId(`ai-${provider}-model`).value = data[provider].model;
-            byId(`ai-${provider}-key`).value = '';
+            const keyField = byId(`ai-${provider}-key`);
+            keyField.value = '';
+            // A placeholder signals saved credentials without submitting a dummy key.
+            keyField.placeholder = data[provider].configured ? '********' : 'Neuen Schlüssel eingeben';
+            keyField.setAttribute('aria-describedby', `ai-${provider}-status`);
             byId(`ai-${provider}-delete`).checked = false;
         }
     }

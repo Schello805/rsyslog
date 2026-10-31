@@ -132,7 +132,7 @@
 <div class="space-y-2"><label for="ai-openai-key" class="block text-sm font-medium">OpenAI API-Key</label><input id="ai-openai-key" type="password" autocomplete="new-password" class="w-full border rounded-lg p-2" placeholder="Neuen Schlüssel eingeben"><p id="ai-openai-status" class="text-xs"></p><label class="block text-sm"><input id="ai-openai-delete" type="checkbox"> Gespeicherten Schlüssel löschen</label><label for="ai-openai-model" class="block text-sm">OpenAI Modell-ID</label><input id="ai-openai-model" class="w-full border rounded-lg p-2" placeholder="z. B. gpt-5.6-terra"></div>
 <div class="space-y-2"><label for="ai-gemini-key" class="block text-sm font-medium">Gemini API-Key</label><input id="ai-gemini-key" type="password" autocomplete="new-password" class="w-full border rounded-lg p-2" placeholder="Neuen Schlüssel eingeben"><p id="ai-gemini-status" class="text-xs"></p><label class="block text-sm"><input id="ai-gemini-delete" type="checkbox"> Gespeicherten Schlüssel löschen</label><label for="ai-gemini-model" class="block text-sm">Gemini Modell-ID</label><input id="ai-gemini-model" class="w-full border rounded-lg p-2" placeholder="z. B. gemini-3.8-flash"></div>
 </div>
-<p class="text-xs text-slate-600">Leer lassen behält den gespeicherten Schlüssel. Schlüssel werden serverseitig in der lokalen Datenbank gespeichert und niemals zurück an den Browser geliefert. Zugriff auf App, Datenbank und Backups entsprechend schützen; für entfernten Zugriff HTTPS verwenden.</p>
+<p class="text-xs text-slate-600">Sternchen zeigen einen gespeicherten Schlüssel an. Leer lassen behält ihn; zum Ersetzen einen neuen Schlüssel eingeben. Schlüssel werden serverseitig in der lokalen Datenbank gespeichert und niemals zurück an den Browser geliefert. Zugriff auf App, Datenbank und Backups entsprechend schützen; für entfernten Zugriff HTTPS verwenden.</p>
 <button type="button" id="ai-save" class="px-4 py-2 bg-violet-700 text-white rounded-lg">KI-Einstellungen speichern</button><p id="ai-settings-result" role="status" class="text-sm"></p>
 </section>
             <section data-settings-panel="channels" class="space-y-4">
@@ -774,6 +774,6 @@
         });
     </script>
     <script src="/assets/update-footer.js" defer></script>
-<script src="/assets/ai-analysis.js" defer></script>
+<script src="/assets/ai-analysis.js?v=30" defer></script>
 </body>
 </html>
