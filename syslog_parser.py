@@ -72,6 +72,14 @@ RFC3164_REGEX = re.compile(
 )
 
 
+# Recognize the hostname independently of the optional/occasionally truncated TAG.
+RFC3164_HEADER_REGEX = re.compile(
+    r"^<(?P<pri>\d{1,3})>"
+    r"(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+"
+    r"(?P<hostname>\S+)\s+(?P<body>.*)$", re.DOTALL,
+)
+
+
 def _parse_syslog_message(raw_data: str, client_ip: str = "unknown") -> Dict[str, Any]:
     """
     Parses a raw syslog packet string into a structured dictionary.
@@ -138,6 +146,22 @@ def _parse_syslog_message(raw_data: str, client_ip: str = "unknown") -> Dict[str
             "facility": FACILITY_NAMES.get(facility_num, "user"),
             "message": message or "(empty message)",
             "raw": data,
+        }
+
+    # A valid BSD header still identifies the host when the TAG is non-standard.
+    header = RFC3164_HEADER_REGEX.match(data)
+    if header:
+        pri = int(header.group('pri'))
+        body = header.group('body').strip()
+        tag = re.match(r'^\(?(?P<app>[a-zA-Z0-9_.\/-]+)\)?(?:\[\d+\]?)?:?\s+(?P<message>.*)$', body, re.DOTALL)
+        return {
+            'timestamp': current_time_iso,
+            'host': header.group('hostname') if header.group('hostname') != '-' else client_ip,
+            'app': tag.group('app') if tag else 'syslog',
+            'level': SEVERITY_NAMES.get(pri % 8, 'INFO'),
+            'facility': FACILITY_NAMES.get(pri // 8, 'user'),
+            'message': (tag.group('message') if tag else body) or '(empty message)',
+            'raw': data,
         }
 
     # 3. Message has PRI header <PRI> but non-standard body

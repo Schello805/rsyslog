@@ -196,6 +196,12 @@ Vorhandene Weiterleitungen zum gleichen Ziel können doppelte Meldungen erzeugen
 
 ## Betrieb und Fehlerdiagnose
 
+IP-/Namens-Doppeleinträge durch ungewöhnliche Syslog-Tags (z. B. `(systemd)`
+oder abgeschnittene Prozess-IDs) werden beim Start einmalig anhand des ursprünglichen
+Syslog-Headers repariert. Originalmeldungen bleiben erhalten. Meldungen ohne
+eindeutigen Hostnamen behalten ihre IP-Adresse; Anzeigenamen werden nicht zum
+Zusammenführen unterschiedlicher Geräte verwendet.
+
 | Was? | Pfad oder Befehl |
 |---|---|
 | App | `/opt/rsyslog-web` |

@@ -77,6 +77,51 @@ def init_db() -> None:
             """
         )
 
+    repair_legacy_syslog_hosts()
+
+
+def repair_legacy_syslog_hosts():
+    """One-time repair of IP fallbacks with an unambiguous BSD hostname in raw data.
+
+    Do not merge by source IP or display alias: relays can send for multiple hosts.
+    Raw messages, receipt times and user-assigned names remain intact.
+    """
+    from ipaddress import ip_address
+    from syslog_parser import RFC3164_HEADER_REGEX, parse_syslog_message
+    conn = get_db_connection()
+    marker = 'migration_syslog_hostname_v1'
+    if conn.execute('SELECT value FROM settings WHERE key=?', (marker,)).fetchone():
+        return 0
+    last_id, repaired = 0, 0
+    while True:
+        rows = conn.execute("SELECT id,host,raw FROM logs WHERE id>? AND app='syslog' AND raw LIKE '<%' ORDER BY id LIMIT 500", (last_id,)).fetchall()
+        if not rows:
+            break
+        with conn:
+            for row in rows:
+                last_id = row['id']
+                try:
+                    ip_address(row['host'])
+                except ValueError:
+                    continue
+                if not RFC3164_HEADER_REGEX.match(row['raw'].strip()):
+                    continue
+                parsed = parse_syslog_message(row['raw'], row['host'])
+                hostname = parsed['host']
+                if hostname in (row['host'], '-', 'unknown') or parsed.get('metadata'):
+                    continue
+                try:
+                    ip_address(hostname)
+                    continue
+                except ValueError:
+                    pass
+                conn.execute('UPDATE logs SET host=?,app=?,message=? WHERE id=?',
+                    (hostname, parsed['app'], parsed['message'], row['id']))
+                repaired += 1
+    with conn:
+        conn.execute('INSERT INTO settings(key,value) VALUES(?,?)', (marker, str(repaired)))
+    return repaired
+
 
 def get_setting(key: str, default: Any = None) -> Any:
     """Retrieves a single setting from the database or returns default."""
