@@ -27,6 +27,20 @@ class DashboardTests(unittest.TestCase):
         self.override.stop()
         self.directory.cleanup()
 
+    def test_critical_card_counts_and_filter_match_without_double_counting_errors(self):
+        for level in ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY', 'WARN']:
+            database.insert_log('host', 'app', level, level)
+        summary = database.get_dashboard_summary()
+        self.assertEqual(summary['error_only_24h'], 1)
+        self.assertEqual(summary['critical_24h'], 3)
+        self.assertEqual(summary['warnings_24h'], 1)
+        self.assertEqual(database.get_logs(level='CRITICAL_ALL', hours=24)[1], 3)
+        self.assertEqual(database.get_logs(level='ERROR', hours=24)[1], 1)
+        with database.get_db_connection() as connection:
+            connection.execute("UPDATE logs SET received_at='2000-01-01' WHERE level='ALERT'")
+        self.assertEqual(database.get_dashboard_summary()['critical_24h'], 2)
+        self.assertEqual(database.get_logs(level='CRITICAL_ALL', hours=24)[1], 2)
+
     def test_syslog_senders_are_visible_without_heartbeat(self):
         database.insert_log('qnap', 'storage', 'WARN', 'low space')
         result = database.get_dashboard_summary()

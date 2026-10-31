@@ -106,3 +106,12 @@ main, main section, main .grid > *, header a, footer > div { min-width:0; }
 @media (max-width:639px) {
     #advanced-filters > .grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 }
+
+/* Compact overview metrics keep all five categories visible on desktop. */
+.overview-metrics .dashboard-card { padding:14px 16px; border-radius:14px; }
+.overview-metrics .dashboard-number { font-size:1.6rem; margin-top:8px; line-height:1.2; }
+.overview-metrics .dashboard-label { font-size:11px; line-height:1.5; }
+.dashboard-card.metric-critical { background:#fdf2f8; border-top:4px solid #9f1239; }
+@media (max-width:639px) {
+    .overview-metrics .dashboard-card { padding:12px; }
+}

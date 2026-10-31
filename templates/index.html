@@ -149,10 +149,11 @@
             <a href="#devices" data-workflow="devices" class="workflow-link">Gerätestatus <span id="offline-badge"></span></a>
         </nav>
         <section data-panel="overview" class="space-y-6">
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="overview-metrics grid grid-cols-2 lg:grid-cols-5 gap-3">
                 <a href="#devices" class="dashboard-card metric-blue"><p class="dashboard-label">Bekannte Absender</p><p id="overview-known" class="dashboard-number">…</p><p id="overview-recent" class="dashboard-label mt-2">Aktivität wird geladen</p></a>
                 <a href="#logs" class="dashboard-card metric-teal"><p class="dashboard-label">Meldungen · 24 Stunden</p><p id="overview-volume" class="dashboard-number">…</p><p id="overview-rate" class="dashboard-label mt-2">Logs pro Minute werden geladen …</p></a>
-                <button type="button" onclick="openLogFilter('ERROR_CRITICAL', 'ALL', '24')" class="dashboard-card metric-red text-left"><p class="dashboard-label">Fehler · 24 Stunden</p><p id="overview-errors" class="dashboard-number text-rose-700">…</p><p class="dashboard-label mt-2">Fehler untersuchen →</p></button>
+                <button type="button" onclick="openLogFilter('ERROR', 'ALL', '24')" class="dashboard-card metric-red text-left"><p class="dashboard-label">Fehler · 24 Stunden</p><p id="overview-errors" class="dashboard-number text-rose-700">…</p><p class="dashboard-label mt-2">Fehler untersuchen →</p></button>
+                <button type="button" onclick="openLogFilter('CRITICAL_ALL', 'ALL', '24')" class="dashboard-card metric-critical text-left"><p class="dashboard-label">Critical · 24 Stunden</p><p id="overview-critical" class="dashboard-number text-pink-800">…</p><p class="dashboard-label mt-2">Kritische Meldungen prüfen →</p></button>
                 <button type="button" onclick="openLogFilter('WARN', 'ALL', '24')" class="dashboard-card metric-amber text-left"><p class="dashboard-label">Warnungen · 24 Stunden</p><p id="overview-warnings" class="dashboard-number text-amber-700">…</p><p class="dashboard-label mt-2">Warnungen prüfen →</p></button>
             </div>
             <div id="overview-monitoring" class="rounded-xl border border-slate-200 bg-white/50 px-5 py-3 text-sm text-slate-700">Überwachung wird geladen …</div>
@@ -207,7 +208,7 @@
                     <select aria-label="Schweregrad" id="filter-level" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Level</option>
                         <option value="ERROR_CRITICAL">🚨 Nur Fehler & Kritisch</option>
-                        <option value="CRITICAL">Critical / Notfall</option>
+                        <option value="CRITICAL_ALL">Critical / Notfall</option>
                         <option value="ERROR">Error</option>
                         <option value="WARN">Warning</option>
                         <option value="NOTICE">Notice</option>
@@ -814,7 +815,8 @@
                 document.getElementById('overview-recent').textContent = `${data.recent_hosts} mit Meldungen in den letzten 15 Minuten`;
                 document.getElementById('overview-volume').textContent = data.logs_24h.toLocaleString('de-DE');
                 document.getElementById('overview-rate').textContent = `${data.ingestion.logs_last_minute} Logs in der letzten Minute · Ø ${data.ingestion.logs_per_minute_5m.toLocaleString('de-DE')}/min über 5 min`;
-                document.getElementById('overview-errors').textContent = data.errors_24h;
+                document.getElementById('overview-errors').textContent = data.error_only_24h;
+                document.getElementById('overview-critical').textContent = data.critical_24h;
                 document.getElementById('overview-warnings').textContent = data.warnings_24h;
                 document.getElementById('overview-monitoring').textContent = `${data.known_hosts} bekannte Absender · ${data.heartbeat_hosts} mit Lebenszeichen-Überwachung · ${data.offline_hosts} davon offline`;
                 document.getElementById('offline-badge').textContent = data.offline_hosts ? `(${data.offline_hosts} offline)` : '';

@@ -324,6 +324,8 @@ def get_logs(
         lvl = level.strip().upper()
         if lvl == "ERROR_CRITICAL":
             conditions.append("level IN ('ERROR', 'CRITICAL', 'EMERGENCY', 'ALERT')")
+        elif lvl == "CRITICAL_ALL":
+            conditions.append("level IN ('CRITICAL', 'EMERGENCY', 'ALERT')")
         elif lvl in ("WARN", "WARNING"):
             conditions.append("level IN ('WARN', 'WARNING')")
         else:
@@ -489,6 +491,8 @@ def get_dashboard_summary():
     recent = "julianday(COALESCE(NULLIF(received_at, ''), timestamp)) >= julianday('now', '-1 day')"
     totals = dict(conn.execute(f"""SELECT COUNT(*) AS logs_24h,
         COALESCE(SUM(level IN ('ERROR','CRITICAL','EMERGENCY','ALERT')),0) AS errors_24h,
+        COALESCE(SUM(level = 'ERROR'),0) AS error_only_24h,
+        COALESCE(SUM(level IN ('CRITICAL','EMERGENCY','ALERT')),0) AS critical_24h,
         COALESCE(SUM(level IN ('WARN','WARNING')),0) AS warnings_24h
         FROM logs WHERE {recent}""").fetchone())
     rows = conn.execute(f"""SELECT host, COUNT(*) AS log_count,
