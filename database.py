@@ -261,6 +261,7 @@ def get_logs(
     sort_by: str = "timestamp",
     sort_order: str = "desc",
     exclude_hosts: Optional[List[str]] = None,
+    warning_only: bool = False,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Retrieves filtered logs with pagination.
@@ -269,6 +270,9 @@ def get_logs(
     conn = get_db_connection()
     conditions = []
     params: List[Any] = []
+
+    if warning_only:
+        conditions.append("level IN ('WARN', 'WARNING', 'ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY')")
 
     if level and level.strip() and level.upper() != "ALL":
         # Supports filtering multiple levels or single

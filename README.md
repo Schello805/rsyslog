@@ -279,3 +279,27 @@ Regeln aktivieren, bearbeiten oder entfernen und anschließend Einstellungen spe
 
 Es werden keine Paketstände aktiv abgefragt: Das Gerät muss den Update-Hinweis
 selbst per Syslog senden. Diese Funktion betrifft keine Updates von RSyslog Web.
+
+## Warnungen mit KI analysieren
+
+Unter **Einstellungen → KI-Analyse** kannst du OpenAI- und Gemini-API-Schlüssel
+hinterlegen. Modell-IDs sind vorbelegt und anpassbar. Ein Anbieter genügt. Schlüssel
+werden in der lokalen Datenbank gespeichert, beim Anzeigen nicht zurückgegeben;
+leere Eingaben behalten einen Schlüssel, die Löschoption entfernt ihn.
+
+Unter **Logs prüfen → Gefilterte Warnungen analysieren** zeigt die App eine
+Vorschau der höchstens 100 neuesten Warnungen und Fehler für die aktiven Filter
+und Host-Ausschlüsse. Erst **Vorschau senden & analysieren** übermittelt diese
+Daten an den gewählten Anbieter. Lange Texte und die Gesamtmenge werden begrenzt;
+INFO/NOTICE/DEBUG werden nicht analysiert. Die Vorschau gilt zehn Minuten.
+
+Die Antwort erläutert Dringlichkeit, mögliche Ursachen, nächste Schritte und
+Prüfungen. Es werden keine Befehle ausgeführt. Analysevorschläge vor Anwendung
+prüfen. Die Vorschau kann interne Hostnamen, IPs und vertrauliche Inhalte enthalten;
+die automatische Maskierung erkennbarer Zugangsdaten ist nicht vollständig.
+API-Kosten und Datenschutzbedingungen des Anbieters beachten. App-Zugriff,
+Datenbank und Backups schützen; bei Fernzugriff HTTPS verwenden.
+
+Technik: [OpenAI Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create)
+mit `store: false` bzw. [Gemini generateContent](https://ai.google.dev/api/generate-content).
+Keine automatischen Hintergrundanalysen und keine neuen Python-Abhängigkeiten.

@@ -457,6 +457,8 @@ async def api_save_settings(request: Request):
     """Saves updated notification and threshold settings."""
     try:
         body = await request.json()
+        if any(str(key).startswith("ai_") for key in body):
+            raise ValueError("KI-Einstellungen bitte über /api/ai/settings speichern.")
         save_all_settings(body)
         return {"success": True, "settings": get_all_settings()}
     except Exception as e:
@@ -509,6 +511,10 @@ async def websocket_endpoint(websocket: WebSocket):
         _active_websockets.pop(websocket, None)
         sender.cancel()
         await asyncio.gather(sender, return_exceptions=True)
+
+
+from ai_analysis import router as ai_router
+app.include_router(ai_router)
 
 
 if __name__ == "__main__":

@@ -117,9 +117,21 @@
                 <a href="#channels" data-settings-link="channels" class="settings-tab">1. Benachrichtigungskanal</a>
                 <a href="#rules" data-settings-link="rules" class="settings-tab">2. Alarmregeln</a>
                 <a href="#message-rules" data-settings-link="message-rules" class="settings-tab">Zusatzregeln</a>
+                <a href="#ai" data-settings-link="ai" class="settings-tab">KI-Analyse</a>
                 <a href="#system" data-settings-link="system" class="settings-tab">System</a>
                 <a href="#maintenance" data-settings-link="maintenance" class="settings-tab">Daten aufbewahren</a>
             </nav>
+            <section data-settings-panel="ai" hidden class="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+<h3 class="font-semibold">Warnungen mit KI analysieren</h3>
+<p class="text-sm text-slate-600">Nur auf Klick in „Logs prüfen“. Vor dem Senden siehst du eine Vorschau der gefilterten Warnungen und Fehler (maximal 100). Die Analyse nennt mögliche Ursachen, Dringlichkeit und konkrete nächste Schritte. Es werden keine Befehle ausgeführt.</p>
+<p class="text-sm text-amber-800">Die Vorschau geht an den gewählten Anbieter. Sie kann Hostnamen, IP-Adressen und vertrauliche Logtexte enthalten; erkennbare Zugangsdaten werden bestmöglich maskiert. API-Nutzung kann Kosten verursachen.</p>
+<div class="grid sm:grid-cols-2 gap-4">
+<div class="space-y-2"><label for="ai-openai-key" class="block text-sm font-medium">OpenAI API-Key</label><input id="ai-openai-key" type="password" autocomplete="new-password" class="w-full border rounded-lg p-2" placeholder="Neuen Schlüssel eingeben"><p id="ai-openai-status" class="text-xs"></p><label class="block text-sm"><input id="ai-openai-delete" type="checkbox"> Gespeicherten Schlüssel löschen</label><label for="ai-openai-model" class="block text-sm">OpenAI Modell-ID</label><input id="ai-openai-model" class="w-full border rounded-lg p-2" placeholder="z. B. gpt-5.6-terra"></div>
+<div class="space-y-2"><label for="ai-gemini-key" class="block text-sm font-medium">Gemini API-Key</label><input id="ai-gemini-key" type="password" autocomplete="new-password" class="w-full border rounded-lg p-2" placeholder="Neuen Schlüssel eingeben"><p id="ai-gemini-status" class="text-xs"></p><label class="block text-sm"><input id="ai-gemini-delete" type="checkbox"> Gespeicherten Schlüssel löschen</label><label for="ai-gemini-model" class="block text-sm">Gemini Modell-ID</label><input id="ai-gemini-model" class="w-full border rounded-lg p-2" placeholder="z. B. gemini-3.8-flash"></div>
+</div>
+<p class="text-xs text-slate-600">Leer lassen behält den gespeicherten Schlüssel. Schlüssel werden serverseitig in der lokalen Datenbank gespeichert und niemals zurück an den Browser geliefert. Zugriff auf App, Datenbank und Backups entsprechend schützen; für entfernten Zugriff HTTPS verwenden.</p>
+<button type="button" id="ai-save" class="px-4 py-2 bg-violet-700 text-white rounded-lg">KI-Einstellungen speichern</button><p id="ai-settings-result" role="status" class="text-sm"></p>
+</section>
             <section data-settings-panel="channels" class="space-y-4">
                 <p class="text-sm text-slate-600">Wähle einen Kanal. Trage die Zugangsdaten ein und teste die Verbindung vor dem Speichern.</p>
 <details class="rounded-2xl border border-slate-200"><summary class="cursor-pointer p-5 font-medium">Telegram einrichten</summary>            <!-- Card 2: Telegram Bot Einstellungen -->
@@ -738,12 +750,12 @@
         }
 
         function showSettingsPanel() {
-            const key = ['channels', 'rules', 'maintenance', 'system', 'message-rules'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'channels';
-            const titles = {'message-rules': ['Welche Ereignisse möchtest du melden?', 'Eigene Benachrichtigungen für Update-Hinweise und andere Texte in Geräte-Logs.'], system: ['Wie läuft dein RSyslog-Server?', 'Empfang, Speicherbelegung und Geräteaktivität – alle 10 Sekunden aktualisiert.'], channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Wie lange möchtest du Logs behalten?', 'Lege die Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
+            const key = ['channels', 'rules', 'maintenance', 'system', 'message-rules', 'ai'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'channels';
+            const titles = {ai: ['KI-Analyse einrichten', 'API-Schlüssel und Modelle für die Analyse gefilterter Warnungen.'],'message-rules': ['Welche Ereignisse möchtest du melden?', 'Eigene Benachrichtigungen für Update-Hinweise und andere Texte in Geräte-Logs.'], system: ['Wie läuft dein RSyslog-Server?', 'Empfang, Speicherbelegung und Geräteaktivität – alle 10 Sekunden aktualisiert.'], channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Wie lange möchtest du Logs behalten?', 'Lege die Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
             document.getElementById('settings-title').textContent = titles[key][0];
             document.getElementById('settings-description').textContent = titles[key][1];
             document.querySelectorAll('[data-settings-panel]').forEach(panel => panel.hidden = panel.dataset.settingsPanel !== key);
-            document.querySelectorAll('[data-settings-save]').forEach(button => button.hidden = key === 'system');
+            document.querySelectorAll('[data-settings-save]').forEach(button => button.hidden = ['system', 'ai'].includes(key));
             if (key === 'system') loadSystemMetrics();
             document.querySelectorAll('[data-settings-link]').forEach(link => link.setAttribute('aria-current', link.dataset.settingsLink === key ? 'page' : 'false'));
         }
@@ -759,5 +771,6 @@
         });
     </script>
     <script src="/assets/update-footer.js" defer></script>
+<script src="/assets/ai-analysis.js" defer></script>
 </body>
 </html>

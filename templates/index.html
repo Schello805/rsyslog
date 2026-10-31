@@ -185,6 +185,7 @@
             <a href="/guide" class="inline-block text-sm text-sky-700">Überwachung für ein Gerät einrichten →</a>
         </section>
         <section data-panel="logs" hidden class="space-y-4">
+        <div class="flex flex-wrap items-center gap-3"><button type="button" id="ai-open" class="px-4 py-2 rounded-lg bg-violet-700 text-white text-sm">Gefilterte Warnungen analysieren</button><a href="/settings#ai" class="text-sm text-violet-700">KI einrichten</a></div>
         <!-- Filter and Search Toolbar -->
         <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -254,7 +255,7 @@
             </div>
             <div id="excluded-host-summary" hidden class="space-y-2">
                 <div id="excluded-host-chips" class="flex flex-wrap gap-2"></div>
-                <p class="text-xs text-slate-600">Diese Hosts sind nur in der Logansicht und im Export ausgeblendet. Speicherung und Alarme bleiben aktiv.</p>
+                <p class="text-xs text-slate-600">Diese Hosts sind in Logansicht, Export und KI-Analyse ausgeblendet. Speicherung und Alarme bleiben aktiv.</p>
             </div>
             <!-- Secondary Action Row -->
             <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-200/80">
@@ -1178,5 +1179,15 @@
         });
     </script>
     <script src="/assets/update-footer.js" defer></script>
+<dialog id="ai-dialog" class="bg-white text-slate-900 border rounded-2xl p-6 w-full max-w-3xl shadow-xl" style="max-height:90vh;overflow:auto">
+<div class="flex justify-between gap-4"><h2 class="font-semibold text-lg">Warnungen analysieren</h2><button type="button" id="ai-close" aria-label="Analyse schließen">Schließen</button></div>
+<p class="my-3 text-sm">Aktive Filter und Host-Ausschlüsse gelten. Analysiert werden nur WARN, ERROR und kritische Meldungen, höchstens die 100 neuesten Treffer. Prüfe die Vorschau auf vertrauliche Inhalte. Die Anfrage kann API-Kosten verursachen. Vorschläge vor Ausführung prüfen.</p>
+<label for="ai-provider">Anbieter</label><select id="ai-provider" class="border rounded-lg p-2"><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select>
+<p id="ai-summary" role="status" class="my-3 text-sm"></p>
+<details open><summary class="cursor-pointer">Diese Daten werden gesendet</summary><pre id="ai-preview" class="whitespace-pre-wrap break-words text-xs bg-slate-50 p-3 rounded-lg max-h-64 overflow-auto"></pre></details>
+<button type="button" id="ai-send" disabled class="my-4 px-4 py-2 rounded-lg bg-violet-700 text-white disabled:opacity-40">Vorschau senden & analysieren</button>
+<p id="ai-result-status" role="status" class="text-sm"></p><pre id="ai-result" class="whitespace-pre-wrap break-words text-sm leading-relaxed"></pre>
+</dialog>
+<script src="/assets/ai-analysis.js" defer></script>
 </body>
 </html>
