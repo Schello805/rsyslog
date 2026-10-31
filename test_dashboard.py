@@ -27,6 +27,21 @@ class DashboardTests(unittest.TestCase):
         self.override.stop()
         self.directory.cleanup()
 
+    def test_process_tags_are_separate_from_devices_without_losing_logs(self):
+        tags = ['kernel:', 'monit[6266]:', 'sshd-session[31250]:', 'homematic:']
+        for host in tags + ['CCU3', '192.168.1.22', '2001:db8::1']:
+            database.insert_log(host, 'app', 'ERROR', 'historic')
+        summary = database.get_dashboard_summary()
+        self.assertEqual(summary['known_hosts'], 3)
+        self.assertEqual(summary['recent_hosts'], 3)
+        self.assertEqual({host['host'] for host in summary['unassigned_hosts']}, set(tags))
+        self.assertEqual(summary['errors_24h'], 7)
+        self.assertEqual(database.get_logs(host='kernel:')[1], 1)
+        self.assertEqual(database.get_logs()[1], 7)
+        filters = database.get_filter_options()
+        self.assertIn('kernel:', filters['hosts'])
+        self.assertEqual(filters['host_labels']['kernel:'], 'Nicht zugeordnet · kernel:')
+
     def test_receipt_index_and_recent_metrics_include_legacy_rows(self):
         database.insert_log('legacy', 'app', 'INFO', 'legacy')
         database.insert_log('old', 'app', 'INFO', 'old')

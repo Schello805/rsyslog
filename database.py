@@ -5,6 +5,7 @@ indices for filtering/search, and log query aggregation.
 """
 
 import json
+import re
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -515,6 +516,11 @@ def get_stats() -> Dict[str, Any]:
     }
 
 
+def is_unassigned_syslog_host(host):
+    """Old parser stored process TAGs as hosts; never guess their source device."""
+    return bool(re.fullmatch(r'[A-Za-z_][\w.-]*(?:\[\d+\])?:', host))
+
+
 def get_filter_options() -> Dict[str, Any]:
     """Returns distinct hosts and applications for UI dropdown filters."""
     conn = get_db_connection()
@@ -526,9 +532,11 @@ def get_filter_options() -> Dict[str, Any]:
     cursor.execute("SELECT DISTINCT app FROM logs ORDER BY app ASC")
     apps = [r["app"] for r in cursor.fetchall() if r["app"]]
 
+    labels = {host: f'Nicht zugeordnet · {host}' for host in hosts if is_unassigned_syslog_host(host)}
+    labels.update(get_host_aliases())
     return {
         "hosts": hosts,
-        "host_labels": get_host_aliases(),
+        "host_labels": labels,
         "apps": apps,
     }
 
@@ -597,7 +605,8 @@ def get_dashboard_summary():
     aliases = get_host_aliases()
     for host in hosts.values():
         host["display_host"] = aliases.get(host["host"], host["host"])
-    devices = sorted(hosts.values(), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
+    unassigned = [host for host in hosts.values() if is_unassigned_syslog_host(host['host']) and host['heartbeat_last_seen'] is None]
+    devices = sorted((host for host in hosts.values() if host not in unassigned), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
     def entries(extra=''):
         rows = conn.execute(f"""SELECT id,timestamp,host,app,level,facility,message,raw,metadata
             FROM logs WHERE NOT (app='resource-monitor' AND message='HEARTBEAT') {extra}
@@ -608,7 +617,7 @@ def get_dashboard_summary():
             entry['metadata'] = json.loads(entry['metadata'] or '{}')
         return result
     from incidents import open_count
-    return dict(**totals, open_incidents=open_count(), hosts=devices, known_hosts=len(devices),
+    return dict(**totals, open_incidents=open_count(), hosts=devices, unassigned_hosts=unassigned, known_hosts=len(devices),
         recent_hosts=sum(bool(host['recent']) for host in devices),
         heartbeat_hosts=sum(host['heartbeat_last_seen'] is not None for host in devices),
         offline_hosts=sum(host['status']=='offline' for host in devices),

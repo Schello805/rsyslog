@@ -135,3 +135,5 @@ main, main section, main .grid > *, header a, footer > div { min-width:0; }
     .workflow-link { min-width:0; white-space:normal; }
     #offline-badge { display:block; font-size:10px; }
 }
+
+.device-state-active { color:#075985; background:#e0f2fe; }

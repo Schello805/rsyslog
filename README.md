@@ -378,3 +378,8 @@ Kennzahlen werden serverseitig für zehn Sekunden gemeinsam zwischengespeichert.
 Überblick und Geräteliste aktualisieren sich nur, solange ihre Ansicht sichtbar ist;
 die Host-/Dienstfilter auf der Log-Seite werden alle 60 Sekunden und beim Öffnen geladen.
 Speichern von Einstellungen, Umbenennen eines Hosts und Leeren der Logs löschen den Cache sofort.
+
+Der Gerätestatus unterscheidet Syslog-Aktivität („Logs aktiv“ innerhalb von 15 Minuten)
+von Online/Offline mit Lebenszeichen. Alte, als Host gespeicherte Dienst-Tags wie
+`kernel:` erscheinen separat unter „Nicht zugeordnete alte Meldungen“ und zählen
+nicht als Geräte. Ihre Logs bleiben über die Filter und „Logs prüfen“ zugänglich.

@@ -173,10 +173,10 @@
         <section data-panel="devices" hidden class="space-y-4">
         <section class="bg-white border border-slate-200 rounded-2xl p-4 mb-6">
             <h2 class="text-sm font-semibold text-slate-900">Alle bekannten Absender</h2>
-            <p class="text-xs text-slate-600 mt-1">Über „Benennen“ vergibst du Anzeigenamen. Nur Geräte mit Lebenszeichen können als online oder offline eingestuft werden.</p>
+            <p class="text-xs text-slate-600 mt-1">Über „Benennen“ vergibst du Anzeigenamen. „Logs aktiv“ heißt: Meldung innerhalb der letzten 15 Minuten. Ohne aktuelle Logs ist ein Gerät nicht automatisch offline. Online/Offline wird nur mit Lebenszeichen überwacht.</p>
             <div class="grid sm:grid-cols-3 gap-3 mt-4">
                 <input id="device-search" type="search" aria-label="Geräte durchsuchen" placeholder="Gerät oder Host suchen …" oninput="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full">
-                <select id="device-status-filter" aria-label="Geräte nach Status filtern" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="all">Alle Status</option><option value="offline">Nur offline</option><option value="online">Nur online</option><option value="syslog">Syslog · Erreichbarkeit unbekannt</option></select>
+                <select id="device-status-filter" aria-label="Geräte nach Status filtern" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="all">Alle Status</option><option value="offline">Nur offline</option><option value="online">Nur online</option><option value="syslog-active">Logs aktiv</option><option value="syslog-inactive">Keine aktuellen Logs</option></select>
                 <select id="device-sort" aria-label="Geräte sortieren" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="status">Offline zuerst</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="activity">Letzte Meldung: neueste zuerst</option><option value="errors">Fehler: meiste zuerst</option><option value="logs">Logs: meiste zuerst</option></select>
             </div>
             <p id="device-list-count" class="text-xs text-slate-500 mt-3" role="status"></p>
@@ -186,6 +186,11 @@
                     <tbody id="monitored-hosts"><tr><td colspan="6">Geräteliste wird geladen …</td></tr></tbody>
                 </table>
             </div>
+            <details id="unassigned-hosts" hidden class="mt-4 border rounded-xl p-3">
+                <summary id="unassigned-summary" class="text-sm font-medium cursor-pointer"></summary>
+                <p class="text-xs text-slate-600 my-3">Diese alten Einträge enthalten einen Dienstnamen statt eines Hosts. Die ursprüngliche Absender-IP fehlt; deshalb werden sie keinem Gerät zugerechnet. Alle Logs bleiben erhalten und können hier geprüft werden.</p>
+                <div class="overflow-x-auto"><table class="device-table w-full text-left text-sm" aria-label="Nicht zugeordnete alte Meldungen"><thead><tr><th>Alter Eintrag</th><th>Logs</th><th>Letzte Meldung</th><th>Aktion</th></tr></thead><tbody id="unassigned-rows"></tbody></table></div>
+            </details>
             <p id="udp-dropped" class="text-xs text-amber-700 mt-2"></p>
         </section>
 
@@ -767,6 +772,30 @@
             finally { button.disabled = false; }
         }
 
+        function deviceActivity(host) {
+            if (host.status === 'online') return {label:'Online', style:'online', hint:'Regelmäßiges Lebenszeichen empfangen.'};
+            if (host.status === 'offline') return {label:'Offline', style:'offline', hint:'Seit mehr als fünf Minuten kein Lebenszeichen.'};
+            return host.recent
+                ? {label:'Logs aktiv', style:'active', hint:'Meldung innerhalb der letzten 15 Minuten. Erreichbarkeit wird nicht per Lebenszeichen überwacht.'}
+                : {label:'Keine aktuellen Logs', style:'unknown', hint:'Seit mindestens 15 Minuten keine Meldung. Das bedeutet nicht automatisch offline.'};
+        }
+
+        function renderUnassignedHosts(hosts) {
+            document.getElementById('unassigned-hosts').hidden = !hosts.length;
+            document.getElementById('unassigned-summary').textContent = `Nicht zugeordnete alte Meldungen (${hosts.reduce((sum, host) => sum + host.log_count, 0).toLocaleString('de-DE')} Logs · ${hosts.length} Einträge)`;
+            const body = document.getElementById('unassigned-rows'); body.replaceChildren();
+            for (const host of hosts) {
+                const row = document.createElement('tr');
+                for (const value of [host.host, host.log_count.toLocaleString('de-DE'), formatTimestamp(host.last_message)]) {
+                    const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
+                }
+                const cell = document.createElement('td'), button = document.createElement('button');
+                button.type = 'button'; button.className = 'text-sky-700'; button.textContent = 'Logs prüfen';
+                button.addEventListener('click', () => openLogFilter('ALL', host.host));
+                cell.append(button); row.append(cell); body.append(row);
+            }
+        }
+
         function deviceCard(host) {
             const card = document.createElement('article');
             card.className = 'text-left p-3 rounded-xl bg-slate-50/60 border border-slate-200 hover:border-sky-300 min-w-0';
@@ -774,7 +803,7 @@
             name.className = 'text-sm font-medium truncate'; name.textContent = host.display_host || hostLabels[host.host] || host.host;
             const status = document.createElement('p');
             status.className = 'text-xs mt-1 ' + (host.status === 'offline' ? 'text-rose-700' : host.status === 'online' ? 'text-emerald-700' : 'text-slate-600');
-            status.textContent = host.status === 'offline' ? 'Offline · Lebenszeichen fehlt' : host.status === 'online' ? 'Online · Lebenszeichen empfangen' : 'Syslog-Absender · Erreichbarkeit unbekannt';
+            status.textContent = deviceActivity(host).label; status.title = deviceActivity(host).hint;
             const activity = document.createElement('p');
             activity.className = 'text-xs text-slate-500 mt-2';
             activity.textContent = host.last_message ? `Letzte Meldung: ${formatTimestamp(host.last_message)} · ${host.errors_24h} Fehler / 24 h` : 'Noch keine gespeicherten Meldungen';
@@ -797,7 +826,7 @@
             const sort = document.getElementById('device-sort').value;
             const name = host => host.display_host || hostLabels[host.host] || host.host;
             const byName = (a,b) => name(a).localeCompare(name(b), 'de', {numeric:true});
-            hosts = cachedDeviceHosts.filter(host => (!query || `${name(host)} ${host.host}`.toLocaleLowerCase('de').includes(query)) && (state === 'all' || host.status === state));
+            hosts = cachedDeviceHosts.filter(host => (!query || `${name(host)} ${host.host}`.toLocaleLowerCase('de').includes(query)) && (state === 'all' || host.status === state || (state === 'syslog-active' && host.status === 'syslog' && host.recent) || (state === 'syslog-inactive' && host.status === 'syslog' && !host.recent)));
             const rank = {offline:0, online:1, syslog:2};
             hosts.sort((a,b) => {
                 if (sort === 'name') return byName(a,b);
@@ -825,8 +854,9 @@
                     original.textContent = host.host; identity.append(original);
                 }
                 const state = cell(''); const badge = document.createElement('span');
-                badge.className = 'device-state device-state-' + (host.status === 'online' ? 'online' : host.status === 'offline' ? 'offline' : 'unknown');
-                badge.textContent = host.status === 'online' ? 'Online' : host.status === 'offline' ? 'Offline' : 'Syslog · unbekannt';
+                const activity = deviceActivity(host);
+                badge.className = 'device-state device-state-' + activity.style;
+                badge.textContent = activity.label; badge.title = activity.hint;
                 state.append(badge);
                 const latest = cell(host.last_message ? formatTimestamp(host.last_message) : 'Noch keine Meldung');
                 latest.className = 'whitespace-nowrap text-xs text-slate-600';
@@ -892,7 +922,7 @@
                 const overviewDevices = document.getElementById('overview-devices'); overviewDevices.replaceChildren();
                 data.hosts.slice(0, 6).forEach(host => overviewDevices.append(deviceCard(host)));
                 }
-                if (activeWorkflow() === 'devices') renderDeviceTable(data.hosts);
+                if (activeWorkflow() === 'devices') { renderDeviceTable(data.hosts); renderUnassignedHosts(data.unassigned_hosts || []); }
                 document.getElementById('dashboard-updated').textContent = `Aktualisiert ${new Date().toLocaleTimeString('de-DE')} · alle 10 Sekunden`;
             } catch (error) {
                 document.getElementById('dashboard-updated').textContent = 'Aktualisierung fehlgeschlagen. Angezeigte Daten können veraltet sein.';
