@@ -194,6 +194,7 @@ def get_all_settings() -> Dict[str, Any]:
         "alert_ignore_hosts": db_settings.get("alert_ignore_hosts", ""),
         # Retention
         "retention_days": as_int(db_settings.get("retention_days"), 0),
+        "discard_debug": as_bool(db_settings.get("discard_debug"), True),
     }
 
 
@@ -241,7 +242,8 @@ def insert_log(
     raw: Optional[str] = None,
     timestamp: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    apply_ingestion_rules: bool = False,
+) -> Optional[Dict[str, Any]]:
     """Inserts a new log entry and returns the inserted record as a dict."""
     if not timestamp:
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -255,6 +257,9 @@ def insert_log(
             host, app, level, message = parsed['host'], parsed['app'], parsed['level'], parsed['message']
             metadata = parsed['metadata']
     normalized_level = level.upper().strip()
+    if (apply_ingestion_rules and normalized_level == 'DEBUG'
+            and str(get_setting('discard_debug', 'true')).lower() in ('true', '1', 'yes', 'on')):
+        return None
     clean_host = (host or "unknown").strip()
     clean_app = (app or "syslog").strip()
     clean_msg = (message or "").strip()

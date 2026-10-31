@@ -334,6 +334,7 @@ async def api_post_log(request: Request):
             # If payload is structured JSON
             if isinstance(body, dict) and "message" in body:
                 saved = insert_log(
+                    apply_ingestion_rules=True,
                     host=body.get("host") or client_ip,
                     app=body.get("app") or "webhook",
                     level=body.get("level") or "INFO",
@@ -345,6 +346,7 @@ async def api_post_log(request: Request):
             else:
                 # Raw JSON object fallback
                 saved = insert_log(
+                    apply_ingestion_rules=True,
                     host=client_ip,
                     app="webhook",
                     level="INFO",
@@ -359,6 +361,7 @@ async def api_post_log(request: Request):
         raw_body = (await request.body()).decode("utf-8", errors="replace")
         parsed = parse_syslog_message(raw_body, client_ip=client_ip)
         saved = insert_log(
+            apply_ingestion_rules=True,
             host=parsed["host"],
             app=parsed["app"],
             level=parsed["level"],
@@ -368,6 +371,9 @@ async def api_post_log(request: Request):
             timestamp=parsed["timestamp"],
             metadata=parsed.get("metadata"),
         )
+
+    if saved is None:
+        return JSONResponse(status_code=202, content={"success": True, "discarded": True, "reason": "DEBUG-Meldungen werden verworfen"})
 
     # Trigger alerts and realtime broadcast
     from monitoring import observe_log

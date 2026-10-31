@@ -186,6 +186,12 @@ Vorhandene Weiterleitungen zum gleichen Ziel können doppelte Meldungen erzeugen
 
 ## Betrieb und Fehlerdiagnose
 
+Neue DEBUG-Meldungen werden standardmäßig beim Empfang verworfen (UDP, TCP und
+HTTP). Unter **Einstellungen → Daten aufbewahren** lässt sich das für eine
+Fehlersuche deaktivieren. Anschließend speichern; die Änderung gilt sofort.
+Vorhandene Logs werden nicht entfernt. Verworfene Meldungen werden weder
+live angezeigt noch für Alarme verwendet.
+
 IP-/Namens-Doppeleinträge durch ungewöhnliche Syslog-Tags (z. B. `(systemd)`
 oder abgeschnittene Prozess-IDs) werden beim Start einmalig anhand des ursprünglichen
 Syslog-Headers repariert. Originalmeldungen bleiben erhalten. Meldungen ohne

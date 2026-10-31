@@ -40,7 +40,7 @@ async def broadcast_log(log_entry: Dict[str, Any]) -> None:
             logger.debug(f"Subscriber error: {e}")
 
 
-def handle_incoming_log_sync(raw_data: str, client_ip: str) -> Dict[str, Any]:
+def handle_incoming_log_sync(raw_data: str, client_ip: str) -> Optional[Dict[str, Any]]:
     """Synchronous parsing and database storage of a log entry."""
     parsed = parse_syslog_message(raw_data, client_ip=client_ip)
     saved = insert_log(
@@ -52,15 +52,19 @@ def handle_incoming_log_sync(raw_data: str, client_ip: str) -> Dict[str, Any]:
         raw=parsed["raw"],
         timestamp=parsed["timestamp"],
         metadata=parsed.get("metadata"),
+        apply_ingestion_rules=True,
     )
     return saved
 
 
-async def handle_incoming_log(raw_data: str, client_ip: str) -> Dict[str, Any]:
+async def handle_incoming_log(raw_data: str, client_ip: str) -> Optional[Dict[str, Any]]:
     """Processes, stores, alerts, and broadcasts an incoming log."""
     # 1. Parse and store in DB
     loop = asyncio.get_running_loop()
     saved = await loop.run_in_executor(None, handle_incoming_log_sync, raw_data, client_ip)
+
+    if saved is None:
+        return None
 
     from monitoring import observe_log
     await observe_log(saved)

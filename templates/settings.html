@@ -349,6 +349,11 @@
                 <p class="text-xs text-slate-500">Versand über die aktivierten Telegram-/Ntfy-Kanäle. Änderungen mit „Alle Einstellungen speichern“ übernehmen.</p>
             </section>
             <section data-settings-panel="maintenance" hidden class="space-y-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-3">
+                <label for="discard_debug" class="flex items-start gap-3 font-semibold text-sm"><input type="checkbox" id="discard_debug" checked class="mt-1"> DEBUG-Meldungen beim Empfang verwerfen (empfohlen)</label>
+                <p class="text-sm text-slate-700">Standardmäßig aktiv: Neue DEBUG-Meldungen werden weder gespeichert noch live angezeigt oder für Alarme verwendet. INFO, Warnungen und Fehler werden weiterhin verarbeitet. Vorhandene DEBUG-Einträge bleiben erhalten.</p>
+                <p class="text-xs text-slate-600">Für eine gezielte Fehlersuche deaktivieren und speichern. Danach wieder aktivieren, um Speicherplatz zu sparen.</p>
+            </div>
             <!-- Card 4: Wartung & Datenbank -->
             <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
                 <div class="border-b border-slate-200 pb-4">
@@ -537,6 +542,7 @@
 
                 // Retention
                 document.getElementById('retention_days').value = data.retention_days || 0;
+                document.getElementById('discard_debug').checked = data.discard_debug !== false;
             } catch (err) {
                 console.error('Error loading settings:', err);
                 showToast('Fehler beim Laden der Einstellungen', 'error');
@@ -561,6 +567,7 @@
                 ntfy_topic: document.getElementById('ntfy_topic').value.trim(),
                 ntfy_server: document.getElementById('ntfy_server').value.trim(),
 
+                discard_debug: document.getElementById('discard_debug').checked,
                 retention_days: parseInt(document.getElementById('retention_days').value) || 0
             };
 
