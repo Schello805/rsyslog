@@ -75,6 +75,16 @@ class UpdateTests(unittest.TestCase):
             self.assertEqual(missing.exception.status_code, 503)
         asyncio.run(check())
 
+    def test_progress_labels_are_fixed_and_do_not_echo_file_contents(self):
+        (self.root/'status.json').write_text(json.dumps({'state':'running'}))
+        (self.root/'progress').write_text('backup')
+        with patch.object(updates,'_service_state',return_value='activating'):
+            job=updates.job_status()
+            self.assertEqual(job['phase_label'],'Sichern')
+            self.assertEqual(job['step'],4)
+            (self.root/'progress').write_text('<script>bad</script>')
+            self.assertNotIn('phase_label',updates.job_status())
+
     def test_legacy_running_status_detects_stopped_service(self):
         (self.root/'status.json').write_text(json.dumps({'state':'running','updated_at':1}))
         with patch.object(updates, '_service_state', return_value='inactive'):

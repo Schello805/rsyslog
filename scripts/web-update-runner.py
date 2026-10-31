@@ -31,13 +31,15 @@ def status(state, message):
 def main():
     global _started_at
     _started_at = time.time()
+    (CONTROL / 'progress').unlink(missing_ok=True)
     status('running', 'Sicherung und Update werden ausgeführt. Die Webapp startet dabei neu.')
     (CONTROL / 'request/start').unlink(missing_ok=True)
     try:
         with (CONTROL / 'update.log').open('w') as output:
             os.chmod(CONTROL / 'update.log', 0o600)
             result = subprocess.run(['/bin/bash', '/opt/rsyslog-web/scripts/update-debian.sh'],
-                                    stdout=output, stderr=subprocess.STDOUT)
+                                    stdout=output, stderr=subprocess.STDOUT,
+                                    env=dict(os.environ, RSYSLOG_WEB_UPDATE='1'))
         if result.returncode:
             status('failed', 'Update fehlgeschlagen; Wiederherstellung wurde versucht. Details im Server-Log /var/lib/rsyslog-web-update/update.log.')
             return 1

@@ -44,7 +44,8 @@ systemctl restart rsyslog-web</pre>
             storePending(true);
             const started = job.started_at || job.updated_at;
             const minutes = started ? Math.max(0, Math.floor((Date.now() / 1000 - started) / 60)) : 0;
-            status.textContent = job.state === 'queued' ? 'Update wird gestartet …' : `Update läuft${minutes ? ` seit ${minutes} Min.` : ''} …`;
+            const phase = job.phase_label ? `${job.step ? `${job.step}/${job.total_steps} · ` : ''}${job.phase_label}` : 'läuft';
+            status.textContent = job.state === 'queued' ? 'Update wird gestartet …' : `Update ${phase}${minutes ? ` · seit ${minutes} Min.` : ''} …`;
             status.title = job.message || '';
             button.hidden = true;
             poll();
@@ -59,7 +60,7 @@ systemctl restart rsyslog-web</pre>
         if (job.state === 'failed') {
             waiting = false;
             storePending(false);
-            status.textContent = 'Update fehlgeschlagen · Serverstatus prüfen';
+            status.textContent = `Update fehlgeschlagen${job.phase_label ? ` · ${job.phase_label}` : ''} · Serverstatus prüfen`;
             status.title = job.message || '';
             return false;
         }

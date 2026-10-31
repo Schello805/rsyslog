@@ -5,9 +5,18 @@ set -euo pipefail
 app=/opt/rsyslog-web
 [[ -x $app/.venv/bin/python && -f /etc/rsyslog-web.env ]] || { echo 'Keine unterstützte Debian-Installation gefunden.' >&2; exit 1; }
 [[ -d /run/systemd/system ]] || { echo 'systemd erforderlich'; exit 1; }
+# Progress is a fixed, root-owned file; only the web helper enables reporting.
+progress() {
+    if [[ ${RSYSLOG_WEB_UPDATE:-0} == 1 && -d /var/lib/rsyslog-web-update ]]; then
+        printf '%s\n' "$1" > /var/lib/rsyslog-web-update/progress.tmp
+        chmod 0644 /var/lib/rsyslog-web-update/progress.tmp
+        mv /var/lib/rsyslog-web-update/progress.tmp /var/lib/rsyslog-web-update/progress
+    fi
+}
 # Prevent concurrent updates.
 exec 9>/run/lock/rsyslog-web-update.lock
 flock -n 9 || { echo 'Ein Update läuft bereits.' >&2; exit 1; }
+progress checking
 # Repair older installations as well, even when the app is already current.
 if ! command -v rsyslogd >/dev/null 2>&1; then
     echo 'Installiere fehlenden rsyslog-Dienst …'
@@ -27,6 +36,7 @@ cleanup() {
     result=$?
     trap - EXIT
     if ((result != 0 && changed)); then
+        progress rollback
         echo "Update fehlgeschlagen. Stelle Sicherung $backup wieder her." >&2
         systemctl stop rsyslog-web || true
         if [[ -d $backup/app ]]; then
@@ -51,6 +61,7 @@ settings = dotenv_values('/etc/rsyslog-web.env')
 if Path(settings.get('DATABASE_PATH', '')).as_posix() != '/var/lib/rsyslog-web/syslog.db':
     raise SystemExit('Update abgebrochen: eigener DATABASE_PATH. Datenbank separat sichern und manuell aktualisieren.')
 PY
+progress downloading
 echo 'Prüfe GitHub auf neue Änderungen …'
 git -C "$app" fetch --no-tags https://github.com/Schello805/rsyslog.git "$ref"
 target=$(git -C "$app" rev-parse FETCH_HEAD)
@@ -59,9 +70,11 @@ target_short=$(git -C "$app" rev-parse --short "$target")
 installed=$(cat "$app/REVISION" 2>/dev/null || true)
 if [[ $target == "$current" && $installed == "$target_short" ]]; then
     if [[ -f $app/scripts/setup-web-updates.sh ]]; then bash "$app/scripts/setup-web-updates.sh"; fi
+    progress complete
     echo 'Bereits aktuell. Kein Neustart erforderlich.'
     exit 0
 fi
+progress preparing
 # Copy existing objects locally; only fetch transfers new Git data.
 git clone --local --no-hardlinks "$app" "$work/source"
 git -C "$work/source" checkout -B "$ref" "$target"
@@ -83,6 +96,7 @@ else
 fi
 echo 'Prüfe Python-Dateien …'
 "$app/.venv/bin/python" -m compileall -q -x '/(\.venv|\.git)/' "$work/source"
+progress backup
 echo 'Erstelle Sicherungsverzeichnis …'
 backup=$(mktemp -d /var/backups/rsyslog-web-$(date +%Y%m%d-%H%M%S).XXXXXX)
 chmod 0700 "$backup"
@@ -96,6 +110,7 @@ if ! cp -a /var/lib/rsyslog-web "$backup/data"; then
     ((was_active == 0)) || systemctl start rsyslog-web
     exit 1
 fi
+progress installing
 echo 'Wechsle auf die vorbereitete Revision …'
 changed=1
 mv "$app" "$backup/app"
@@ -105,8 +120,10 @@ if ((reuse_environment == 0)); then
     "$app/.venv/bin/python" -m pip install --no-index --find-links "$work/packages" -r "$app/requirements.txt"
 fi
 if [[ -f $app/scripts/setup-web-updates.sh ]]; then bash "$app/scripts/setup-web-updates.sh"; fi
+progress restarting
 echo 'Starte Webapp und prüfe die neue Revision …'
 systemctl start rsyslog-web
+progress verifying
 "$app/.venv/bin/python" - <<'PY'
 import json
 from pathlib import Path
@@ -135,4 +152,5 @@ else:
     raise SystemExit('Gesundheitsprüfung fehlgeschlagen')
 PY
 changed=0
+progress complete
 echo "Sicherung der bisherigen Installation: $backup"

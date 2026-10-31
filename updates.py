@@ -64,6 +64,17 @@ def job_status():
                 job = dict(job, state='unknown', message='Alter Update-Status ohne überprüfbaren Prozess. systemctl status rsyslog-web-update und das Update-Protokoll auf dem Server prüfen.')
     if (CONTROL / 'request/start').exists() and job.get('state') != 'running':
         job = {'state': 'queued'}
+    if job.get('state') in ('running', 'failed'):
+        phases = {'checking':('Voraussetzungen prüfen',1),'downloading':('Herunterladen',2),
+                  'preparing':('Vorbereiten',3),'backup':('Sichern',4),'installing':('Installieren',5),
+                  'restarting':('Neu starten',6),'verifying':('Neue Revision prüfen',7),
+                  'complete':('Abschließen',7),'rollback':('Sicherung wiederherstellen',None)}
+        try:
+            phase = (CONTROL / 'progress').read_text().strip()
+        except OSError:
+            phase = ''
+        if phase in phases:
+            job = dict(job,phase=phase,phase_label=phases[phase][0],step=phases[phase][1],total_steps=7)
     return job
 
 

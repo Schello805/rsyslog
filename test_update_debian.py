@@ -20,6 +20,7 @@ class UpdaterTests(unittest.TestCase):
             (app / 'REVISION').write_text('abc1234')
             (app / 'requirements.txt').write_text('' if reuse else 'old dependencies')
             (data / 'syslog.db').write_text('original database')
+            progress_dir = root / 'data-update'; progress_dir.mkdir()
             config = root / 'config.env'
             config.write_text('original configuration')
             # The old Python validates settings. Fresh Python simulates pip and health.
@@ -78,9 +79,10 @@ fi
             script = script.replace('flock -n 9', 'true')
             isolated = root / 'update.sh'
             isolated.write_text(script)
-            environment = dict(os.environ, PATH=f'{commands}:/usr/bin:/bin', FAIL_HEALTH=str(int(fail)), ALREADY_CURRENT=str(int(current)))
+            environment = dict(os.environ, PATH=f'{commands}:/usr/bin:/bin', FAIL_HEALTH=str(int(fail)), ALREADY_CURRENT=str(int(current)),RSYSLOG_WEB_UPDATE='1')
             result = subprocess.run(['bash', str(isolated)], env=environment, text=True, capture_output=True)
             self.assertEqual(result.returncode != 0, fail, result.stdout + result.stderr)
+            self.assertEqual((progress_dir/'progress').read_text().strip(), 'rollback' if fail else 'complete')
             if missing_syslog:
                 self.assertTrue((commands / 'rsyslogd').exists())
                 self.assertIn('Installiere fehlenden rsyslog-Dienst', result.stdout)
