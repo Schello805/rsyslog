@@ -2,6 +2,13 @@
     const status = document.getElementById('footer-update-status');
     const button = document.getElementById('footer-update-button');
     if (!status || !button) return;
+    const savedKeyName = 'rsyslog-update-key';
+    function readKey() {
+        try { return localStorage.getItem(savedKeyName) || ''; } catch { return ''; }
+    }
+    function forgetKey() {
+        try { localStorage.removeItem(savedKeyName); } catch { /* Storage may be blocked. */ }
+    }
     let updateInfo = null;
     let polling = false;
     let waiting = sessionStorage.getItem('rsyslog-update-pending') === '1';
@@ -13,6 +20,9 @@
         <p style="font-size:13px;color:#475569">Die App wird kurz neu gestartet. Logs und Einstellungen werden gesichert.</p>
         <label for="web-update-key" style="display:block;margin-top:16px;font-size:14px">Update-Schlüssel</label>
         <input id="web-update-key" type="password" autocomplete="off" required style="width:100%;box-sizing:border-box;margin:8px 0;padding:10px;background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;border-radius:8px">
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px"><input id="remember-update-key" type="checkbox" checked> Schlüssel in diesem Browser merken</label>
+        <p style="font-size:12px;color:#64748b;margin:8px 0">Nur auf vertrauenswürdigen Geräten speichern. Wer dieses Browserprofil nutzt, kann damit Updates starten.</p>
+        <button type="button" id="forget-update-key" style="font-size:13px;color:#0369a1" hidden>Gespeicherten Schlüssel entfernen</button>
         </div>
         <div id="update-setup" hidden style="font-size:13px;color:#475569">
             <p>Die Update-Prüfung ist aktiv, aber der Update-Dienst fehlt noch. Für die Debian-Installation einmal als root auf dem Server ausführen:</p>
@@ -28,6 +38,14 @@ systemctl restart rsyslog-web</pre>
     document.body.append(dialog);
     const field = dialog.querySelector('#web-update-key');
     const error = dialog.querySelector('#update-dialog-error');
+    const remember = dialog.querySelector('#remember-update-key');
+    const forget = dialog.querySelector('#forget-update-key');
+    forget.addEventListener('click', () => {
+        forgetKey(); field.value = ''; remember.checked = false; forget.hidden = true;
+    });
+    remember.addEventListener('change', () => {
+        if (!remember.checked) { forgetKey(); forget.hidden = true; }
+    });
     dialog.querySelector('#update-cancel').addEventListener('click', () => dialog.close());
     dialog.addEventListener('close', () => { field.value = ''; error.textContent = ''; });
 
@@ -103,6 +121,10 @@ systemctl restart rsyslog-web</pre>
         dialog.querySelector('#update-setup').hidden = !setup;
         dialog.querySelector('#update-confirm').hidden = setup;
         field.required = !setup;
+        const savedKey = setup ? '' : readKey();
+        field.value = savedKey;
+        remember.checked = true;
+        forget.hidden = !savedKey;
         dialog.showModal();
     });
     dialog.querySelector('form').addEventListener('submit', async event => {
@@ -111,10 +133,18 @@ systemctl restart rsyslog-web</pre>
         const confirm = dialog.querySelector('#update-confirm');
         confirm.disabled = true;
         try {
-            const response = await fetch('/api/updates/start', {method:'POST', headers:{'X-Update-Key':field.value}, signal:AbortSignal.timeout(30000)});
-            field.value = '';
+            const key = field.value.trim();
+            const shouldRemember = remember.checked;
+            const response = await fetch('/api/updates/start', {method:'POST', headers:{'X-Update-Key':key}, signal:AbortSignal.timeout(30000)});
+            if (response.status === 403) {
+                forgetKey(); field.value = ''; forget.hidden = true;
+            }
             const result = await response.json();
             if (!response.ok) throw new Error(result.detail || 'Update konnte nicht gestartet werden');
+            if (shouldRemember) {
+                try { localStorage.setItem(savedKeyName, key); }
+                catch { status.title = 'Der Browser erlaubt das Speichern des Update-Schlüssels nicht.'; }
+            } else forgetKey();
             dialog.close();
             showJob(result);
         } catch (failure) { error.textContent = failure.message; }
