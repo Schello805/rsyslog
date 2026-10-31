@@ -436,3 +436,11 @@ Namenslisten und Dropdowns sind alphabetisch (A–Z, deutsche Sortierung) geordn
 Hosts werden nach Name/DNS sortiert, ersatzweise nach IP.
 Die Geräteliste startet mit „Name A–Z“; andere Sortierungen bleiben auswählbar.
 Zeiträume und Schweregrade behalten ihre fachliche Reihenfolge.
+
+Als Geräte werden ausschließlich IP-Identitäten gezählt. Historische Hostnamen und
+interne Absender ohne gespeicherte Quell-IP stehen separat unter „Meldungen ohne
+gespeicherte Quell-IP“; sie erzeugen keine zusätzlichen Geräte- oder Offline-Zähler.
+Im Hostfilter sind sie standardmäßig ausgeblendet und lassen sich über „Altbestand /
+interne Absender anzeigen“ einblenden. Die Logs bleiben unverändert zugänglich.
+Historische Einträge mit belegter `source_ip` werden beim Update erneut dieser IP
+zugeordnet; DNS-Namensgleichheit allein führt weiterhin zu keiner Zusammenführung.

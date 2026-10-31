@@ -107,7 +107,7 @@ class SourceResolutionTests(unittest.TestCase):
                 old = database.insert_log('old-header', 'app', 'INFO', 'old', raw='original')
                 with database.get_db_connection() as conn:
                     conn.execute('UPDATE logs SET metadata=? WHERE id=?', (json.dumps({'source_ip':'192.0.2.8'}),old['id']))
-                    conn.execute("DELETE FROM settings WHERE key='migration_transport_source_v1'")
+                    conn.execute("DELETE FROM settings WHERE key='migration_transport_source_v2'")
                 database.init_db()
                 logs, count = database.get_logs(host='192.0.2.8')
                 self.assertEqual(count, 1)

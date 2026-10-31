@@ -105,7 +105,7 @@ def normalize_recorded_sources():
     """Only recorded source IPs may change historical identity, never names/PTR."""
     from ipaddress import ip_address
     conn = get_db_connection()
-    marker = 'migration_transport_source_v1'
+    marker = 'migration_transport_source_v2'
     if get_setting(marker):
         return
     last_id = 0
@@ -479,8 +479,7 @@ def get_stats() -> Dict[str, Any]:
             SUM(CASE WHEN level IN ('CRITICAL', 'EMERGENCY', 'ALERT') THEN 1 ELSE 0 END) as critical_count,
             SUM(CASE WHEN level = 'ERROR' THEN 1 ELSE 0 END) as error_count,
             SUM(CASE WHEN level IN ('WARN', 'WARNING') THEN 1 ELSE 0 END) as warn_count,
-            SUM(CASE WHEN level = 'INFO' THEN 1 ELSE 0 END) as info_count,
-            COUNT(DISTINCT host) as active_hosts
+            SUM(CASE WHEN level = 'INFO' THEN 1 ELSE 0 END) as info_count
         FROM logs
         """
     )
@@ -492,8 +491,17 @@ def get_stats() -> Dict[str, Any]:
         "error": row["error_count"] or 0,
         "warn": row["warn_count"] or 0,
         "info": row["info_count"] or 0,
-        "active_hosts": row["active_hosts"] or 0,
+        "active_hosts": sum(is_source_ip(item["host"]) for item in conn.execute("SELECT DISTINCT host FROM logs")),
     }
+
+
+def is_source_ip(host):
+    from ipaddress import ip_address
+    try:
+        ip_address(host)
+        return True
+    except (ValueError, TypeError):
+        return False
 
 
 def is_unassigned_syslog_host(host):
@@ -528,8 +536,8 @@ def get_filter_options() -> Dict[str, Any]:
     return {
         "hosts": hosts,
         "host_labels": labels,
-        "host_groups": [{"label":"Geräte nach Quell-IP", "options":ip_hosts},
-                        {"label":"Altbestand / interne Meldungen ohne Quell-IP", "options":legacy_hosts}],
+        "host_groups": [{"label":"Geräte nach Quell-IP", "kind":"source_ip", "options":ip_hosts},
+                        {"label":"Altbestand / interne Meldungen ohne Quell-IP", "kind":"unassigned", "options":legacy_hosts}],
         "apps": apps,
     }
 
@@ -561,12 +569,14 @@ def mark_offline_hosts(timeout=300):
     conn = get_db_connection()
     with conn:
         rows = conn.execute("SELECT host FROM monitored_hosts WHERE offline=0 AND last_seen < ?", (time.time()-timeout,)).fetchall()
-        conn.execute("UPDATE monitored_hosts SET offline=1 WHERE offline=0 AND last_seen < ?", (time.time()-timeout,))
+        rows = [row for row in rows if is_source_ip(row['host'])]
+        conn.executemany('UPDATE monitored_hosts SET offline=1 WHERE host=?', [(row['host'],) for row in rows])
     return [row['host'] for row in rows]
 
 
-def get_monitored_hosts():
-    return [dict(row) for row in get_db_connection().execute("SELECT * FROM monitored_hosts ORDER BY host")]
+def get_monitored_hosts(include_legacy=False):
+    return [dict(row) for row in get_db_connection().execute("SELECT * FROM monitored_hosts ORDER BY host")
+            if include_legacy or is_source_ip(row['host'])]
 
 
 def get_dashboard_summary():
@@ -588,7 +598,7 @@ def get_dashboard_summary():
         SUM(CASE WHEN {recent} AND level IN ('ERROR','CRITICAL','EMERGENCY','ALERT') THEN 1 ELSE 0 END) AS errors_24h
         FROM logs WHERE app <> 'host-monitor' GROUP BY host""").fetchall()
     hosts = {row['host']: dict(row) for row in rows}
-    for heartbeat in get_monitored_hosts():
+    for heartbeat in get_monitored_hosts(include_legacy=True):
         host = hosts.setdefault(heartbeat['host'], dict(host=heartbeat['host'], log_count=0, last_message=None, recent=0, errors_24h=0))
         host['heartbeat_last_seen'] = heartbeat['last_seen']
         host['status'] = 'offline' if now - heartbeat['last_seen'] > 300 else 'online'
@@ -605,8 +615,8 @@ def get_dashboard_summary():
             host['source_ip'] = None
         host['dns_name'] = dns_names.get(host['host'])
         host["display_host"] = aliases.get(host["host"], host["host"])
-    unassigned = [host for host in hosts.values() if is_unassigned_syslog_host(host['host']) and host['heartbeat_last_seen'] is None]
-    devices = sorted((host for host in hosts.values() if host not in unassigned), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
+    unassigned = [host for host in hosts.values() if host['source_ip'] is None]
+    devices = sorted((host for host in hosts.values() if host['source_ip'] is not None), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
     def entries(extra=''):
         rows = conn.execute(f"""SELECT id,timestamp,host,app,level,facility,message,raw,metadata
             FROM logs WHERE NOT (app='resource-monitor' AND message='HEARTBEAT') {extra}

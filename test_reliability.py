@@ -37,13 +37,13 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(database.get_stats()['total'], 0)
 
     def test_offline_and_recovery_only_once(self):
-        self.assertFalse(database.touch_monitored_host('host'))
+        self.assertFalse(database.touch_monitored_host('192.0.2.1'))
         with database.get_db_connection() as conn:
             conn.execute('UPDATE monitored_hosts SET last_seen=?', (time.time()-400,))
-        self.assertEqual(database.mark_offline_hosts(), ['host'])
+        self.assertEqual(database.mark_offline_hosts(), ['192.0.2.1'])
         self.assertEqual(database.mark_offline_hosts(), [])
-        self.assertTrue(database.touch_monitored_host('host'))
-        self.assertFalse(database.touch_monitored_host('host'))
+        self.assertTrue(database.touch_monitored_host('192.0.2.1'))
+        self.assertFalse(database.touch_monitored_host('192.0.2.1'))
 
     def test_sustained_alarm_repeat_and_recovery(self):
         state, event = monitor.transition({}, 95, 90, 0, 600, 1800)
@@ -82,13 +82,15 @@ class ReliabilityTests(unittest.TestCase):
         import monitoring
         parsed = parse_syslog_message('<14>Oct 30 18:30:00 node01 resource-monitor: HEARTBEAT', client_ip='192.0.2.1')
         self.assertEqual(parsed['app'], 'resource-monitor')
+        parsed['host'] = '192.0.2.1'
+        parsed['metadata'] = {'source_ip':'192.0.2.1'}
         async def check():
             await monitoring.observe_log(parsed)
             transport = httpx.ASGITransport(app=main.app)
             async with httpx.AsyncClient(transport=transport, base_url='http://test') as client:
                 response = await client.get('/api/hosts')
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.json()['hosts'][0]['host'], 'node01')
+                self.assertEqual(response.json()['hosts'][0]['host'], '192.0.2.1')
                 response = await client.post('/api/logs/clear')
                 self.assertEqual(response.status_code, 200)
             def close_worker_connection():

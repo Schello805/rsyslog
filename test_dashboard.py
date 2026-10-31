@@ -27,6 +27,40 @@ class DashboardTests(unittest.TestCase):
         self.override.stop()
         self.directory.cleanup()
 
+    def test_same_device_hostname_is_not_a_second_device_or_offline_alarm(self):
+        import json
+        import system_metrics
+        ip = '192.0.2.22'
+        database.insert_log(ip,'app','INFO','new',metadata={'source_ip':ip})
+        historic = database.insert_log('old-name','app','WARN','recorded old source',raw='unchanged payload')
+        database.insert_log('old-name','app','WARN','unknown old source')
+        database.remember_source_dns(ip,'old-name')
+        database.touch_monitored_host('old-name')
+        database.touch_monitored_host(ip)
+        with database.get_db_connection() as conn:
+            conn.execute('UPDATE logs SET metadata=? WHERE id=?',(json.dumps({'source_ip':ip}),historic['id']))
+            conn.execute("UPDATE monitored_hosts SET last_seen=? WHERE host='old-name'",(time.time()-600,))
+            conn.execute("DELETE FROM settings WHERE key='migration_transport_source_v2'")
+            conn.execute("INSERT OR REPLACE INTO settings VALUES('migration_transport_source_v1','done')")
+        database.init_db()
+        summary = database.get_dashboard_summary()
+        self.assertEqual([host['host'] for host in summary['hosts']],[ip])
+        self.assertEqual(summary['known_hosts'],1)
+        self.assertEqual(summary['heartbeat_hosts'],1)
+        self.assertEqual(summary['offline_hosts'],0)
+        self.assertEqual([host['host'] for host in summary['unassigned_hosts']],['old-name'])
+        self.assertEqual(database.get_logs(host=ip)[1],2)
+        self.assertEqual(database.get_logs(host='old-name')[1],1)
+        self.assertEqual(database.get_logs()[1],3)
+        self.assertEqual(database.get_stats()['active_hosts'],1)
+        self.assertEqual(system_metrics.collect_system_metrics()['known_hosts'],1)
+        self.assertEqual(database.mark_offline_hosts(),[])
+        self.assertEqual(database.get_monitored_hosts()[0]['host'],ip)
+        raw = database.get_db_connection().execute('SELECT raw FROM logs WHERE id=?',(historic['id'],)).fetchone()[0]
+        self.assertEqual(raw,'unchanged payload')
+        database.init_db()
+        self.assertEqual(database.get_logs()[1],3)
+
     def test_host_filter_uses_uniform_ip_labels_and_separate_legacy_group(self):
         for host in ['192.0.2.10','192.0.2.6','192.0.2.22','old-device']:
             database.insert_log(host,'app','INFO','hello')
@@ -86,9 +120,9 @@ class DashboardTests(unittest.TestCase):
         for host in tags + ['CCU3', '192.168.1.22', '2001:db8::1']:
             database.insert_log(host, 'app', 'ERROR', 'historic')
         summary = database.get_dashboard_summary()
-        self.assertEqual(summary['known_hosts'], 3)
-        self.assertEqual(summary['recent_hosts'], 3)
-        self.assertEqual({host['host'] for host in summary['unassigned_hosts']}, set(tags))
+        self.assertEqual(summary['known_hosts'], 2)
+        self.assertEqual(summary['recent_hosts'], 2)
+        self.assertEqual({host['host'] for host in summary['unassigned_hosts']}, set(tags + ['CCU3']))
         self.assertEqual(summary['errors_24h'], 7)
         self.assertEqual(database.get_logs(host='kernel:')[1], 1)
         self.assertEqual(database.get_logs()[1], 7)
@@ -128,7 +162,7 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(database.get_logs(level='CRITICAL_ALL', hours=24)[1], 2)
 
     def test_syslog_senders_are_visible_without_heartbeat(self):
-        database.insert_log('qnap', 'storage', 'WARN', 'low space')
+        database.insert_log('192.0.2.1', 'storage', 'WARN', 'low space')
         result = database.get_dashboard_summary()
         self.assertEqual(result['known_hosts'], 1)
         self.assertEqual(result['heartbeat_hosts'], 0)
@@ -137,21 +171,21 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(result['warnings_24h'], 1)
 
     def test_receipt_time_controls_windows_and_heartbeat_is_not_an_event(self):
-        database.insert_log('linux', 'service', 'ERROR', 'clock is wrong', timestamp='2000-01-01T00:00:00Z')
-        database.insert_log('linux', 'resource-monitor', 'INFO', 'HEARTBEAT')
-        database.touch_monitored_host('linux')
-        database.touch_monitored_host('offline')
+        database.insert_log('192.0.2.2', 'service', 'ERROR', 'clock is wrong', timestamp='2000-01-01T00:00:00Z')
+        database.insert_log('192.0.2.2', 'resource-monitor', 'INFO', 'HEARTBEAT')
+        database.touch_monitored_host('192.0.2.2')
+        database.touch_monitored_host('192.0.2.3')
         with database.get_db_connection() as connection:
-            connection.execute('UPDATE monitored_hosts SET last_seen=? WHERE host=?', (time.time()-600, 'offline'))
+            connection.execute('UPDATE monitored_hosts SET last_seen=? WHERE host=?', (time.time()-600, '192.0.2.3'))
         result = database.get_dashboard_summary()
         self.assertEqual(result['errors_24h'], 1)
         self.assertEqual(result['heartbeat_hosts'], 2)
         self.assertEqual(result['offline_hosts'], 1)
         self.assertEqual(len(result['latest']), 1)
-        self.assertEqual(result['hosts'][0]['host'], 'offline')
+        self.assertEqual(result['hosts'][0]['host'], '192.0.2.3')
 
     def test_old_events_do_not_count_as_current_attention(self):
-        database.insert_log('old', 'app', 'ERROR', 'old')
+        database.insert_log('192.0.2.4', 'app', 'ERROR', '192.0.2.4')
         with database.get_db_connection() as connection:
             connection.execute("UPDATE logs SET received_at='2000-01-01T00:00:00+00:00'")
         result = database.get_dashboard_summary()
@@ -166,7 +200,7 @@ class DashboardTests(unittest.TestCase):
         import asyncio
         import httpx
         import main
-        database.insert_log('switch', 'network', 'WARNING', 'port issue')
+        database.insert_log('192.0.2.5', 'network', 'WARNING', 'port issue')
         async def check():
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
                 summary = (await client.get('/api/dashboard')).json()
@@ -223,7 +257,7 @@ class DashboardTests(unittest.TestCase):
         import main
         import system_metrics
         from collections import namedtuple
-        database.insert_log('qnap', 'storage', 'INFO', 'test')
+        database.insert_log('192.0.2.1', 'storage', 'INFO', 'test')
         disk = namedtuple('Disk', 'total used free')(1000, 600, 400)
         with patch.object(system_metrics.shutil, 'disk_usage', return_value=disk):
             metrics = system_metrics.collect_system_metrics()

@@ -188,8 +188,8 @@
             </div>
             <details id="unassigned-hosts" hidden class="mt-4 border rounded-xl p-3">
                 <summary id="unassigned-summary" class="text-sm font-medium cursor-pointer"></summary>
-                <p class="text-xs text-slate-600 my-3">Diese alten Einträge enthalten einen Dienstnamen statt eines Hosts. Die ursprüngliche Absender-IP fehlt; deshalb werden sie keinem Gerät zugerechnet. Alle Logs bleiben erhalten und können hier geprüft werden.</p>
-                <div class="overflow-x-auto"><table class="device-table w-full text-left text-sm" aria-label="Nicht zugeordnete alte Meldungen"><thead><tr><th>Alter Eintrag</th><th>Logs</th><th>Letzte Meldung</th><th>Aktion</th></tr></thead><tbody id="unassigned-rows"></tbody></table></div>
+                <p class="text-xs text-slate-600 my-3">Für diese historischen oder internen Meldungen ist keine Quell-IP gespeichert. Sie zählen nicht als Geräte. Alle Logs bleiben erhalten und können hier geprüft werden.</p>
+                <div class="overflow-x-auto"><table class="device-table w-full text-left text-sm" aria-label="Meldungen ohne gespeicherte Quell-IP"><thead><tr><th>Alter Eintrag</th><th>Logs</th><th>Letzte Meldung</th><th>Aktion</th></tr></thead><tbody id="unassigned-rows"></tbody></table></div>
             </details>
             <p id="udp-dropped" class="text-xs text-amber-700 mt-2"></p>
         </section>
@@ -230,6 +230,7 @@
                     <select aria-label="Host" id="filter-host" onchange="updateHostNameButton(); fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
                         <option value="ALL">Alle Hosts</option>
                     </select>
+                    <label class="block mt-1 text-xs text-slate-600"><input type="checkbox" id="show-legacy-hosts" onchange="toggleLegacyHostOptions()"> Altbestand / interne Absender anzeigen</label>
                     <button id="filter-host-name" type="button" disabled onclick="openSelectedHostName()" class="mt-1 text-xs text-sky-700 hover:underline disabled:opacity-40 disabled:cursor-not-allowed">Ausgewählten Host benennen</button>
                 </div>
 
@@ -536,6 +537,7 @@
         let logRequestController = null;
         let excludedHosts = new Set();
         let availableExcludeHosts = [];
+        let legacyHostValues = new Set();
         let hostLabels = Object.create(null);
         let hostBeingNamed = null;
         function hostLabel(host, supplied) { const label = supplied || (Object.hasOwn(hostLabels, host) ? hostLabels[host] : null); return label && label !== host ? `${label} (${host})` : host; }
@@ -792,7 +794,7 @@
 
         function renderUnassignedHosts(hosts) {
             document.getElementById('unassigned-hosts').hidden = !hosts.length;
-            document.getElementById('unassigned-summary').textContent = `Nicht zugeordnete alte Meldungen (${hosts.reduce((sum, host) => sum + host.log_count, 0).toLocaleString('de-DE')} Logs · ${hosts.length} Einträge)`;
+            document.getElementById('unassigned-summary').textContent = `Meldungen ohne gespeicherte Quell-IP (${hosts.reduce((sum, host) => sum + host.log_count, 0).toLocaleString('de-DE')} Logs · ${hosts.length} Einträge)`;
             const body = document.getElementById('unassigned-rows'); body.replaceChildren();
             for (const host of [...hosts].sort((a,b) => a.host.localeCompare(b.host, 'de', {numeric:true, sensitivity:'base'}))) {
                 const row = document.createElement('tr');
@@ -940,6 +942,14 @@
             } finally { dashboardRequestActive = false; }
         }
 
+        function toggleLegacyHostOptions() {
+            if (!document.getElementById('show-legacy-hosts').checked && legacyHostValues.has(document.getElementById('filter-host').value)) {
+                document.getElementById('filter-host').value = 'ALL';
+                updateHostNameButton(); fetchLogs(1);
+            }
+            fetchFilters();
+        }
+
         // Fetch Filter Autocomplete (Hosts & Apps)
         async function fetchFilters() {
             if (document.hidden || activeWorkflow() !== 'logs') return;
@@ -949,11 +959,17 @@
                 
                 const labelsChanged = JSON.stringify(hostLabels) !== JSON.stringify(data.host_labels || {});
                 hostLabels = Object.assign(Object.create(null), data.host_labels || {});
-                if (labelsChanged || JSON.stringify(availableExcludeHosts) !== JSON.stringify(data.hosts)) { availableExcludeHosts = data.hosts; renderExcludedHosts(); }
                 const hostSelect = document.getElementById('filter-host');
                 const currentHost = hostSelect.value;
+                const allGroups = data.host_groups || [{label:'Hosts', options:data.hosts.map(host => ({value:host, label:hostLabel(host)}))}];
+                legacyHostValues = new Set(allGroups.filter(group => group.kind === 'unassigned').flatMap(group => group.options.map(option => option.value)));
+                const legacyToggle = document.getElementById('show-legacy-hosts');
+                // A link/saved view may deliberately open historical logs.
+                if (allGroups.some(group => group.kind === 'unassigned' && group.options.some(option => option.value === currentHost))) legacyToggle.checked = true;
+                const groups = allGroups.filter(group => group.kind !== 'unassigned' || legacyToggle.checked);
+                const visibleHosts = groups.flatMap(group => group.options.map(option => option.value));
+                if (labelsChanged || JSON.stringify(availableExcludeHosts) !== JSON.stringify(visibleHosts)) { availableExcludeHosts = visibleHosts; renderExcludedHosts(); }
                 hostSelect.replaceChildren(new Option('Alle Hosts', 'ALL'));
-                const groups = data.host_groups || [{label:'Hosts', options:data.hosts.map(host => ({value:host, label:hostLabel(host)}))}];
                 for (const group of groups) {
                     if (!group.options.length) continue;
                     const element = document.createElement('optgroup'); element.label = group.label;
