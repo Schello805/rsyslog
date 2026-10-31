@@ -288,6 +288,8 @@ async def api_dashboard():
     summary["udp_dropped"] = server_manager.dropped
     from database import get_ingestion_metrics
     summary["ingestion"] = await asyncio.to_thread(get_ingestion_metrics)
+    from storage_policy import status
+    summary["storage_policy"] = await asyncio.to_thread(status)
     return summary
 
 
@@ -374,7 +376,7 @@ async def api_post_log(request: Request):
         )
 
     if saved is None:
-        return JSONResponse(status_code=202, content={"success": True, "discarded": True, "reason": "DEBUG-Meldungen werden verworfen"})
+        return JSONResponse(status_code=202, content={"success": True, "discarded": True, "reason": "Meldung durch Aufnahmefilter oder Speichergrenze verworfen"})
 
     # Trigger alerts and realtime broadcast
     from monitoring import observe_log

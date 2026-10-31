@@ -242,11 +242,16 @@ def get_all_settings() -> Dict[str, Any]:
         # Retention
         "retention_days": as_int(db_settings.get("retention_days"), 0),
         "discard_debug": as_bool(db_settings.get("discard_debug"), True),
+        "max_database_mb": max(0, as_int(db_settings.get("max_database_mb"), 0)),
     }
 
 
 def save_all_settings(settings: Dict[str, Any]) -> None:
     """Persists a dictionary of settings into the SQLite database."""
+    if 'max_database_mb' in settings:
+        value = settings['max_database_mb']
+        if isinstance(value, bool) or not str(value).isdigit() or (int(value) != 0 and not 16 <= int(value) <= 1048576):
+            raise ValueError('Datenbankgrenze: 0 (unbegrenzt) oder 16 bis 1048576 MB.')
     conn = get_db_connection()
     with conn:
         for k, v in settings.items():
@@ -306,32 +311,47 @@ def insert_log(
     normalized_level = level.upper().strip()
     if (apply_ingestion_rules and normalized_level == 'DEBUG'
             and str(get_setting('discard_debug', 'true')).lower() in ('true', '1', 'yes', 'on')):
+        from ingestion_counters import discarded
+        discarded('debug')
         return None
     clean_host = (host or "unknown").strip()
     clean_app = (app or "syslog").strip()
     clean_msg = (message or "").strip()
 
     conn = get_db_connection()
-    with conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO logs (timestamp, host, app, level, facility, message, raw, metadata, received_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                timestamp,
-                clean_host,
-                clean_app,
-                normalized_level,
-                facility or "user",
-                clean_msg,
-                raw or clean_msg,
-                json.dumps(metadata or {}, ensure_ascii=False),
-                datetime.now(timezone.utc).isoformat(),
-            ),
-        )
-        log_id = cursor.lastrowid
+    if apply_ingestion_rules:
+        from storage_policy import can_accept
+        if not can_accept(conn, len((raw or clean_msg).encode('utf-8')) + len(clean_msg.encode('utf-8'))):
+            from ingestion_counters import discarded
+            discarded('storage')
+            return None
+    try:
+        with conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO logs (timestamp, host, app, level, facility, message, raw, metadata, received_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    timestamp,
+                    clean_host,
+                    clean_app,
+                    normalized_level,
+                    facility or "user",
+                    clean_msg,
+                    raw or clean_msg,
+                    json.dumps(metadata or {}, ensure_ascii=False),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            log_id = cursor.lastrowid
+    except sqlite3.OperationalError as exc:
+        if apply_ingestion_rules and getattr(exc, 'sqlite_errorcode', None) == sqlite3.SQLITE_FULL:
+            from ingestion_counters import discarded
+            discarded('storage')
+            return None
+        raise
 
     return {
         "id": log_id,

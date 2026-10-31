@@ -138,6 +138,7 @@
                 <button type="button" onclick="openLogFilter('CRITICAL_ALL', 'ALL', '24')" class="dashboard-card metric-critical text-left"><p class="dashboard-label">Critical · 24 Stunden</p><p id="overview-critical" class="dashboard-number text-pink-800">…</p><p class="dashboard-label mt-2">Kritische Meldungen prüfen →</p></button>
                 <button type="button" onclick="openLogFilter('WARN', 'ALL', '24')" class="dashboard-card metric-amber text-left"><p class="dashboard-label">Warnungen · 24 Stunden</p><p id="overview-warnings" class="dashboard-number text-amber-700">…</p><p class="dashboard-label mt-2">Warnungen prüfen →</p></button>
             </div>
+            <a id="overview-storage-warning" hidden href="/settings#system" class="block rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"></a>
             <div id="overview-monitoring" class="rounded-xl border border-slate-200 bg-white/50 px-5 py-3 text-sm text-slate-700">Überwachung wird geladen …</div>
             <div id="onboarding-hint" hidden class="rounded-2xl border border-sky-200 bg-sky-50/20 p-6">
                 <h3 class="font-semibold">Noch keine Meldungen eingegangen</h3>
@@ -843,6 +844,8 @@
                 document.getElementById('overview-rate').textContent = `${data.ingestion.logs_last_minute} Logs in der letzten Minute · Ø ${data.ingestion.logs_per_minute_5m.toLocaleString('de-DE')}/min über 5 min`;
                 document.getElementById('overview-errors').textContent = data.error_only_24h;
                 document.getElementById('overview-critical').textContent = data.critical_24h;
+                const storageWarning = document.getElementById('overview-storage-warning');
+                storageWarning.hidden = !data.storage_policy.warning; storageWarning.textContent = data.storage_policy.message;
                 document.getElementById('overview-warnings').textContent = data.warnings_24h;
                 document.getElementById('overview-monitoring').textContent = `${data.known_hosts} bekannte Absender · ${data.heartbeat_hosts} mit Lebenszeichen-Überwachung · ${data.offline_hosts} davon offline`;
                 document.getElementById('offline-badge').textContent = data.offline_hosts ? `(${data.offline_hosts} offline)` : '';

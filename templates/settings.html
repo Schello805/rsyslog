@@ -348,6 +348,7 @@
                     <p class="text-xs text-slate-600 mt-0.5">Automatische Bereinigung alter Logdaten zur Speicheroptimierung.</p>
                 </div>
 
+                <div class="space-y-2"><label for="max_database_mb" class="block text-sm font-medium">Maximale aktive Datenbankgröße (MB)</label><input id="max_database_mb" type="number" min="0" max="1048576" step="1" value="0" class="w-full border rounded-lg p-3"><p class="text-xs text-slate-600">0 = unbegrenzt, sonst mindestens 16 MB. Bei aktivierter Grenze werden die ältesten Logs automatisch entfernt. Neue Meldungen werden bei Platzmangel verworfen. Die Grenze gilt für belegte SQLite-Seiten; freigegebene Seiten bleiben zur Wiederverwendung reserviert, WAL-Dateien benötigen zusätzlichen Platz.</p></div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1.5">
@@ -397,9 +398,11 @@
                 </div>
                 <section class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                     <h3 class="font-semibold">Empfang & Überwachung</h3>
-                    <dl class="system-list"><dt>UDP-Empfang</dt><dd id="system-udp">…</dd><dt>TCP-Empfang</dt><dd id="system-tcp">…</dd><dt>Empfangswarteschlange</dt><dd id="system-queue">…</dd><dt>UDP wegen Überlast verworfen</dt><dd id="system-dropped">…</dd><dt>TCP-Verbindungen</dt><dd id="system-tcp-clients">…</dd><dt>Live-Dashboards</dt><dd id="system-ws-clients">…</dd><dt>Lebenszeichen-Überwachung</dt><dd id="system-heartbeats">…</dd></dl>
+                    <dl class="system-list"><dt>UDP-Empfang</dt><dd id="system-udp">…</dd><dt>TCP-Empfang</dt><dd id="system-tcp">…</dd><dt>Empfangswarteschlange</dt><dd id="system-queue">…</dd><dt>DEBUG verworfen · seit App-Start</dt><dd id="system-debug-dropped">…</dd><dt>Wegen Speichergrenze verworfen · seit App-Start</dt><dd id="system-storage-dropped">…</dd><dt>UDP wegen Überlast verworfen · seit App-Start</dt><dd id="system-dropped">…</dd><dt>TCP-Verbindungen</dt><dd id="system-tcp-clients">…</dd><dt>Live-Dashboards</dt><dd id="system-ws-clients">…</dd><dt>Lebenszeichen-Überwachung</dt><dd id="system-heartbeats">…</dd></dl>
                     <p id="system-rate-detail" class="text-xs text-slate-600"></p>
                 </section>
+                <p id="system-storage-warning" role="status" class="text-sm text-amber-800"></p>
+                <p id="system-size-limit" class="text-xs text-slate-600"></p>
                 <p id="system-metrics-updated" role="status" class="text-xs text-slate-500">Kennzahlen werden geladen …</p>
             </section>
             <!-- Bottom Sticky Action Bar -->
@@ -527,6 +530,7 @@
                 // Retention
                 document.getElementById('retention_days').value = data.retention_days || 0;
                 document.getElementById('discard_debug').checked = data.discard_debug !== false;
+                document.getElementById('max_database_mb').value = data.max_database_mb || 0;
             } catch (err) {
                 console.error('Error loading settings:', err);
                 showToast('Fehler beim Laden der Einstellungen', 'error');
@@ -552,6 +556,7 @@
                 ntfy_server: document.getElementById('ntfy_server').value.trim(),
 
                 discard_debug: document.getElementById('discard_debug').checked,
+                max_database_mb: Number(document.getElementById('max_database_mb').value),
                 retention_days: parseInt(document.getElementById('retention_days').value) || 0
             };
 
@@ -565,7 +570,8 @@
                 if (res.ok) {
                     showToast('Einstellungen erfolgreich gespeichert!', 'success');
                 } else {
-                    showToast('Speichern fehlgeschlagen. Zusatzregeln auf Namen, Suchtexte und Wiederholungspause prüfen.', 'error');
+                    const failure = await res.json();
+                    showToast(typeof failure.detail === 'string' ? failure.detail : 'Speichern fehlgeschlagen. Eingaben prüfen.', 'error');
                 }
             } catch (err) {
                 showToast('Verbindungsfehler beim Speichern', 'error');
@@ -734,6 +740,10 @@
                 text('system-tcp', data.receiver.tcp_listening ? `Aktiv · Port ${data.receiver.tcp_port}` : 'Nicht aktiv');
                 text('system-queue', `${data.receiver.queue_size} / ${data.receiver.queue_capacity}`);
                 text('system-dropped', data.receiver.udp_dropped.toLocaleString('de-DE'));
+                text('system-debug-dropped', data.discarded.debug.toLocaleString('de-DE'));
+                text('system-storage-dropped', data.discarded.storage.toLocaleString('de-DE'));
+                text('system-storage-warning', data.storage_policy.message || 'Keine Speicherwarnung.');
+                text('system-size-limit', `Aktiv belegt: ${formatBytes(data.storage_policy.used_bytes)} · Grenze: ${data.storage_policy.limit_bytes ? formatBytes(data.storage_policy.limit_bytes) : 'Unbegrenzt'} · Zur Wiederverwendung reserviert: ${formatBytes(data.storage_policy.reusable_bytes)}`);
                 text('system-tcp-clients', data.receiver.tcp_connections);
                 text('system-ws-clients', data.websocket_clients);
                 text('system-heartbeats', `${data.heartbeat_hosts} Geräte · ${data.offline_hosts} offline`);

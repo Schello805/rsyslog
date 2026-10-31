@@ -26,10 +26,20 @@ async def observe_log(log):
 
 async def maintenance():
     last_cleanup = 0
+    last_storage_warning = float('-inf')
     while True:
         try:
             for host in await asyncio.to_thread(database.mark_offline_hosts):
                 await status_event(host, False)
+            from storage_policy import trim_database, status
+            await asyncio.to_thread(trim_database)
+            storage = await asyncio.to_thread(status)
+            if storage['warning'] and time.monotonic() - last_storage_warning >= 3600:
+                from alerter import process_alert
+                entry = await asyncio.to_thread(database.insert_log, host='rsyslog', app='storage-monitor',
+                    level='WARN', message=storage['message'])
+                await process_alert(entry)
+                last_storage_warning = time.monotonic()
             if time.monotonic() - last_cleanup >= 3600:
                 settings = await asyncio.to_thread(database.get_all_settings)
                 await asyncio.to_thread(database.delete_logs_older_than, settings['retention_days'])

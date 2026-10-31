@@ -25,7 +25,10 @@ def collect_system_metrics():
             UNION ALL SELECT host, 0 FROM monitored_hosts WHERE host NOT IN (SELECT host FROM logs WHERE app <> 'host-monitor')
         )""").fetchone()
     heartbeats = database.get_monitored_hosts()
+    from ingestion_counters import snapshot
+    from storage_policy import status
     return dict(database.get_ingestion_metrics(),
+        discarded=snapshot(), storage_policy=status(),
         known_hosts=hosts['known'], active_hosts_15m=hosts['active'],
         heartbeat_hosts=len(heartbeats), offline_hosts=sum(time.time()-host['last_seen']>300 for host in heartbeats),
         storage=dict(total_bytes=storage.total, used_bytes=storage.used, free_bytes=storage.free,
