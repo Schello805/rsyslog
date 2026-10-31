@@ -1,14 +1,17 @@
 (() => {
     const el=id=>document.getElementById(id);
-    let page=1, loading=false, refresh;
+    let page=1, loading=false, pending=false, refresh;
     async function load() {
-        if(loading || location.hash!=='#incidents')return;
+        if(location.hash!=='#incidents')return;
+        if(loading){pending=true;return;}
         loading=true;
         try {
             const response=await fetch('/api/incidents?'+new URLSearchParams({state:el('incident-state').value,search:el('incident-search').value,page}),{cache:'no-store'});
             if(!response.ok)throw Error('Vorfälle konnten nicht geladen werden.');
             const data=await response.json(), tbody=el('incident-rows'); tbody.replaceChildren();
-            el('incident-result-status').textContent=`${data.total} passende Vorfälle · ${data.open_count} insgesamt offen · Seite ${data.page}`;
+            const maximum=Math.max(1,Math.ceil(data.total/data.per_page));
+            if(page>maximum){page=maximum;pending=true;return;}
+            el('incident-result-status').textContent=`${data.total} ${data.total===1?'passender Vorfall':'passende Vorfälle'} · ${data.open_count} insgesamt offen · Seite ${data.page}`;
             el('incident-prev').disabled=page<=1; el('incident-next').disabled=page*data.per_page>=data.total;
             if(!data.incidents.length){const row=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent='Keine passenden Vorfälle.';row.append(td);tbody.append(row);}
             for(const item of data.incidents){
@@ -27,7 +30,7 @@
                 });actions.append(button);tbody.append(row);
             }
         }catch(error){el('incident-result-status').textContent=error.message;}
-        finally{loading=false;}
+        finally{loading=false;if(pending){pending=false;load();}}
     }
     el('incident-search').addEventListener('input',()=>{clearTimeout(refresh);page=1;refresh=setTimeout(load,250);});
     el('incident-state').addEventListener('change',()=>{page=1;load();});

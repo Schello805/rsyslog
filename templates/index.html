@@ -129,7 +129,7 @@
             <a href="#overview" data-workflow="overview" class="workflow-link">Überblick</a>
             <a href="#logs" data-workflow="logs" class="workflow-link">Logs prüfen</a>
             <a href="#incidents" data-workflow="incidents" class="workflow-link">Vorfälle</a>
-            <a href="#devices" data-workflow="devices" class="workflow-link">Gerätestatus <span id="offline-badge"></span></a>
+            <a href="#devices" data-workflow="devices" class="workflow-link"><span class="device-tab-label">Gerätestatus</span><span class="device-tab-short">Geräte</span> <span id="offline-badge"></span></a>
         </nav>
         <section data-panel="overview" class="space-y-6">
             <div class="overview-metrics grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -1141,7 +1141,7 @@
 
         // Confirm & Clear Logs
         async function confirmClearLogs() {
-            if (confirm('Möchtest du wirklich ALLE Logs aus der SQLite-Datenbank unwiderruflich löschen?')) {
+            if (confirm('Möchtest du wirklich ALLE Logs einschließlich Vorfällen und gespeicherten KI-Analysen unwiderruflich löschen?')) {
                 try {
                     const res = await fetch('/api/logs/clear', { method: 'POST' });
                     const data = await res.json();

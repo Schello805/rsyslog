@@ -8,9 +8,9 @@ app=/opt/rsyslog-web
 # Progress is a fixed, root-owned file; only the web helper enables reporting.
 progress() {
     if [[ ${RSYSLOG_WEB_UPDATE:-0} == 1 && -d /var/lib/rsyslog-web-update ]]; then
-        printf '%s\n' "$1" > /var/lib/rsyslog-web-update/progress.tmp
-        chmod 0644 /var/lib/rsyslog-web-update/progress.tmp
-        mv /var/lib/rsyslog-web-update/progress.tmp /var/lib/rsyslog-web-update/progress
+        printf '%s\n' "$1" > /var/lib/rsyslog-web-update/progress.tmp || return 0
+        chmod 0644 /var/lib/rsyslog-web-update/progress.tmp || return 0
+        mv /var/lib/rsyslog-web-update/progress.tmp /var/lib/rsyslog-web-update/progress || return 0
     fi
 }
 # Prevent concurrent updates.

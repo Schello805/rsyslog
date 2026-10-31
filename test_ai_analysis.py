@@ -201,6 +201,18 @@ class AIAnalysisTests(unittest.TestCase):
         analysis_cache.cleanup(conn)
         self.assertEqual(conn.execute('SELECT COUNT(*) FROM analysis_cache').fetchone()[0],0)
 
+    def test_paid_result_is_returned_even_when_local_cache_cannot_be_saved(self):
+        async def check(client):
+            ai._snapshots['test']={'created':time.monotonic(),'payload':'data','count':1}
+            database.set_setting('ai_openai_key','secret')
+            result={'output':[{'type':'message','content':[{'type':'output_text','text':'Useful analysis'}]}]}
+            with patch.object(ai.httpx.AsyncClient,'post',AsyncMock(return_value=httpx.Response(200,json=result))), patch.object(ai.analysis_cache,'save',side_effect=__import__('sqlite3').OperationalError('full')):
+                response=await client.request('POST','/api/ai/analyze',json={'provider':'openai','token':'test'})
+            self.assertEqual(response.status_code,200)
+            self.assertFalse(response.json()['cache_saved'])
+            self.assertEqual(response.json()['analysis'],'Useful analysis')
+        self.run_api(check)
+
 
 if __name__ == '__main__':
     unittest.main()

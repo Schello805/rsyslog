@@ -127,3 +127,11 @@ main, main section, main .grid > *, header a, footer > div { min-width:0; }
 .device-state-offline { color:#be123c; background:#ffe4e6; }
 .device-state-unknown { color:#475569; background:#f1f5f9; }
 @media(max-width:639px) { .device-table th, .device-table td { padding:10px; } }
+
+.device-tab-short { display:none; }
+@media(max-width:639px) {
+    .device-tab-label { display:none; }
+    .device-tab-short { display:inline; }
+    .workflow-link { min-width:0; white-space:normal; }
+    #offline-badge { display:block; font-size:10px; }
+}

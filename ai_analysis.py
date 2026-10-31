@@ -1,4 +1,4 @@
-"""Explicit, bounded log analysis; provider credentials never leave the server."""
+"""Explicit, bounded log analysis; provider credentials are never returned to the browser."""
 import asyncio
 import json
 import re

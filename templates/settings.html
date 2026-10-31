@@ -361,7 +361,7 @@
                             <option value="30">Logs älter als 30 Tage löschen</option>
                             <option value="90">Logs älter als 90 Tage löschen</option>
                         </select>
-                        <p class="text-[11px] text-slate-500 mt-1">Alte Logs werden automatisch beim Serverstart oder manuell per Klick aufgeräumt.</p>
+                        <p class="text-[11px] text-slate-500 mt-1">Alte Logs werden beim Serverstart, stündlich oder manuell per Klick aufgeräumt.</p>
                     </div>
 
                     <div>
@@ -398,7 +398,7 @@
                 </div>
                 <section class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                     <h3 class="font-semibold">Empfang & Überwachung</h3>
-                    <dl class="system-list"><dt>UDP-Empfang</dt><dd id="system-udp">…</dd><dt>TCP-Empfang</dt><dd id="system-tcp">…</dd><dt>Empfangswarteschlange</dt><dd id="system-queue">…</dd><dt>DEBUG verworfen · seit App-Start</dt><dd id="system-debug-dropped">…</dd><dt>Wegen Speichergrenze verworfen · seit App-Start</dt><dd id="system-storage-dropped">…</dd><dt>UDP wegen Überlast verworfen · seit App-Start</dt><dd id="system-dropped">…</dd><dt>TCP-Verbindungen</dt><dd id="system-tcp-clients">…</dd><dt>Live-Dashboards</dt><dd id="system-ws-clients">…</dd><dt>Lebenszeichen-Überwachung</dt><dd id="system-heartbeats">…</dd></dl>
+                    <dl class="system-list"><dt>UDP-Empfang</dt><dd id="system-udp">…</dd><dt>TCP-Empfang</dt><dd id="system-tcp">…</dd><dt>Empfangswarteschlange</dt><dd id="system-queue">…</dd><dt>DEBUG verworfen · seit App-Start</dt><dd id="system-debug-dropped">…</dd><dt>Wegen Speichermangel/Grenze verworfen · seit App-Start</dt><dd id="system-storage-dropped">…</dd><dt>UDP wegen Überlast verworfen · seit App-Start</dt><dd id="system-dropped">…</dd><dt>TCP-Verbindungen</dt><dd id="system-tcp-clients">…</dd><dt>Live-Dashboards</dt><dd id="system-ws-clients">…</dd><dt>Lebenszeichen-Überwachung</dt><dd id="system-heartbeats">…</dd></dl>
                     <p id="system-rate-detail" class="text-xs text-slate-600"></p>
                 </section>
                 <p id="system-storage-warning" role="status" class="text-sm text-amber-800"></p>
@@ -755,7 +755,7 @@
 
         function showSettingsPanel() {
             const key = ['channels', 'rules', 'maintenance', 'system', 'message-rules', 'ai'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'channels';
-            const titles = {ai: ['KI-Analyse einrichten', 'API-Schlüssel und Modelle für die Analyse gefilterter Warnungen.'],'message-rules': ['Welche Ereignisse möchtest du melden?', 'Eigene Benachrichtigungen für Update-Hinweise und andere Texte in Geräte-Logs.'], system: ['Wie läuft dein RSyslog-Server?', 'Empfang, Speicherbelegung und Geräteaktivität – alle 10 Sekunden aktualisiert.'], channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Wie lange möchtest du Logs behalten?', 'Lege die Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
+            const titles = {ai: ['KI-Analyse einrichten', 'API-Schlüssel und Modelle für die Analyse gefilterter Warnungen.'],'message-rules': ['Welche Ereignisse möchtest du melden?', 'Eigene Benachrichtigungen für Update-Hinweise und andere Texte in Geräte-Logs.'], system: ['Wie läuft dein RSyslog-Server?', 'Empfang, Speicherbelegung und Geräteaktivität – alle 10 Sekunden aktualisiert.'], channels: ['Benachrichtigungen einrichten', 'Wähle zuerst einen Kanal und lege danach fest, wann du benachrichtigt werden möchtest.'], rules: ['Wann möchtest du benachrichtigt werden?', 'Lege Schweregrad, Häufigkeit und Wiederholung deiner Alarme fest.'], maintenance: ['Speicher und Aufbewahrung steuern', 'Lege die Größenbegrenzung und Aufbewahrungsfrist fest oder bereinige ältere Meldungen.']};
             document.getElementById('settings-title').textContent = titles[key][0];
             document.getElementById('settings-description').textContent = titles[key][1];
             document.querySelectorAll('[data-settings-panel]').forEach(panel => panel.hidden = panel.dataset.settingsPanel !== key);

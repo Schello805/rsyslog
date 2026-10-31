@@ -83,3 +83,19 @@ class OperationalTests(unittest.TestCase):
         incidents.initialize(conn); incidents.initialize(conn)
         row=conn.execute('SELECT occurrences FROM incidents').fetchone()
         self.assertEqual(row[0],4)
+
+
+    def test_sqlite_full_rolls_back_incoming_log_and_counts_discard(self):
+        import ingestion_counters
+        conn=database.get_db_connection()
+        pages=conn.execute('PRAGMA page_count').fetchone()[0]
+        conn.execute(f'PRAGMA max_page_count={pages}')
+        before=ingestion_counters.snapshot()['storage']
+        self.assertIsNone(database.insert_log('host','app','WARN','x'*1000000,apply_ingestion_rules=True))
+        self.assertEqual(ingestion_counters.snapshot()['storage'],before+1)
+        self.assertEqual(database.get_stats()['total'],0)
+        self.assertEqual(conn.execute('SELECT COUNT(*) FROM incidents').fetchone()[0],0)
+
+
+if __name__ == '__main__':
+    unittest.main()

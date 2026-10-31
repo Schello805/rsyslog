@@ -98,6 +98,19 @@ fi
             self.assertEqual('wiederverwenden' in result.stdout, reuse)
             self.assertTrue((snapshots[0] / 'data/syslog.db').exists())
 
+    def test_progress_failure_does_not_interrupt_update_or_rollback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            (root/'progress.tmp').mkdir()
+            script=Path('scripts/update-debian.sh').read_text()
+            function=script.split('progress() {',1)[1].split('# Prevent concurrent updates.',1)[0]
+            function='progress() {'+function
+            function=function.replace('/var/lib/rsyslog-web-update',str(root))
+            result=subprocess.run(['bash','-c','set -euo pipefail\n'+function+'\nprogress rollback\nprintf survived'],
+                env=dict(os.environ,RSYSLOG_WEB_UPDATE='1'),capture_output=True,text=True)
+            self.assertEqual(result.returncode,0)
+            self.assertIn('survived',result.stdout)
+
     def test_unchanged_dependencies_reuse_environment(self):
         self.run_update(False, reuse=True)
 

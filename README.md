@@ -336,3 +336,40 @@ npm run build
 Die erzeugten Dateien unter `static/vendor` einschließlich Lizenzdateien werden
 mit eingecheckt. Grundlage: [Tailwind CLI](https://v3.tailwindcss.com/docs/installation)
 und [Lucide](https://lucide.dev/guide/packages/lucide).
+
+## Geräte, Vorfälle und Speichersteuerung
+
+**Gerätestatus** zeigt alle bekannten Geräte als Tabelle. Suche, Statusfilter und
+Sortierung nach Name, Aktivität, Fehlerzahl oder Loganzahl bleiben bei laufenden
+Aktualisierungen erhalten.
+
+Unter **Vorfälle** werden gleiche Warnungen und Fehler pro Host, Dienst und Level
+zusammengefasst: Anzahl sowie erstes und letztes Auftreten, mit „offen“ oder
+„erledigt“. Eine neue passende Meldung öffnet einen erledigten Vorfall wieder.
+Vorhandene Warnungen werden beim ersten Start übernommen. Aufbewahrung und
+Speicherbereinigung entfernen auch zugehörige alte Vorfallsgruppen.
+
+Unter **Einstellungen → System** stehen die seit App-Start verworfenen DEBUG-
+und wegen Speichergrenze abgewiesenen Meldungen. UDP-Überlast wird separat gezählt.
+Die Zähler beginnen nach einem Neustart wieder bei null.
+
+**Einstellungen → Daten aufbewahren** bietet zusätzlich eine Größenbegrenzung
+(0 = deaktiviert; sonst mindestens 16 MB). Aktivieren erlaubt die automatische
+Bereinigung der ältesten Logs. Bei Platzmangel werden neue Meldungen abgewiesen;
+die Bereinigung läuft alle 30 Sekunden in kurzen Batches. Die Grenze bezieht sich
+auf belegte SQLite-Seiten. Bereits reservierter freier Datenbankplatz wird
+wiederverwendet; die Datei muss dadurch nicht sofort kleiner werden. WAL-Dateien
+und Backups benötigen zusätzlichen Speicher. Die Übersicht warnt ab 80 % der
+Datenbankgrenze oder 90 % Dateisystembelegung; Speicherwarnungen durchlaufen auch
+die eingerichteten Benachrichtigungsregeln.
+
+Für eine unveränderte KI-Auswahl wird die gespeicherte vollständige Analyse mit
+Datum und Anbieter eingeblendet. **Erneut analysieren** fordert ausdrücklich eine
+neue Antwort an. Der Cache enthält höchstens 20 Analysen für sieben Tage, keine
+API-Schlüssel. Er wird bei Änderungen an Auswahl, Anbieter, Modell oder Schlüssel
+nicht wiederverwendet. „Alle Logs löschen“ entfernt auch Vorfälle und Analysen.
+
+Web-Updates melden ihre Schritte im Footer: Prüfen, Herunterladen, Vorbereiten,
+Sichern, Installieren, Neustart und Prüfung der neuen Revision. Die Schrittzahl
+ist keine Schätzung der verbleibenden Zeit; Wiederherstellungen werden gesondert
+angezeigt.
