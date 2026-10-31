@@ -319,3 +319,20 @@ Datenbank und Backups schützen; bei Fernzugriff HTTPS verwenden.
 Technik: [OpenAI Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create)
 mit `store: false` bzw. [Gemini generateContent](https://ai.google.dev/api/generate-content).
 Keine automatischen Hintergrundanalysen und keine neuen Python-Abhängigkeiten.
+
+## Lokale Frontend-Dateien
+
+CSS und Icons werden vollständig vom eigenen Server ausgeliefert. Zum Anzeigen
+ist kein Zugriff auf Tailwind- oder Icon-CDNs erforderlich; Debian-Installation
+und Update benötigen dafür kein Node.js.
+
+Nur bei Änderungen am Frontend lokal neu bauen:
+
+```bash
+npm ci --ignore-scripts
+npm run build
+```
+
+Die erzeugten Dateien unter `static/vendor` einschließlich Lizenzdateien werden
+mit eingecheckt. Grundlage: [Tailwind CLI](https://v3.tailwindcss.com/docs/installation)
+und [Lucide](https://lucide.dev/guide/packages/lucide).

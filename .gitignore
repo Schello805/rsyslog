@@ -30,3 +30,6 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+
+# Frontend build dependencies (compiled assets are committed)
+node_modules/

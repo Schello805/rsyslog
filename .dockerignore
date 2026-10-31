@@ -1,0 +1,2 @@
+# Frontend build tools are unnecessary in the Python runtime image.
+node_modules/

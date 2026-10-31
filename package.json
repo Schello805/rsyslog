@@ -1,0 +1,11 @@
+{
+  "name": "rsyslog-web-assets",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.cjs -i assets/tailwind.css -o static/vendor/tailwind.min.css --minify && node scripts/vendor-assets.cjs"
+  },
+  "devDependencies": {
+    "lucide": "0.468.0",
+    "tailwindcss": "3.4.17"
+  }
+}

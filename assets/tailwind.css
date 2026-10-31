@@ -1,0 +1,4 @@
+/* Built assets are committed; the Python server needs no Node.js or external CDN. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

@@ -8,27 +8,9 @@
     <link rel="icon" type="image/png" sizes="256x256" href="/assets/branding/logo.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/branding/apple-touch-icon.png">
     <meta name="theme-color" content="#0369a1">
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            500: '#0284c7',
-                            600: '#0369a1',
-                            700: '#075985',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Prebuilt assets are served locally, including on isolated networks. -->
+    <link rel="stylesheet" href="/assets/vendor/tailwind.min.css">
+    <script src="/assets/vendor/lucide.min.js"></script>
     <style>
         /* Custom scrollbar for light theme */
         ::-webkit-scrollbar {
