@@ -38,6 +38,17 @@
         });
     }
     if (!byId('ai-open')) return;
+    function updateSetupLink(settings) {
+        const ready = ['openai', 'gemini'].some(provider => settings[provider]?.configured && settings[provider]?.model);
+        byId('ai-setup').hidden = ready;
+    }
+    async function refreshSetupLink() {
+        try { updateSetupLink(await api('settings')); }
+        catch { byId('ai-setup').hidden = false; }
+    }
+    refreshSetupLink();
+    window.addEventListener('focus', refreshSetupLink);
+    window.addEventListener('pageshow', event => { if (event.persisted) refreshSetupLink(); });
     let token = null, loading = false;
     const dialog = byId('ai-dialog');
     byId('ai-close').addEventListener('click', () => dialog.close());
@@ -57,6 +68,7 @@
             if (period !== 'ALL') body.hours = Number(period);
             body.exclude_hosts = Array.from(excludedHosts);
             const [preview, settings] = await Promise.all([api('preview', body), api('settings')]);
+            updateSetupLink(settings);
             token = preview.token;
             byId('ai-summary').textContent = `${preview.count} von ${preview.total} passenden Warnungen/Fehlern, ${preview.groups || preview.count} unterschiedliche Meldungen. Wiederholungen zusammengefasst, Texte ggf. gekürzt. Vorschau 10 Minuten gültig.`;
             byId('ai-preview').textContent = preview.preview;
