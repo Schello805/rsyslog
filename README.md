@@ -62,17 +62,13 @@ abgelehnt; dieses Skript unterstützt die Standardinstallation des Installers.
 ## Updates direkt im Footer
 
 Der Footer prüft GitHub alle fünf Minuten und zeigt neue Versionen an.
-Mit **Update starten** öffnest du den Update-Dialog. Den nötigen Schlüssel auf dem
-Server als root anzeigen:
-
-```bash
-cat /etc/rsyslog-web-update.key
-```
-
-Nach Eingabe startet ein separater systemd-Dienst das vorhandene Update-Skript
-mit Sicherung und Wiederherstellung. Die Webapp startet kurz neu; der Footer
-zeigt den Status und lädt die Seite nach erfolgreichem Update neu.
-Der Schlüssel wird nicht im Browser gespeichert und nicht von der API ausgegeben.
+Mit **Update starten** öffnest du den Update-Dialog und bestätigst die Installation.
+Für den Betrieb im internen Netz ist kein Update-Schlüssel erforderlich. Wer auf
+die App zugreifen kann, kann damit auch Updates starten. Aufrufe aus fremden
+Webseiten werden durch eine Origin-Prüfung und einen festen Anfrage-Header blockiert.
+Ein separater systemd-Dienst führt das feste Update-Skript mit Sicherung und
+Wiederherstellung aus. Die Webapp startet kurz neu; der Footer zeigt den Status
+und lädt die Seite nach erfolgreichem Update neu.
 
 **Bestehende Installationen:** Einmal als root aktualisieren und den Update-Dienst einrichten:
 
@@ -91,12 +87,6 @@ Das Webfrontend erhält keine allgemeinen Root- oder sudo-Rechte.
 Fehlerdiagnose: `journalctl -u rsyslog-web-update` und als root
 `cat /var/lib/rsyslog-web-update/update.log`. Ein Fehler wird im Footer angezeigt;
 bei einem fehlgeschlagenen App-Wechsel versucht das Update-Skript die Wiederherstellung.
-
-Den **Update-Schlüssel** kannst du im Update-Dialog mit „Schlüssel in diesem
-Browser merken“ speichern. Über „Schlüssel speichern“ oder beim Start eines Updates wird er gespeichert
-und bei späteren Updates vorausgefüllt – auch nach einem Browserneustart. Nur für diesen
-Browser und diese Serveradresse. Über „Gespeicherten Schlüssel entfernen“ lässt
-er sich löschen. Auf gemeinsam genutzten Geräten die Speicheroption abwählen.
 
 ## Erste Schritte
 
@@ -303,7 +293,8 @@ Unter **Logs prüfen → Gefilterte Warnungen analysieren** zeigt die App eine
 Vorschau der höchstens 100 neuesten Warnungen und Fehler für die aktiven Filter
 und Host-Ausschlüsse. Erst **Vorschau senden & analysieren** übermittelt diese
 Daten an den gewählten Anbieter. Lange Texte und die Gesamtmenge werden begrenzt;
-INFO/NOTICE/DEBUG werden nicht analysiert. Die Vorschau gilt zehn Minuten.
+INFO/NOTICE/DEBUG werden nicht analysiert. Gleiche Meldungen werden mit Häufigkeit und Zeitspanne zusammengefasst. Die Vorschau gilt zehn Minuten.
+Die Analyse zeigt die Wartezeit und wartet maximal 45 Sekunden auf den Anbieter.
 
 Die Antwort erläutert Dringlichkeit, mögliche Ursachen, nächste Schritte und
 Prüfungen. Es werden keine Befehle ausgeführt. Analysevorschläge vor Anwendung

@@ -20,16 +20,13 @@ class UpdateTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         (self.root / 'request').mkdir()
-        self.key = self.root / 'secret.key'
-        self.key.write_text('test-only-key')
         self.control = patch.object(updates, 'CONTROL', self.root)
-        self.key_path = patch.object(updates, 'KEY_FILE', self.key)
-        self.control.start(); self.key_path.start()
+        self.control.start()
         updates._cache.clear()
         self.current = {'revision': 'a'*7, 'revision_number': 16, 'version':'1.0.16'}
 
     def tearDown(self):
-        self.control.stop(); self.key_path.stop(); self.temp.cleanup()
+        self.control.stop(); self.temp.cleanup()
 
     def test_new_revision_and_cache(self):
         calls = []
@@ -57,15 +54,12 @@ class UpdateTests(unittest.TestCase):
 
     def test_authorized_request_is_atomic_and_duplicates_rejected(self):
         async def check():
-            with self.assertRaises(HTTPException) as denied:
-                await updates.request_update('wrong')
-            self.assertEqual(denied.exception.status_code, 403)
             with patch.object(updates, 'check_updates', new=AsyncMock(return_value={'available':True})):
-                result = await updates.request_update('test-only-key')
+                result = await updates.request_update()
                 self.assertEqual(result['state'], 'queued')
                 self.assertTrue((self.root / 'request/start').exists())
                 with self.assertRaises(HTTPException) as duplicate:
-                    await updates.request_update('test-only-key')
+                    await updates.request_update()
                 self.assertEqual(duplicate.exception.status_code, 409)
         asyncio.run(check())
 
@@ -73,11 +67,11 @@ class UpdateTests(unittest.TestCase):
         async def check():
             with patch.object(updates, 'check_updates', new=AsyncMock(return_value={'available':False})):
                 with self.assertRaises(HTTPException) as current:
-                    await updates.request_update('test-only-key')
+                    await updates.request_update()
                 self.assertEqual(current.exception.status_code, 409)
-            self.key.unlink()
+            (self.root / 'request').rmdir()
             with self.assertRaises(HTTPException) as missing:
-                await updates.request_update('test-only-key')
+                await updates.request_update()
             self.assertEqual(missing.exception.status_code, 503)
         asyncio.run(check())
 
@@ -97,16 +91,25 @@ class UpdateTests(unittest.TestCase):
         import main
         async def check():
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
-                denied = await client.post('/api/updates/start', headers={'origin':'http://other','x-update-key':'test-only-key'})
+                denied = await client.post('/api/updates/start', headers={'origin':'http://other','x-rsyslog-update':'1'})
                 self.assertEqual(denied.status_code, 403)
+                cross_site = await client.post('/api/updates/start', headers={'x-rsyslog-update':'1','sec-fetch-site':'cross-site'})
+                self.assertEqual(cross_site.status_code, 403)
                 with patch.object(updates, 'get_version_info', return_value={'revision':'unknown'}):
                     info = await client.get('/api/updates')
                 self.assertNotIn('test-only-key', info.text)
+                missing = await client.post('/api/updates/start')
+                self.assertEqual(missing.status_code, 403)
+                with patch.object(updates, 'check_updates', new=AsyncMock(return_value={'available':True})):
+                    queued = await client.post('/api/updates/start', headers={'origin':'http://test','x-rsyslog-update':'1'})
+                self.assertEqual(queued.status_code, 202)
+                self.assertTrue((self.root / 'request/start').exists())
+                (self.root / 'request/start').unlink()
                 status = await client.get('/api/updates/status')
                 self.assertEqual(status.json()['state'], 'idle')
         asyncio.run(check())
 
-    def test_helper_setup_is_idempotent_and_key_is_not_world_readable(self):
+    def test_helper_setup_is_idempotent_without_key(self):
         script = Path('scripts/setup-web-updates.sh').read_text()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -128,12 +131,9 @@ class UpdateTests(unittest.TestCase):
             setup = source / 'setup.sh'; setup.write_text(script)
             env = dict(os.environ, PATH=f'{fake_bin}:/usr/bin:/bin')
             subprocess.run(['bash',str(setup)],env=env,check=True,capture_output=True)
-            key = root / 'etc/rsyslog-web-update.key'
-            first = key.read_text()
             subprocess.run(['bash',str(setup)],env=env,check=True,capture_output=True)
-            self.assertEqual(key.read_text(),first)
-            self.assertGreaterEqual(len(first.strip()),32)
-            self.assertEqual(key.stat().st_mode & 0o777,0o640)
+            self.assertFalse((root / 'etc/rsyslog-web-update.key').exists())
+            self.assertEqual((root/'var/lib/rsyslog-web-update/request').stat().st_mode & 0o777,0o770)
             self.assertIn('ReadWritePaths=',(unit_dir/'rsyslog-web.service.d/updates.conf').read_text())
             self.assertIn('Type=oneshot',(unit_dir/'rsyslog-web-update.service').read_text())
 

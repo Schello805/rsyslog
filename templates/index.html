@@ -1184,7 +1184,7 @@
     <script src="/assets/update-footer.js" defer></script>
 <dialog id="ai-dialog" class="bg-white text-slate-900 border rounded-2xl p-6 w-full max-w-3xl shadow-xl" style="max-height:90vh;overflow:auto">
 <div class="flex justify-between gap-4"><h2 class="font-semibold text-lg">Warnungen analysieren</h2><button type="button" id="ai-close" aria-label="Analyse schließen">Schließen</button></div>
-<p class="my-3 text-sm">Aktive Filter und Host-Ausschlüsse gelten. Analysiert werden nur WARN, ERROR und kritische Meldungen, höchstens die 100 neuesten Treffer. Prüfe die Vorschau auf vertrauliche Inhalte. Die Anfrage kann API-Kosten verursachen. Vorschläge vor Ausführung prüfen.</p>
+<p class="my-3 text-sm">Aktive Filter und Host-Ausschlüsse gelten. Analysiert werden nur WARN, ERROR und kritische Meldungen, höchstens die 100 neuesten Treffer. Gleiche Meldungen werden mit ihrer Häufigkeit zusammengefasst. Prüfe die Vorschau auf vertrauliche Inhalte. Die Anfrage kann API-Kosten verursachen. Vorschläge vor Ausführung prüfen.</p>
 <label for="ai-provider">Anbieter</label><select id="ai-provider" class="border rounded-lg p-2"><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select>
 <p id="ai-summary" role="status" class="my-3 text-sm"></p>
 <details open><summary class="cursor-pointer">Diese Daten werden gesendet</summary><pre id="ai-preview" class="whitespace-pre-wrap break-words text-xs bg-slate-50 p-3 rounded-lg max-h-64 overflow-auto"></pre></details>

@@ -94,6 +94,20 @@ class AIAnalysisTests(unittest.TestCase):
             self.assertEqual(response.json()['count'], 0)
         self.run_api(check)
 
+    def test_preview_groups_repetitions_but_keeps_counts_and_payload_exact(self):
+        for _ in range(26):
+            database.insert_log(host='nas', app='disk', level='WARN', message='disk full')
+        database.insert_log(host='other', app='disk', level='WARN', message='disk full')
+        async def check(client):
+            import json
+            response = await client.post('/api/ai/preview', json={})
+            data = response.json()
+            self.assertEqual(data['count'], 27)
+            self.assertEqual(data['groups'], 2)
+            self.assertEqual(sorted(item['occurrences'] for item in json.loads(data['preview'])), [1,26])
+            self.assertEqual(ai._snapshots[data['token']]['payload'], data['preview'])
+        self.run_api(check)
+
     def test_provider_payloads_and_plain_text_result(self):
         async def check(client):
             ai._snapshots['test'] = {'created': time.monotonic(), 'payload': 'preview-data', 'count': 1}
@@ -117,6 +131,21 @@ class AIAnalysisTests(unittest.TestCase):
                     self.assertEqual(kwargs['headers']['x-goog-api-key'], 'server-secret')
                     self.assertEqual(kwargs['json']['contents'][0]['parts'][0]['text'], 'preview-data')
                     self.assertTrue(response.json()['incomplete'])
+        self.run_api(check)
+
+    def test_total_deadline_returns_error_and_releases_analysis_lock(self):
+        async def check(client):
+            ai._snapshots['test'] = {'created': time.monotonic(), 'payload': 'data', 'count': 1}
+            database.set_setting('ai_openai_key', 'secret')
+            database.set_setting('ai_openai_model', 'test-model')
+            deadline = asyncio.timeout
+            async def slow(*args, **kwargs):
+                await asyncio.sleep(0.1)
+            with patch.object(ai.asyncio, 'timeout', side_effect=lambda seconds: deadline(0.001)), patch.object(ai.httpx.AsyncClient, 'post', new=AsyncMock(side_effect=slow)):
+                response = await client.request('POST', '/api/ai/analyze', json={'provider': 'openai', 'token': 'test'})
+            self.assertEqual(response.status_code, 504)
+            self.assertIn('45 Sekunden', response.json()['detail'])
+            self.assertFalse(ai._busy.locked())
         self.run_api(check)
 
     def test_expired_snapshots_and_provider_error_never_echo_secrets(self):

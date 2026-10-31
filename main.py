@@ -160,9 +160,11 @@ async def api_start_update(request: Request):
     from urllib.parse import urlsplit
     from updates import request_update
     origin = request.headers.get('origin')
-    if origin and urlsplit(origin).netloc != request.headers.get('host'):
+    if origin and (urlsplit(origin).scheme, urlsplit(origin).netloc) != (request.url.scheme, request.headers.get('host')):
         raise HTTPException(403, 'Updates müssen von derselben Oberfläche gestartet werden')
-    return await request_update(request.headers.get('x-update-key', ''))
+    if request.headers.get('sec-fetch-site') == 'cross-site' or request.headers.get('x-rsyslog-update') != '1':
+        raise HTTPException(403, 'Updates bitte über den Update-Dialog der App starten')
+    return await request_update()
 
 
 class WebhookLogPayload(BaseModel):

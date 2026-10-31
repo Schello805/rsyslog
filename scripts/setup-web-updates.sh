@@ -6,11 +6,6 @@ source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 install -d -m 0755 /usr/local/lib/rsyslog-web /var/lib/rsyslog-web-update
 install -d -o root -g rsyslog-web -m 0770 /var/lib/rsyslog-web-update/request
 install -m 0755 "$source_dir/web-update-runner.py" /usr/local/lib/rsyslog-web/web-update-runner.py
-if [[ ! -s /etc/rsyslog-web-update.key ]]; then
-    (umask 027; python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > /etc/rsyslog-web-update.key)
-fi
-chown root:rsyslog-web /etc/rsyslog-web-update.key
-chmod 0640 /etc/rsyslog-web-update.key
 cat > /etc/systemd/system/rsyslog-web-update.path <<'UNIT'
 [Unit]
 Description=Watch for authorized RSyslog Web update requests

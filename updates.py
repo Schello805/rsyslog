@@ -3,14 +3,12 @@ import asyncio
 import json
 from pathlib import Path
 import re
-import secrets
 import time
 import httpx
 from fastapi import HTTPException
 from version import get_version_info
 
 CONTROL = Path('/var/lib/rsyslog-web-update')
-KEY_FILE = Path('/etc/rsyslog-web-update.key')
 API = 'https://api.github.com/repos/Schello805/rsyslog'
 _cache = {}
 _check_lock = asyncio.Lock()
@@ -34,7 +32,7 @@ def job_status():
 
 
 def is_supported():
-    return KEY_FILE.is_file() and (CONTROL / 'request').is_dir()
+    return (CONTROL / 'request').is_dir()
 
 
 async def check_updates():
@@ -72,15 +70,9 @@ async def check_updates():
     return dict(result, current=current, can_start=is_supported(), job=job_status())
 
 
-async def request_update(key):
+async def request_update():
     if not is_supported():
         raise HTTPException(503, 'Web-Updates sind auf diesem Server noch nicht eingerichtet')
-    try:
-        expected = KEY_FILE.read_text().strip()
-    except OSError:
-        raise HTTPException(503, 'Update-Schlüssel ist nicht lesbar; Servereinrichtung prüfen')
-    if not expected or not secrets.compare_digest(key.encode(), expected.encode()):
-        raise HTTPException(403, 'Ungültiger Update-Schlüssel')
     async with _start_lock:
         if job_status().get('state') in ('running', 'queued'):
             raise HTTPException(409, 'Ein Update läuft bereits')
