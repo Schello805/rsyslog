@@ -81,101 +81,47 @@ def init_db() -> None:
             """
         )
 
-    repair_legacy_syslog_hosts()
-    repair_configured_source_hosts()
+    with conn:
+        conn.execute('CREATE TABLE IF NOT EXISTS source_dns (ip TEXT PRIMARY KEY, name TEXT NOT NULL)')
+    normalize_recorded_sources()
     from incidents import initialize
     initialize(conn)
     from analysis_cache import initialize as initialize_cache
     initialize_cache(conn)
 
 
-def repair_legacy_syslog_hosts():
-    """One-time repair of IP fallbacks with an unambiguous BSD hostname in raw data.
-
-    Do not merge by source IP or display alias: relays can send for multiple hosts.
-    Raw messages, receipt times and user-assigned names remain intact.
-    """
-    from ipaddress import ip_address
-    from syslog_parser import RFC3164_HEADER_REGEX, parse_syslog_message
+def remember_source_dns(ip, name):
     conn = get_db_connection()
-    marker = 'migration_syslog_hostname_v1'
-    if conn.execute('SELECT value FROM settings WHERE key=?', (marker,)).fetchone():
-        return 0
-    last_id, repaired = 0, 0
+    row = conn.execute('SELECT name FROM source_dns WHERE ip=?', (ip,)).fetchone()
+    if not row or row['name'] != name:
+        with conn:
+            conn.execute('INSERT INTO source_dns VALUES(?,?) ON CONFLICT(ip) DO UPDATE SET name=excluded.name', (ip, name))
+
+
+def normalize_recorded_sources():
+    """Only recorded source IPs may change historical identity, never names/PTR."""
+    from ipaddress import ip_address
+    conn = get_db_connection()
+    marker = 'migration_transport_source_v1'
+    if get_setting(marker):
+        return
+    last_id = 0
     while True:
-        rows = conn.execute("SELECT id,host,raw FROM logs WHERE id>? AND app='syslog' AND raw LIKE '<%' ORDER BY id LIMIT 500", (last_id,)).fetchall()
+        rows = conn.execute('SELECT id,host,metadata FROM logs WHERE id>? ORDER BY id LIMIT 500', (last_id,)).fetchall()
         if not rows:
             break
         with conn:
             for row in rows:
                 last_id = row['id']
                 try:
-                    ip_address(row['host'])
-                except ValueError:
+                    metadata = json.loads(row['metadata'] or '{}')
+                    address = str(ip_address(metadata['source_ip']))
+                except (ValueError, TypeError, KeyError):
                     continue
-                if not RFC3164_HEADER_REGEX.match(row['raw'].strip()):
-                    continue
-                parsed = parse_syslog_message(row['raw'], row['host'])
-                hostname = parsed['host']
-                if hostname in (row['host'], '-', 'unknown') or parsed.get('metadata'):
-                    continue
-                try:
-                    ip_address(hostname)
-                    continue
-                except ValueError:
-                    pass
-                conn.execute('UPDATE logs SET host=?,app=?,message=? WHERE id=?',
-                    (hostname, parsed['app'], parsed['message'], row['id']))
-                repaired += 1
-    with conn:
-        conn.execute('INSERT INTO settings(key,value) VALUES(?,?)', (marker, str(repaired)))
-    return repaired
-
-
-def repair_configured_source_hosts():
-    """Repair hostname-less historic records only with an explicit operator mapping."""
-    import hashlib
-    from syslog_parser import parse_syslog_message
-    try:
-        mapping = json.loads(get_setting('syslog_legacy_host_names', '{}'))
-        sources = json.loads(get_setting('syslog_source_names', '{}'))
-    except (ValueError, TypeError):
-        return 0
-    if not isinstance(mapping, dict) or not mapping:
-        return 0
-    marker = 'migration_source_names_' + hashlib.sha256(json.dumps(mapping, sort_keys=True).encode()).hexdigest()[:16]
-    if get_setting(marker):
-        return 0
-    conn = get_db_connection()
-    repaired = 0
-    for old, name in mapping.items():
-        if not isinstance(name, str) or not name.strip():
-            continue
-        last_id = 0
-        while True:
-            rows = conn.execute('SELECT id,raw,metadata FROM logs WHERE host=? AND id>? ORDER BY id LIMIT 500', (old,last_id)).fetchall()
-            if not rows:
-                break
-            with conn:
-                for row in rows:
-                    last_id = row['id']
-                    parsed = parse_syslog_message(row['raw'], name)
-                    if parsed['host'] != name:
-                        continue
-                    try:
-                        metadata = json.loads(row['metadata'] or '{}')
-                    except (ValueError, TypeError):
-                        metadata = {}
-                    if not isinstance(metadata, dict):
-                        metadata = {}
-                    ips = [ip for ip, host in sources.items() if host == name] if isinstance(sources, dict) else []
-                    if len(ips) == 1:
-                        metadata['source_ip'] = ips[0]
-                    conn.execute('UPDATE logs SET host=?,app=?,message=?,metadata=? WHERE id=?',
-                                 (name, parsed['app'], parsed['message'], json.dumps(metadata), row['id']))
-                    repaired += 1
-    set_setting(marker, repaired or 'done')
-    return repaired
+                if row['host'] != address:
+                    metadata.setdefault('reported_host', row['host'])
+                    conn.execute('UPDATE logs SET host=?,metadata=? WHERE id=?', (address,json.dumps(metadata),row['id']))
+    set_setting(marker, 'done')
 
 
 def get_setting(key: str, default: Any = None) -> Any:
@@ -310,13 +256,19 @@ def insert_log(
         timestamp = datetime.now(timezone.utc).isoformat()
 
     # Structured HTTP clients may place a complete CEF packet in message as well.
-    if isinstance(message, str) and message.lstrip('\ufeff').startswith(('CEF:0|', 'CEF:1|')) and not metadata:
+    if isinstance(message, str) and message.lstrip('\ufeff').startswith(('CEF:0|', 'CEF:1|')):
         from syslog_parser import parse_syslog_message
         parsed = parse_syslog_message(message, client_ip=host)
         if parsed.get('metadata'):
             raw = raw or parsed['raw']
             host, app, level, message = parsed['host'], parsed['app'], parsed['level'], parsed['message']
-            metadata = parsed['metadata']
+            metadata = dict(parsed['metadata'], **(metadata or {}))
+    if metadata and metadata.get('source_ip'):
+        from ipaddress import ip_address
+        try:
+            host = str(ip_address(metadata['source_ip']))
+        except ValueError:
+            pass
     normalized_level = level.upper().strip()
     if (apply_ingestion_rules and normalized_level == 'DEBUG'
             and str(get_setting('discard_debug', 'true')).lower() in ('true', '1', 'yes', 'on')):
@@ -640,7 +592,16 @@ def get_ingestion_metrics():
 
 
 def get_host_aliases():
-    return {row['host']: row['name'] for row in get_db_connection().execute('SELECT host,name FROM host_aliases')}
+    conn = get_db_connection()
+    names = {row['ip']: row['name'] for row in conn.execute('SELECT ip,name FROM source_dns')}
+    try:
+        configured = json.loads(get_setting('syslog_source_names', '{}'))
+        if isinstance(configured, dict):
+            names.update({ip:name for ip,name in configured.items() if isinstance(name,str) and name.strip()})
+    except (ValueError, TypeError):
+        pass
+    names.update({row['host']: row['name'] for row in conn.execute('SELECT host,name FROM host_aliases')})
+    return names
 
 
 def set_host_alias(host, name):

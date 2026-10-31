@@ -66,26 +66,19 @@ def resolve_ip(address):
 
 
 def identify_source(entry, address):
-    from database import get_db_connection, get_host_display_name
+    """Transport peer is the identity; packet hostname is untrusted context only."""
+    from database import remember_source_dns
     try:
-        ip_address(address)
+        address = str(ip_address(address))
     except ValueError:
         return entry
-    entry['metadata'] = dict(entry.get('metadata') or {}, source_ip=address)
-    target = entry['host']
-    try:
-        ip_address(target)
-    except ValueError:
-        return entry  # Keep a hostname carried by the sender/CEF event.
-    configured = source_names().get(target)
-    if isinstance(configured, str) and configured.strip():
-        entry['host'] = configured.strip()
-        return entry
-    if get_host_display_name(target) != target:
-        return entry  # Preserve explicitly assigned names on an IP host.
-    name = resolve_ip(target)
-    if name != target:
-        # Use an already known spelling/short name to avoid DNS case/FQDN duplicates.
-        row = get_db_connection().execute('SELECT host FROM logs WHERE host=? COLLATE NOCASE OR host=? COLLATE NOCASE ORDER BY host LIMIT 1', (name, name.split('.')[0])).fetchone()
-        entry['host'] = row['host'] if row else name
+    metadata = dict(entry.get('metadata') or {})
+    if entry.get('host') and entry['host'] != address:
+        metadata['reported_host'] = entry['host']
+    metadata['source_ip'] = address
+    entry['metadata'] = metadata
+    entry['host'] = address
+    name = resolve_ip(address)
+    if name != address:
+        remember_source_dns(address, name)
     return entry

@@ -383,3 +383,10 @@ Der Gerätestatus unterscheidet Syslog-Aktivität („Logs aktiv“ innerhalb vo
 von Online/Offline mit Lebenszeichen. Alte, als Host gespeicherte Dienst-Tags wie
 `kernel:` erscheinen separat unter „Nicht zugeordnete alte Meldungen“ und zählen
 nicht als Geräte. Ihre Logs bleiben über die Filter und „Logs prüfen“ zugänglich.
+
+Die Geräteidentität eingehender Logs ist ausschließlich die empfangene Quell-IP
+(UDP/TCP-Gegenstelle bzw. HTTP-Client). DNS und manuell vergebene Namen ändern
+nur die Anzeige. Namen/IPs im Logtext und CEF-Gerätefelder bleiben Ereignisinhalt;
+auch über einen Relay weitergeleitete Meldungen gehören zur Quell-IP des Relays.
+Beim Update werden historische Logs nur anhand einer bereits gespeicherten
+`source_ip` umgestellt; fehlende Quell-IPs werden nicht aus Namen rekonstruiert.

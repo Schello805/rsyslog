@@ -27,6 +27,23 @@ class DashboardTests(unittest.TestCase):
         self.override.stop()
         self.directory.cleanup()
 
+    def test_http_identity_uses_peer_ip_and_cef_still_sets_severity(self):
+        import asyncio
+        import httpx
+        import main
+        async def check():
+            transport = httpx.ASGITransport(app=main.app, client=('192.0.2.42', 1234))
+            async with httpx.AsyncClient(transport=transport, base_url='http://test') as client:
+                response = await client.post('/api/logs', json={'host':'forged-name','message':'hello'})
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(response.json()['log']['host'], '192.0.2.42')
+                self.assertEqual(response.json()['log']['metadata']['reported_host'], 'forged-name')
+                response = await client.post('/api/logs', json={'host':'forged-name','message':'CEF:0|Ubiquiti|UniFi|1|42|Failure|9|src=192.0.2.9'})
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(response.json()['log']['host'], '192.0.2.42')
+                self.assertEqual(response.json()['log']['level'], 'CRITICAL')
+        asyncio.run(check())
+
     def test_process_tags_are_separate_from_devices_without_losing_logs(self):
         tags = ['kernel:', 'monit[6266]:', 'sshd-session[31250]:', 'homematic:']
         for host in tags + ['CCU3', '192.168.1.22', '2001:db8::1']:

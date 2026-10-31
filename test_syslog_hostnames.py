@@ -56,19 +56,12 @@ class HostnameTests(unittest.TestCase):
                 received = conn.execute('SELECT received_at FROM logs WHERE id=?', (old['id'],)).fetchone()[0]
                 database.init_db()  # Performs upgrade automatically.
                 hosts = database.get_filter_options()['hosts']
-                self.assertIn('pvemini2', hosts)
-                self.assertIn('other-node', hosts)
-                self.assertNotIn('192.0.2.6', hosts)
-                self.assertIn('192.0.2.192', hosts)
-                self.assertIn('192.0.2.20', hosts)
-                rows, total = database.get_logs(host='pvemini2')
-                self.assertEqual(total, 1)
-                self.assertEqual(rows[0]['raw'], raw)
-                self.assertEqual(rows[0]['message'], 'session opened')
-                self.assertEqual(database.get_logs(exclude_hosts=['pvemini2'])[1], 3)
+                self.assertIn('192.0.2.6', hosts)
+                self.assertNotIn('pvemini2', hosts)
+                self.assertNotIn('other-node', hosts)
+                self.assertEqual(database.get_logs(host='192.0.2.6')[1], 2)
                 self.assertEqual(conn.execute('SELECT received_at FROM logs WHERE id=?', (old['id'],)).fetchone()[0], received)
                 self.assertEqual(database.get_host_aliases()['192.0.2.192'], 'UniFi Controller')
-                self.assertEqual(database.repair_legacy_syslog_hosts(), 0)
                 self.assertEqual(database.get_stats()['total'], 4)
         finally:
             if database._local.connection:
@@ -96,27 +89,31 @@ class SourceResolutionTests(unittest.TestCase):
                 database.set_setting('syslog_source_names', json.dumps({'192.0.2.22':'CCU3'}))
                 database.set_setting('syslog_legacy_host_names', json.dumps({'ReGaHss:':'CCU3'}))
                 database.init_db()
-                logs, count = database.get_logs(host='CCU3')
+                # A configured display name must not invent a missing historic IP.
+                self.assertEqual(database.get_logs(host='ReGaHss:')[1], 1)
+                with patch.object(host_resolution, 'resolve_ip', return_value='dns.example'):
+                    entry = host_resolution.identify_source(parse_syslog_message(raw,'192.0.2.22'), '192.0.2.22')
+                    self.assertEqual(entry['host'], '192.0.2.22')
+                    self.assertEqual(database.get_host_aliases()['192.0.2.22'], 'CCU3')
+                    explicit_ip = host_resolution.identify_source(parse_syslog_message('<14>Oct 31 08:41:56 192.0.2.22 app: hello','192.0.2.9'), '192.0.2.9')
+                    self.assertEqual(explicit_ip['host'], '192.0.2.9')
+                    self.assertEqual(explicit_ip['metadata']['reported_host'], '192.0.2.22')
+                    named = host_resolution.identify_source(parse_syslog_message('<14>Oct 31 08:41:56 origin app: hello','192.0.2.22'), '192.0.2.22')
+                    self.assertEqual(named['host'], '192.0.2.22')
+                    self.assertEqual(named['metadata']['reported_host'], 'origin')
+                    database.insert_log(entry['host'], entry['app'], entry['level'], entry['message'], metadata=entry['metadata'])
+                    self.assertEqual(database.get_logs(host='192.0.2.22')[1], 1)
+                # Migration uses recorded source_ip only and preserves original payload.
+                old = database.insert_log('old-header', 'app', 'INFO', 'old', raw='original')
+                with database.get_db_connection() as conn:
+                    conn.execute('UPDATE logs SET metadata=? WHERE id=?', (json.dumps({'source_ip':'192.0.2.8'}),old['id']))
+                    conn.execute("DELETE FROM settings WHERE key='migration_transport_source_v1'")
+                database.init_db()
+                logs, count = database.get_logs(host='192.0.2.8')
                 self.assertEqual(count, 1)
-                self.assertEqual(logs[0]['raw'], raw)
-                self.assertEqual(logs[0]['app'], 'ReGaHss')
-                self.assertEqual(logs[0]['metadata']['source_ip'], '192.0.2.22')
-                self.assertEqual(database.repair_configured_source_hosts(), 0)
-                entry = host_resolution.identify_source(parse_syslog_message(raw,'192.0.2.22'), '192.0.2.22')
-                self.assertEqual(entry['host'], 'CCU3')
-                explicit_ip = host_resolution.identify_source(parse_syslog_message('<14>Oct 31 08:41:56 192.0.2.22 app: hello','192.0.2.9'), '192.0.2.9')
-                self.assertEqual(explicit_ip['host'], 'CCU3')
-                self.assertEqual(explicit_ip['metadata']['source_ip'], '192.0.2.9')
-                named = host_resolution.identify_source(parse_syslog_message('<14>Oct 31 08:41:56 origin app: hello','192.0.2.22'), '192.0.2.22')
-                self.assertEqual(named['host'], 'origin')
-                # DNS can prefer the existing short-name spelling; no network in tests.
-                database.insert_log('OtherHost','app','INFO','hello')
-                with patch.object(host_resolution, 'resolve_ip', return_value='otherhost.lan'):
-                    resolved = host_resolution.identify_source(parse_syslog_message(raw,'192.0.2.2'), '192.0.2.2')
-                self.assertEqual(resolved['host'], 'OtherHost')
-                with patch.object(host_resolution, 'resolve_ip', return_value='192.0.2.3'):
-                    unresolved = host_resolution.identify_source(parse_syslog_message(raw,'192.0.2.3'), '192.0.2.3')
-                self.assertEqual(unresolved['host'], '192.0.2.3')
+                self.assertEqual(logs[0]['raw'], 'original')
+                self.assertEqual(logs[0]['metadata']['reported_host'], 'old-header')
+                self.assertEqual(database.get_logs(host='ReGaHss:')[1], 1)
         finally:
             if database._local.connection:
                 database._local.connection.close()

@@ -342,7 +342,8 @@ async def api_post_log(request: Request):
             if isinstance(body, dict) and "message" in body:
                 saved = insert_log(
                     apply_ingestion_rules=True,
-                    host=body.get("host") or client_ip,
+                    host=client_ip,
+                    metadata={"source_ip": client_ip, "reported_host": body.get("host")},
                     app=body.get("app") or "webhook",
                     level=body.get("level") or "INFO",
                     facility=body.get("facility") or "user",
@@ -355,6 +356,7 @@ async def api_post_log(request: Request):
                 saved = insert_log(
                     apply_ingestion_rules=True,
                     host=client_ip,
+                    metadata={"source_ip": client_ip},
                     app="webhook",
                     level="INFO",
                     facility="user",
