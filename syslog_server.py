@@ -42,7 +42,8 @@ async def broadcast_log(log_entry: Dict[str, Any]) -> None:
 
 def handle_incoming_log_sync(raw_data: str, client_ip: str) -> Optional[Dict[str, Any]]:
     """Synchronous parsing and database storage of a log entry."""
-    parsed = parse_syslog_message(raw_data, client_ip=client_ip)
+    from host_resolution import identify_source
+    parsed = identify_source(parse_syslog_message(raw_data, client_ip=client_ip), client_ip)
     saved = insert_log(
         host=parsed["host"],
         app=parsed["app"],

@@ -192,6 +192,13 @@ Fehlersuche deaktivieren. Anschließend speichern; die Änderung gilt sofort.
 Vorhandene Logs werden nicht entfernt. Verworfene Meldungen werden weder
 live angezeigt noch für Alarme verwendet.
 
+Bei Syslog ohne Hostnamen (z. B. CCU/BusyBox) erkennt die App den Dienst-Tag
+und verwendet den Namen zur Absender-IP. Manuelle Namenszuordnungen haben
+Vorrang; andernfalls wird DNS mit begrenzter Wartezeit und Cache verwendet.
+Ohne DNS-Eintrag bleibt die IP erhalten. Die Absender-IP wird zusätzlich in den
+Metadaten gespeichert. Alte falsch zugeordnete Einträge lassen sich nur mit einer
+eindeutigen Gerätezuordnung reparieren.
+
 IP-/Namens-Doppeleinträge durch ungewöhnliche Syslog-Tags (z. B. `(systemd)`
 oder abgeschnittene Prozess-IDs) werden beim Start einmalig anhand des ursprünglichen
 Syslog-Headers repariert. Originalmeldungen bleiben erhalten. Meldungen ohne

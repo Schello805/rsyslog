@@ -78,6 +78,7 @@ def init_db() -> None:
         )
 
     repair_legacy_syslog_hosts()
+    repair_configured_source_hosts()
 
 
 def repair_legacy_syslog_hosts():
@@ -120,6 +121,52 @@ def repair_legacy_syslog_hosts():
                 repaired += 1
     with conn:
         conn.execute('INSERT INTO settings(key,value) VALUES(?,?)', (marker, str(repaired)))
+    return repaired
+
+
+def repair_configured_source_hosts():
+    """Repair hostname-less historic records only with an explicit operator mapping."""
+    import hashlib
+    from syslog_parser import parse_syslog_message
+    try:
+        mapping = json.loads(get_setting('syslog_legacy_host_names', '{}'))
+        sources = json.loads(get_setting('syslog_source_names', '{}'))
+    except (ValueError, TypeError):
+        return 0
+    if not isinstance(mapping, dict) or not mapping:
+        return 0
+    marker = 'migration_source_names_' + hashlib.sha256(json.dumps(mapping, sort_keys=True).encode()).hexdigest()[:16]
+    if get_setting(marker):
+        return 0
+    conn = get_db_connection()
+    repaired = 0
+    for old, name in mapping.items():
+        if not isinstance(name, str) or not name.strip():
+            continue
+        last_id = 0
+        while True:
+            rows = conn.execute('SELECT id,raw,metadata FROM logs WHERE host=? AND id>? ORDER BY id LIMIT 500', (old,last_id)).fetchall()
+            if not rows:
+                break
+            with conn:
+                for row in rows:
+                    last_id = row['id']
+                    parsed = parse_syslog_message(row['raw'], name)
+                    if parsed['host'] != name:
+                        continue
+                    try:
+                        metadata = json.loads(row['metadata'] or '{}')
+                    except (ValueError, TypeError):
+                        metadata = {}
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+                    ips = [ip for ip, host in sources.items() if host == name] if isinstance(sources, dict) else []
+                    if len(ips) == 1:
+                        metadata['source_ip'] = ips[0]
+                    conn.execute('UPDATE logs SET host=?,app=?,message=?,metadata=? WHERE id=?',
+                                 (name, parsed['app'], parsed['message'], json.dumps(metadata), row['id']))
+                    repaired += 1
+    set_setting(marker, repaired or 'done')
     return repaired
 
 

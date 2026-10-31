@@ -75,6 +75,72 @@ class HostnameTests(unittest.TestCase):
                 database._local.connection.close()
             database._local.connection = previous
 
+class SourceResolutionTests(unittest.TestCase):
+    def test_hostname_less_ccu_tags_are_not_hostnames(self):
+        for tag in ['ReGaHss', 'rfd', 'multimac', 'kernel', 'monit[6266]', 'sshd-session[31250]']:
+            entry = parse_syslog_message(f'<134>Oct 31 08:41:56 {tag}: Info: hello', '192.0.2.22')
+            self.assertEqual(entry['host'], '192.0.2.22')
+            self.assertEqual(entry['app'], tag.split('[')[0])
+            self.assertEqual(entry['message'], 'Info: hello')
+
+    def test_configured_source_and_historical_repair_preserve_original(self):
+        import json
+        import host_resolution
+        previous = getattr(database._local, 'connection', None)
+        database._local.connection = None
+        try:
+            with tempfile.TemporaryDirectory() as directory, patch.object(config, 'DATABASE_PATH', os.path.join(directory, 'db.sqlite')):
+                database.init_db()
+                raw = '<134>Oct 31 08:41:56 ReGaHss: Info: hello'
+                database.insert_log('ReGaHss:', 'Info', 'INFO', 'hello', raw=raw)
+                database.set_setting('syslog_source_names', json.dumps({'192.0.2.22':'CCU3'}))
+                database.set_setting('syslog_legacy_host_names', json.dumps({'ReGaHss:':'CCU3'}))
+                database.init_db()
+                logs, count = database.get_logs(host='CCU3')
+                self.assertEqual(count, 1)
+                self.assertEqual(logs[0]['raw'], raw)
+                self.assertEqual(logs[0]['app'], 'ReGaHss')
+                self.assertEqual(logs[0]['metadata']['source_ip'], '192.0.2.22')
+                self.assertEqual(database.repair_configured_source_hosts(), 0)
+                entry = host_resolution.identify_source(parse_syslog_message(raw,'192.0.2.22'), '192.0.2.22')
+                self.assertEqual(entry['host'], 'CCU3')
+                explicit_ip = host_resolution.identify_source(parse_syslog_message('<14>Oct 31 08:41:56 192.0.2.22 app: hello','192.0.2.9'), '192.0.2.9')
+                self.assertEqual(explicit_ip['host'], 'CCU3')
+                self.assertEqual(explicit_ip['metadata']['source_ip'], '192.0.2.9')
+                named = host_resolution.identify_source(parse_syslog_message('<14>Oct 31 08:41:56 origin app: hello','192.0.2.22'), '192.0.2.22')
+                self.assertEqual(named['host'], 'origin')
+                # DNS can prefer the existing short-name spelling; no network in tests.
+                database.insert_log('OtherHost','app','INFO','hello')
+                with patch.object(host_resolution, 'resolve_ip', return_value='otherhost.lan'):
+                    resolved = host_resolution.identify_source(parse_syslog_message(raw,'192.0.2.2'), '192.0.2.2')
+                self.assertEqual(resolved['host'], 'OtherHost')
+                with patch.object(host_resolution, 'resolve_ip', return_value='192.0.2.3'):
+                    unresolved = host_resolution.identify_source(parse_syslog_message(raw,'192.0.2.3'), '192.0.2.3')
+                self.assertEqual(unresolved['host'], '192.0.2.3')
+        finally:
+            if database._local.connection:
+                database._local.connection.close()
+            database._local.connection = previous
+
+
+    def test_dns_cache_and_completion_after_timeout_are_bounded(self):
+        import host_resolution as resolution
+        from concurrent.futures import Future
+        with resolution._lock:
+            resolution._cache.clear(); resolution._pending.clear()
+        future = Future()
+        with patch.object(resolution._pool, 'submit', return_value=future) as submit:
+            self.assertEqual(resolution.resolve_ip('192.0.2.55'), '192.0.2.55')
+            future.set_result(('host.example', [], ['192.0.2.55']))
+            self.assertEqual(resolution.resolve_ip('192.0.2.55'), 'host.example')
+            self.assertEqual(submit.call_count, 1)
+            self.assertNotIn('192.0.2.55', resolution._pending)
+        failed = Future(); failed.set_exception(OSError('no PTR record'))
+        with patch.object(resolution._pool, 'submit', return_value=failed):
+            self.assertEqual(resolution.resolve_ip('192.0.2.56'), '192.0.2.56')
+        with resolution._lock:
+            resolution._cache.clear(); resolution._pending.clear()
+
 
 if __name__ == '__main__':
     unittest.main()

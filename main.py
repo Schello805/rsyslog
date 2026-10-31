@@ -359,7 +359,8 @@ async def api_post_log(request: Request):
     else:
         # Plain text payload
         raw_body = (await request.body()).decode("utf-8", errors="replace")
-        parsed = parse_syslog_message(raw_body, client_ip=client_ip)
+        from host_resolution import identify_source
+        parsed = await asyncio.to_thread(identify_source, parse_syslog_message(raw_body, client_ip=client_ip), client_ip)
         saved = insert_log(
             apply_ingestion_rules=True,
             host=parsed["host"],

@@ -127,6 +127,17 @@ def _parse_syslog_message(raw_data: str, client_ip: str = "unknown") -> Dict[str
             "raw": data,
         }
 
+    # BusyBox/CCU may omit HOSTNAME: the first token is already TAG[PID]:.
+    header = RFC3164_HEADER_REGEX.match(data)
+    if header:
+        tag = re.fullmatch(r'(?P<app>[a-zA-Z0-9_.\/-]+)(?:\[\d+\])?:', header.group('hostname'))
+        if tag:
+            pri = int(header.group('pri'))
+            return {'timestamp': current_time_iso, 'host': client_ip, 'app': tag.group('app'),
+                    'level': SEVERITY_NAMES.get(pri % 8, 'INFO'),
+                    'facility': FACILITY_NAMES.get(pri // 8, 'user'),
+                    'message': header.group('body') or '(empty message)', 'raw': data}
+
     # 2. Try RFC 3164
     m3164 = RFC3164_REGEX.match(data)
     if m3164:
