@@ -522,6 +522,7 @@
     </footer>
 
     <script src="/assets/saved-views.js"></script>
+    <script src="/assets/dashboard-cache.js"></script>
     <!-- Frontend Application Logic -->
     <script>
         // State variables
@@ -908,13 +909,10 @@
             return ['logs', 'devices', 'incidents'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
         }
         let dashboardRequestActive = false;
-        async function fetchStats() {
-            if (dashboardRequestActive || document.hidden || !['overview', 'devices'].includes(activeWorkflow())) return;
-            dashboardRequestActive = true;
-            try {
-                const response = await fetch('/api/dashboard');
-                if (!response.ok) throw new Error('Dashboard konnte nicht geladen werden');
-                const data = await response.json();
+        let lastDashboardData = null;
+        function dashboardStorage() { try { return window.localStorage; } catch (_) { return null; } }
+        function dashboardTime(data) { return new Date(data.measured_at * 1000).toLocaleString('de-DE'); }
+        function renderDashboard(data, saved = false) {
                 document.getElementById('overview-known').textContent = data.known_hosts;
                 document.getElementById('overview-open-incidents').textContent = data.open_incidents;
                 document.getElementById('overview-recent').textContent = `${data.recent_hosts} mit Meldungen in den letzten 15 Minuten`;
@@ -936,10 +934,45 @@
                 data.hosts.slice(0, 6).forEach(host => overviewDevices.append(deviceCard(host)));
                 }
                 if (activeWorkflow() === 'devices') { renderDeviceTable(data.hosts); renderUnassignedHosts(data.unassigned_hosts || []); }
-                document.getElementById('dashboard-updated').textContent = `Aktualisiert ${new Date().toLocaleTimeString('de-DE')} · alle 10 Sekunden`;
+            document.getElementById('dashboard-updated').textContent = saved
+                ? `Gespeicherter Stand vom ${dashboardTime(data)} · wird im Hintergrund aktualisiert …`
+                : `Stand ${dashboardTime(data)} · automatische Aktualisierung alle 10 Sekunden`;
+        }
+        function restoreDashboard() {
+            if (!['overview','devices'].includes(activeWorkflow())) return;
+            if (!lastDashboardData) lastDashboardData = DashboardCache.load(dashboardStorage());
+            if (lastDashboardData) {
+                try { renderDashboard(lastDashboardData, true); }
+                catch (_) { lastDashboardData = null; DashboardCache.clear(dashboardStorage()); }
+            }
+        }
+        function clearDashboardSnapshot() {
+            lastDashboardData = null; DashboardCache.clear(dashboardStorage());
+            for (const id of ['overview-known','overview-open-incidents','overview-volume','overview-errors','overview-critical','overview-warnings']) document.getElementById(id).textContent = '…';
+            document.getElementById('overview-recent').textContent = 'Aktivität wird geladen';
+            document.getElementById('overview-rate').textContent = 'Logs pro Minute werden geladen …';
+            document.getElementById('overview-monitoring').textContent = 'Überwachung wird geladen …';
+            for (const id of ['overview-attention','overview-latest','overview-devices']) document.getElementById(id).replaceChildren();
+            document.getElementById('dashboard-updated').textContent = 'Logs gelöscht · Überblick wird neu geladen …';
+        }
+        async function fetchStats() {
+            if (dashboardRequestActive || document.hidden || !['overview', 'devices'].includes(activeWorkflow())) return;
+            dashboardRequestActive = true;
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 20000);
+            try {
+                const response = await fetch('/api/dashboard', {cache:'no-store', signal:controller.signal});
+                if (!response.ok) throw new Error('Dashboard konnte nicht geladen werden');
+                const data = await response.json();
+                if (!DashboardCache.valid(data)) throw new Error('Unvollständige Dashboard-Daten');
+                renderDashboard(data);
+                lastDashboardData = data;
+                DashboardCache.save(dashboardStorage(), data);
             } catch (error) {
-                document.getElementById('dashboard-updated').textContent = 'Aktualisierung fehlgeschlagen. Angezeigte Daten können veraltet sein.';
-            } finally { dashboardRequestActive = false; }
+                document.getElementById('dashboard-updated').textContent = lastDashboardData
+                    ? `Gespeicherter Stand vom ${dashboardTime(lastDashboardData)} · Aktualisierung fehlgeschlagen. Daten können veraltet sein; neuer Versuch automatisch.`
+                    : 'Überblick konnte nicht geladen werden. Neuer Versuch automatisch; noch kein gespeicherter Stand vorhanden.';
+            } finally { clearTimeout(timer); dashboardRequestActive = false; }
         }
 
         function toggleLegacyHostOptions() {
@@ -1220,7 +1253,9 @@
             if (confirm('Möchtest du wirklich ALLE Logs einschließlich Vorfällen und gespeicherten KI-Analysen unwiderruflich löschen?')) {
                 try {
                     const res = await fetch('/api/logs/clear', { method: 'POST' });
+                    if (!res.ok) throw new Error('Löschen fehlgeschlagen');
                     const data = await res.json();
+                    clearDashboardSnapshot();
                     showToast(`${data.deleted} Logs erfolgreich gelöscht.`, 'success');
                     fetchLogs(1);
                     fetchStats();
@@ -1291,6 +1326,7 @@
             });
             document.getElementById('workflow-title').textContent = copy[key][0];
             document.getElementById('workflow-description').textContent = copy[key][1];
+            restoreDashboard();
             fetchStats();
             if (key === 'logs') { fetchFilters(); fetchLogs(currentPage); }
         }

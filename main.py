@@ -9,6 +9,7 @@ import io
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Literal
@@ -296,6 +297,7 @@ async def api_dashboard():
         summary = get_dashboard_summary()
         summary['ingestion'] = get_ingestion_metrics()
         summary['storage_policy'] = status()
+        summary['measured_at'] = time.time()
         return summary
     summary = await asyncio.to_thread(snapshot, 'dashboard', 10, collect)
     summary['udp_dropped'] = server_manager.dropped

@@ -444,3 +444,10 @@ Im Hostfilter sind sie standardmäßig ausgeblendet und lassen sich über „Alt
 interne Absender anzeigen“ einblenden. Die Logs bleiben unverändert zugänglich.
 Historische Einträge mit belegter `source_ip` werden beim Update erneut dieser IP
 zugeordnet; DNS-Namensgleichheit allein führt weiterhin zu keiner Zusammenführung.
+
+Der Überblick und die Geräteliste zeigen beim erneuten Öffnen sofort den zuletzt
+empfangenen Stand aus diesem Browser und aktualisieren ihn im Hintergrund.
+Ein Zeitstempel kennzeichnet gespeicherte/veraltete Daten. Der Cache enthält eine
+Dashboard-Antwort (inklusive der dort sichtbaren Ereignisse), höchstens 512 KB,
+maximal 24 Stunden. Browser ohne verfügbaren Speicher nutzen weiterhin den
+Live-Abruf. Beim Leeren der Logs wird auch dieser lokale Cache geleert.
