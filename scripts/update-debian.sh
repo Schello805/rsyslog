@@ -17,7 +17,9 @@ fi
 rsyslogd -N1
 systemctl enable --now rsyslog
 ref=${RSYSLOG_REF:-main}
-work=$(mktemp -d)
+# Keep large staging copies off /tmp, which may be a RAM-backed filesystem.
+work=$(mktemp -d "${app%/*}/.rsyslog-web-update.XXXXXX")
+echo "Update-Vorbereitung: $work"
 backup=''
 changed=0
 was_active=0
@@ -71,23 +73,30 @@ if cmp -s "$app/requirements.txt" "$work/source/requirements.txt" && "$app/.venv
     echo 'Abhängigkeiten unverändert: vorhandene Python-Umgebung wiederverwenden.'
     reuse_environment=1
     # Copy before stopping; the original stays in the rollback backup.
+    echo 'Kopiere Python-Umgebung in das Vorbereitungsverzeichnis …'
     cp -a "$app/.venv" "$work/source/.venv"
+    echo 'Python-Umgebung vorbereitet.'
 else
     echo 'Abhängigkeiten geändert: Pakete vorbereiten …'
     python3 -m venv "$work/check-venv"
     "$work/check-venv/bin/python" -m pip download -r "$work/source/requirements.txt" -d "$work/packages"
 fi
+echo 'Prüfe Python-Dateien …'
 "$app/.venv/bin/python" -m compileall -q -x '/(\.venv|\.git)/' "$work/source"
+echo 'Erstelle Sicherungsverzeichnis …'
 backup=$(mktemp -d /var/backups/rsyslog-web-$(date +%Y%m%d-%H%M%S).XXXXXX)
 chmod 0700 "$backup"
 cp -a /etc/rsyslog-web.env "$backup/config.env"
 systemctl is-active --quiet rsyslog-web && was_active=1
+echo 'Stoppe Webapp für eine konsistente Datenbanksicherung …'
 systemctl stop rsyslog-web
+echo 'Sichere Datenbank …'
 # The stopped database, including WAL files, is copied consistently.
 if ! cp -a /var/lib/rsyslog-web "$backup/data"; then
     ((was_active == 0)) || systemctl start rsyslog-web
     exit 1
 fi
+echo 'Wechsle auf die vorbereitete Revision …'
 changed=1
 mv "$app" "$backup/app"
 mv "$work/source" "$app"
@@ -96,6 +105,7 @@ if ((reuse_environment == 0)); then
     "$app/.venv/bin/python" -m pip install --no-index --find-links "$work/packages" -r "$app/requirements.txt"
 fi
 if [[ -f $app/scripts/setup-web-updates.sh ]]; then bash "$app/scripts/setup-web-updates.sh"; fi
+echo 'Starte Webapp und prüfe die neue Revision …'
 systemctl start rsyslog-web
 "$app/.venv/bin/python" - <<'PY'
 import json

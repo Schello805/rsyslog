@@ -26,6 +26,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/python3 /usr/local/lib/rsyslog-web/web-update-runner.py
+ExecStopPost=/usr/bin/python3 /usr/local/lib/rsyslog-web/web-update-runner.py --finalize
 TimeoutStartSec=infinity
 UNIT
 install -d -m 0755 /etc/systemd/system/rsyslog-web.service.d

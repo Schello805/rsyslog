@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 
 CONTROL = Path('/var/lib/rsyslog-web-update')
@@ -47,5 +48,16 @@ def main():
         return 1
 
 
+def finalize():
+    """systemd calls this even when the main helper was killed unexpectedly."""
+    try:
+        job = json.loads((CONTROL / 'status.json').read_text())
+    except (OSError, ValueError):
+        return 0
+    if job.get('state') == 'running':
+        status('failed', 'Update-Dienst wurde unerwartet beendet. Details in /var/lib/rsyslog-web-update/update.log und im systemd-Journal prüfen.')
+    return 0
+
+
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise SystemExit(finalize() if sys.argv[1:] == ['--finalize'] else main())

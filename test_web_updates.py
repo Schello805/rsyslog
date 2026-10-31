@@ -155,6 +155,18 @@ class UpdateTests(unittest.TestCase):
             self.assertEqual((root/'var/lib/rsyslog-web-update/request').stat().st_mode & 0o777,0o770)
             self.assertIn('ReadWritePaths=',(unit_dir/'rsyslog-web.service.d/updates.conf').read_text())
             self.assertIn('Type=oneshot',(unit_dir/'rsyslog-web-update.service').read_text())
+            self.assertIn('ExecStopPost=',(unit_dir/'rsyslog-web-update.service').read_text())
+
+    def test_finalizer_clears_abandoned_running_state_and_preserves_result(self):
+        spec = importlib.util.spec_from_file_location('runner','scripts/web-update-runner.py')
+        runner = importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
+        with patch.object(runner, 'CONTROL', self.root):
+            runner.status('running', 'preparing')
+            self.assertEqual(runner.finalize(), 0)
+            self.assertEqual(json.loads((self.root/'status.json').read_text())['state'], 'failed')
+            runner.status('succeeded', 'done')
+            runner.finalize()
+            self.assertEqual(json.loads((self.root/'status.json').read_text())['state'], 'succeeded')
 
     def test_runner_uses_fixed_command_and_persists_result(self):
         spec = importlib.util.spec_from_file_location('runner','scripts/web-update-runner.py')
