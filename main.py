@@ -8,6 +8,7 @@ import csv
 import io
 import json
 import logging
+import re
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Literal
@@ -174,6 +175,15 @@ class WebhookLogPayload(BaseModel):
     timestamp: Optional[str] = Field(None, description="ISO timestamp override")
 
 
+def render_template(template_path):
+    """New revisions get fresh local assets even when the browser cached old scripts."""
+    revision = get_version_info()['revision']
+    content = re.sub(r'((?:src|href)="/assets/[^"?]+)(?:\?[^" ]*)?"',
+                     lambda match: f'{match.group(1)}?v={revision}"',
+                     template_path.read_text(encoding='utf-8'))
+    return HTMLResponse(content=content, headers={'Cache-Control': 'no-store'})
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
     """Serves the single-page dashboard HTML."""
@@ -182,7 +192,7 @@ async def serve_dashboard():
     template_path = Path(__file__).parent / "templates" / "index.html"
     if not template_path.exists():
         raise HTTPException(status_code=404, detail="Dashboard template not found")
-    return HTMLResponse(content=template_path.read_text(encoding="utf-8"))
+    return render_template(template_path)
 
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -193,7 +203,7 @@ async def serve_settings():
     template_path = Path(__file__).parent / "templates" / "settings.html"
     if not template_path.exists():
         raise HTTPException(status_code=404, detail="Settings template not found")
-    return HTMLResponse(content=template_path.read_text(encoding="utf-8"))
+    return render_template(template_path)
 
 
 @app.get("/guide", response_class=HTMLResponse)
@@ -206,7 +216,7 @@ async def serve_guide():
     template_path = Path(__file__).parent / "templates" / "guide.html"
     if not template_path.exists():
         raise HTTPException(status_code=404, detail="Guide template not found")
-    return HTMLResponse(content=template_path.read_text(encoding="utf-8"))
+    return render_template(template_path)
 
 
 @app.get("/api/network-info")

@@ -81,6 +81,18 @@ class UpdateTests(unittest.TestCase):
             self.assertEqual(missing.exception.status_code, 503)
         asyncio.run(check())
 
+    def test_templates_get_revisioned_assets_and_no_store(self):
+        import main
+        path = self.root / 'template.html'
+        path.write_text('<script src="/assets/update-footer.js"></script><link href="/assets/theme.css?v=old"><img src="/assets/branding/logo.png">')
+        with patch.object(main, 'get_version_info', return_value=self.current):
+            response = main.render_template(path)
+        self.assertEqual(response.headers['cache-control'], 'no-store')
+        text = response.body.decode()
+        self.assertIn('/assets/update-footer.js?v=aaaaaaa', text)
+        self.assertIn('/assets/theme.css?v=aaaaaaa', text)
+        self.assertNotIn('v=old', text)
+
     def test_api_denies_cross_origin_and_never_returns_key(self):
         import main
         async def check():

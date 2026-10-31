@@ -93,8 +93,8 @@ Fehlerdiagnose: `journalctl -u rsyslog-web-update` und als root
 bei einem fehlgeschlagenen App-Wechsel versucht das Update-Skript die Wiederherstellung.
 
 Den **Update-Schlüssel** kannst du im Update-Dialog mit „Schlüssel in diesem
-Browser merken“ speichern. Nach einem erfolgreich gestarteten Update wird er bei
-späteren Updates vorausgefüllt – auch nach einem Browserneustart. Nur für diesen
+Browser merken“ speichern. Über „Schlüssel speichern“ oder beim Start eines Updates wird er gespeichert
+und bei späteren Updates vorausgefüllt – auch nach einem Browserneustart. Nur für diesen
 Browser und diese Serveradresse. Über „Gespeicherten Schlüssel entfernen“ lässt
 er sich löschen. Auf gemeinsam genutzten Geräten die Speicheroption abwählen.
 

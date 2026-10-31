@@ -24,6 +24,7 @@ async function load(storage, result = {status:200, body:{state:'queued'}}) {
         async fetch(url, options) {
             if (url === '/api/updates/start') {
                 sentKey = options.headers['X-Update-Key'];
+                if (result.beforeStart) result.beforeStart();
                 if (result.error) throw new Error('offline');
                 return {status:result.status,ok:result.status===200,json:async()=>result.body};
             }
@@ -68,7 +69,7 @@ function memory() {
     app=await load(storage,{status:500,body:{detail:'Serverfehler'}});
     app.get('#web-update-key').value='unverified';
     await app.get('form').fire('submit');
-    assert.equal(storage.getItem(name),undefined);
+    assert.equal(storage.getItem(name),'unverified');
     assert.equal(app.get('#web-update-key').value,'unverified');
     storage.setItem(name,'saved');
     app=await load(storage,{error:true});
@@ -78,9 +79,24 @@ function memory() {
     app.get('#remember-update-key').checked=false;
     await app.get('#remember-update-key').fire('change');
     assert.equal(storage.getItem(name),undefined);
+    app=await load(storage);
+    app.get('#web-update-key').value='saved-without-update';
+    await app.get('#save-update-key').fire('click');
+    assert.equal(storage.getItem(name),'saved-without-update');
+    assert.match(app.get('#update-key-status').textContent,/gespeichert/);
+    app=await load(storage,{error:true,beforeStart(){assert.equal(storage.getItem(name),'restart-key');}});
+    app.get('#web-update-key').value='restart-key';
+    await app.get('form').fire('submit');
+    app=await load(storage);
+    assert.equal(app.get('#web-update-key').value,'restart-key');
     const blocked={getItem(){throw Error();},setItem(){throw Error();},removeItem(){throw Error();}};
     app=await load(blocked);
     app.get('#web-update-key').value='one-time';
+    await app.get('form').fire('submit');
+    assert.equal(app.key(),undefined);
+    assert.equal(app.dialog.open,true);
+    assert.match(app.get('#update-key-status').textContent,/blockiert/);
+    app.get('#remember-update-key').checked=false;
     await app.get('form').fire('submit');
     assert.equal(app.key(),'one-time');
     assert.equal(app.dialog.open,false);

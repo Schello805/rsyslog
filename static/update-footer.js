@@ -9,9 +9,22 @@
     function forgetKey() {
         try { localStorage.removeItem(savedKeyName); } catch { /* Storage may be blocked. */ }
     }
+    function saveKey(key) {
+        localStorage.setItem(savedKeyName, key);
+        if (localStorage.getItem(savedKeyName) !== key) throw new Error('Storage unavailable');
+    }
     let updateInfo = null;
     let polling = false;
-    let waiting = sessionStorage.getItem('rsyslog-update-pending') === '1';
+    function pendingUpdate() {
+        try { return sessionStorage.getItem('rsyslog-update-pending') === '1'; } catch { return false; }
+    }
+    function storePending(active) {
+        try {
+            if (active) sessionStorage.setItem('rsyslog-update-pending', '1');
+            else sessionStorage.removeItem('rsyslog-update-pending');
+        } catch { /* Polling still works for this page when session storage is blocked. */ }
+    }
+    let waiting = pendingUpdate();
     const dialog = document.createElement('dialog');
     dialog.style.cssText = 'width:min(92vw,440px);border:1px solid #cbd5e1;border-radius:16px;padding:24px;background:#ffffff;color:#0f172a';
     dialog.innerHTML = `<form method="dialog"><h2 style="font-size:18px;font-weight:600">App aktualisieren</h2>
@@ -22,6 +35,8 @@
         <input id="web-update-key" type="password" autocomplete="off" required style="width:100%;box-sizing:border-box;margin:8px 0;padding:10px;background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;border-radius:8px">
         <label style="display:flex;gap:8px;align-items:center;font-size:13px"><input id="remember-update-key" type="checkbox" checked> Schlüssel in diesem Browser merken</label>
         <p style="font-size:12px;color:#64748b;margin:8px 0">Nur auf vertrauenswürdigen Geräten speichern. Wer dieses Browserprofil nutzt, kann damit Updates starten.</p>
+        <p id="update-key-status" role="status" style="font-size:13px;color:#475569;margin:8px 0"></p>
+        <button type="button" id="save-update-key" style="font-size:13px;color:#0369a1;margin-right:12px">Schlüssel speichern</button>
         <button type="button" id="forget-update-key" style="font-size:13px;color:#0369a1" hidden>Gespeicherten Schlüssel entfernen</button>
         </div>
         <div id="update-setup" hidden style="font-size:13px;color:#475569">
@@ -40,11 +55,28 @@ systemctl restart rsyslog-web</pre>
     const error = dialog.querySelector('#update-dialog-error');
     const remember = dialog.querySelector('#remember-update-key');
     const forget = dialog.querySelector('#forget-update-key');
+    const keyStatus = dialog.querySelector('#update-key-status');
+    function persistKey() {
+        const key = field.value.trim();
+        if (!key) { keyStatus.textContent = 'Bitte zuerst den Update-Schlüssel eingeben.'; return false; }
+        try {
+            saveKey(key); forget.hidden = false;
+            keyStatus.textContent = 'Schlüssel in diesem Browser gespeichert. Gültigkeit wird beim Update geprüft.';
+            return true;
+        } catch {
+            keyStatus.textContent = 'Speichern nicht möglich: Der Browser blockiert den lokalen Speicher. Der Schlüssel gilt nur für dieses Update.';
+            return false;
+        }
+    }
+    dialog.querySelector('#save-update-key').addEventListener('click', () => {
+        remember.checked = true; persistKey();
+    });
     forget.addEventListener('click', () => {
         forgetKey(); field.value = ''; remember.checked = false; forget.hidden = true;
+        keyStatus.textContent = 'Gespeicherter Schlüssel entfernt.';
     });
     remember.addEventListener('change', () => {
-        if (!remember.checked) { forgetKey(); forget.hidden = true; }
+        if (!remember.checked) { forgetKey(); forget.hidden = true; keyStatus.textContent = 'Schlüssel wird nicht gespeichert.'; }
     });
     dialog.querySelector('#update-cancel').addEventListener('click', () => dialog.close());
     dialog.addEventListener('close', () => { field.value = ''; error.textContent = ''; });
@@ -52,7 +84,7 @@ systemctl restart rsyslog-web</pre>
     function showJob(job) {
         if (job.state === 'queued' || job.state === 'running') {
             waiting = true;
-            sessionStorage.setItem('rsyslog-update-pending', '1');
+            storePending(true);
             status.textContent = job.state === 'queued' ? 'Update wird gestartet …' : 'Update läuft …';
             button.hidden = true;
             poll();
@@ -60,14 +92,14 @@ systemctl restart rsyslog-web</pre>
         }
         if (job.state === 'failed') {
             waiting = false;
-            sessionStorage.removeItem('rsyslog-update-pending');
+            storePending(false);
             status.textContent = 'Update fehlgeschlagen · Serverstatus prüfen';
             status.title = job.message || '';
             return false;
         }
         if (job.state === 'succeeded' && waiting) {
             waiting = false;
-            sessionStorage.removeItem('rsyslog-update-pending');
+            storePending(false);
             status.textContent = 'Update erfolgreich · Seite wird neu geladen';
             button.hidden = true;
             setTimeout(() => location.reload(), 1500);
@@ -125,6 +157,7 @@ systemctl restart rsyslog-web</pre>
         field.value = savedKey;
         remember.checked = true;
         forget.hidden = !savedKey;
+        keyStatus.textContent = savedKey ? 'Gespeicherter Schlüssel wurde geladen.' : 'Noch kein Schlüssel in diesem Browser gespeichert.';
         dialog.showModal();
     });
     dialog.querySelector('form').addEventListener('submit', async event => {
@@ -134,17 +167,19 @@ systemctl restart rsyslog-web</pre>
         confirm.disabled = true;
         try {
             const key = field.value.trim();
-            const shouldRemember = remember.checked;
+            // Persist before starting: the server can restart before its response arrives.
+            if (remember.checked && !persistKey()) {
+                error.textContent = 'Schlüssel konnte nicht gespeichert werden. Zum einmaligen Update „Schlüssel in diesem Browser merken“ abwählen.';
+                return;
+            }
+            if (!remember.checked) forgetKey();
             const response = await fetch('/api/updates/start', {method:'POST', headers:{'X-Update-Key':key}, signal:AbortSignal.timeout(30000)});
             if (response.status === 403) {
                 forgetKey(); field.value = ''; forget.hidden = true;
+                keyStatus.textContent = 'Schlüssel abgelehnt und aus diesem Browser entfernt.';
             }
             const result = await response.json();
             if (!response.ok) throw new Error(result.detail || 'Update konnte nicht gestartet werden');
-            if (shouldRemember) {
-                try { localStorage.setItem(savedKeyName, key); }
-                catch { status.title = 'Der Browser erlaubt das Speichern des Update-Schlüssels nicht.'; }
-            } else forgetKey();
             dialog.close();
             showJob(result);
         } catch (failure) { error.textContent = failure.message; }
