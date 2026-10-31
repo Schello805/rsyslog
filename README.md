@@ -390,3 +390,36 @@ nur die Anzeige. Namen/IPs im Logtext und CEF-Gerätefelder bleiben Ereignisinha
 auch über einen Relay weitergeleitete Meldungen gehören zur Quell-IP des Relays.
 Beim Update werden historische Logs nur anhand einer bereits gespeicherten
 `source_ip` umgestellt; fehlende Quell-IPs werden nicht aus Namen rekonstruiert.
+
+Die Geräteliste zeigt Anzeigename/DNS, Quell-IP und letzte Aktivität getrennt.
+In den Logdetails stehen die gespeicherte Quell-IP und der gemeldete Hostname.
+Auf der Log-Seite gibt es Zeiträume von einer Stunde bis sieben Tagen und bis zu
+20 gespeicherte Ansichten pro Browser inklusive Ausschlüssen und Sortierung.
+
+Benachrichtigungen bündeln identische Meldungen je Gerät/Dienst. Je Gerät und
+Kanal werden höchstens fünf Meldungen pro Minute gesendet; ein höherer
+Schweregrad durchbricht die Sperre. Erfolgreiche und fehlgeschlagene Kanäle werden
+getrennt behandelt. Diese allgemeine Begrenzung gilt seit App-Start; Zusatzregeln
+behalten zusätzlich ihre gespeicherte Wiederholungssperre. Alle angenommenen Logs
+und Vorfälle bleiben unabhängig von unterdrückten Benachrichtigungen gespeichert.
+
+UDP, TCP und HTTP nutzen im laufenden Dienst einen gemeinsamen Schreibpuffer
+(maximal 100 Einträge, 25 ms Sammelzeit, Warteschlange 1000). Empfangsbestätigung,
+Live-Anzeige und Alarmprüfung erfolgen erst nach dem Commit. Beim regulären
+Beenden wird der Puffer geleert; bei abruptem Prozessabbruch können noch nicht
+bestätigte Einträge im RAM verloren gehen. Bei Batchfehlern wird zurückgerollt
+und jeder Eintrag einzeln versucht.
+
+Für KI-Analysen lassen sich 25, 50 oder 100 Warnungen auswählen. „Meldungen für KI
+kopieren“ öffnet die Vorschau; „Meldungen kopieren“ kopiert sie mit Analyseauftrag
+für eine manuelle Nutzung, auch ohne API-Schlüssel. Erkannte Zugangsdaten werden
+wie in der Vorschau maskiert. Die API-Analyse nutzt niedrigen Denkaufwand bei den
+unterstützten Modellfamilien und einen Zeitrahmen von höchstens 60 Sekunden.
+„Verbindung prüfen“ unter Einstellungen → KI prüft den gespeicherten Schlüssel
+und Modellzugriff ohne Logdaten oder Textgenerierung. Eine erfolgreiche Prüfung
+belegt keine ausreichende Generierungsquote. Anbieterfehler nennen HTTP-Status,
+Modell und sichere Fehlerkategorie; Zugangsdaten werden nicht ausgegeben.
+
+Die Modellparameter orientieren sich an den offiziellen Dokumentationen:
+[OpenAI Reasoning](https://developers.openai.com/api/docs/guides/reasoning) und
+[Gemini Thinking](https://ai.google.dev/gemini-api/docs/generate-content/thinking).

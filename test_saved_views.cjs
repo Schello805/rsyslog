@@ -1,0 +1,12 @@
+const vm = require('node:vm'), fs = require('node:fs'), assert = require('node:assert/strict');
+const context = {window: {}};
+vm.runInNewContext(fs.readFileSync('static/saved-views.js', 'utf8'), context);
+const {read, write, validate} = context.window.LogViews;
+const view = {name:'Warnungen Linux',filters:{search:'disk',level:'WARN',host:'192.0.2.1',app:'kernel',period:'1',limit:'50'},excluded:['192.0.2.2'],sortBy:'timestamp',sortOrder:'desc'};
+let data = null; const storage = {getItem: () => data,setItem: (_,value) => {data=value;}};
+write(storage,[view]); assert.equal(JSON.stringify(read(storage)), JSON.stringify([view]));
+assert.equal(validate([{...view,sortBy:'bad'}]).length,0);
+assert.equal(validate([{...view,excluded:[{}]}]).length,0);
+assert.equal(validate(Array(30).fill(view)).length,20);
+assert.throws(()=> write({setItem(){throw Error('blocked')}},[view]));
+console.log('Gespeicherte Ansichten: Filter, Ausschlüsse, Sortierung, Validierung und Speicherfehler OK');

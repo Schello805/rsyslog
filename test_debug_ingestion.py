@@ -43,7 +43,7 @@ class DebugIngestionTests(unittest.TestCase):
 
     def test_dropped_syslog_does_not_alert_broadcast_or_observe(self):
         async def check():
-            with patch.object(syslog_server, 'handle_incoming_log_sync', return_value=None), patch.object(syslog_server.alerter, 'process_alert', new=AsyncMock()) as alert, patch.object(syslog_server, 'broadcast_log', new=AsyncMock()) as broadcast, patch('monitoring.observe_log', new=AsyncMock()) as observe:
+            with patch('log_writer.writer.submit', new=AsyncMock(return_value=None)), patch.object(syslog_server.alerter, 'process_alert', new=AsyncMock()) as alert, patch.object(syslog_server, 'broadcast_log', new=AsyncMock()) as broadcast, patch('monitoring.observe_log', new=AsyncMock()) as observe:
                 self.assertIsNone(await syslog_server.handle_incoming_log('debug', '192.0.2.1'))
                 alert.assert_not_awaited(); broadcast.assert_not_awaited(); observe.assert_not_awaited()
         asyncio.run(check())

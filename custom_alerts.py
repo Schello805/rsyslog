@@ -61,11 +61,13 @@ async def process_message_rules(log, settings):
             channels.append(('ntfy', lambda: send_ntfy_alert(payload, settings['ntfy_topic'], settings.get('ntfy_server', 'https://ntfy.sh'))))
         for channel, send in channels:
             now = time.time()
-            key = (rule['id'], log.get('host','unknown'), log.get('app','syslog'), channel)
+            from alerter import get_severity_score
+            key = (rule['id'] + ':' + str(get_severity_score(log.get('level','INFO'))), log.get('host','unknown'), log.get('app','syslog'), channel)
             if not database.claim_rule_notification(key, rule['cooldown_seconds'], now):
                 continue
             try:
-                success = await send()
+                from notification_gate import send as send_grouped
+                success = await send_grouped(log, channel, send, rule['cooldown_seconds'])
             except Exception:
                 success = False
             if not success:

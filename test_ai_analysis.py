@@ -37,6 +37,59 @@ class AIAnalysisTests(unittest.TestCase):
                 await operation(client)
         asyncio.run(run())
 
+    def test_manual_copy_preview_needs_no_key_and_respects_limit_and_redaction(self):
+        for n in range(30):
+            database.insert_log('192.0.2.1','app','WARN',f'Warning {n} password=private')
+        async def check(client):
+            with patch.object(ai.httpx.AsyncClient, 'post', new=AsyncMock()) as external:
+                data = (await client.request('POST','/api/ai/preview',json={'limit':25})).json()
+            self.assertEqual(data['count'],25)
+            self.assertIn(data['preview'], data['manual_prompt'])
+            self.assertIn('höchstens 500 Wörtern', data['manual_prompt'])
+            self.assertNotIn('private', data['manual_prompt'])
+            external.assert_not_awaited()
+        self.run_api(check)
+
+    def test_default_models_use_documented_low_thinking_settings(self):
+        self.assertEqual(ai.generation_options('gemini','gemini-3.8-flash'), {'thinkingConfig':{'thinkingLevel':'low'}})
+        self.assertEqual(ai.generation_options('gemini','gemini-2.5-flash'), {'thinkingConfig':{'thinkingBudget':1024}})
+        self.assertEqual(ai.generation_options('openai','gpt-5.6-terra'), {'reasoning':{'effort':'low'}})
+        self.assertEqual(ai.generation_options('openai','custom-model'), {})
+
+    def test_provider_check_sends_no_logs_and_reports_specific_errors_without_keys(self):
+        database.set_setting('ai_gemini_key','server-secret')
+        async def check(client):
+            with patch.object(ai.httpx.AsyncClient,'get',new=AsyncMock(return_value=httpx.Response(200,json={'supportedGenerationMethods':['generateContent']}))) as get:
+                response = await client.request('POST','/api/ai/check',json={'provider':'gemini'})
+            self.assertTrue(response.json()['success'])
+            self.assertNotIn('json',get.call_args.kwargs)
+            self.assertNotIn('server-secret',response.text)
+            with patch.object(ai.httpx.AsyncClient,'get',new=AsyncMock(return_value=httpx.Response(503,json={'error':{'status':'UNAVAILABLE','message':'server-secret'}}))):
+                response = await client.request('POST','/api/ai/check',json={'provider':'gemini'})
+            self.assertEqual(response.status_code,502)
+            self.assertIn('HTTP 503',response.text)
+            self.assertIn('UNAVAILABLE',response.text)
+            self.assertNotIn('server-secret',response.text)
+            response = await client.request('POST','/api/ai/check',json={'provider':'gemini'},headers={'Origin':'https://other'})
+            self.assertEqual(response.status_code,403)
+        self.run_api(check)
+
+    def test_gemini_analysis_request_low_thinking_and_server_error(self):
+        database.set_setting('ai_gemini_key','secret-key')
+        ai._snapshots['new'] = {'created':time.monotonic(),'payload':'data','count':1}
+        async def check(client):
+            with patch.object(ai.httpx.AsyncClient,'post',new=AsyncMock(return_value=httpx.Response(200,json={'candidates':[{'content':{'parts':[{'text':'Check disk'}]},'finishReason':'STOP'}]}))) as post:
+                response = await client.request('POST','/api/ai/analyze',json={'provider':'gemini','token':'new'})
+            self.assertEqual(response.status_code,200)
+            self.assertEqual(post.call_args.kwargs['json']['generationConfig']['thinkingConfig'],{'thinkingLevel':'low'})
+            with patch.object(ai.httpx.AsyncClient,'post',new=AsyncMock(return_value=httpx.Response(400,json={'error':{'status':'INVALID_ARGUMENT','message':'secret-key','details':[{'reason':'API_KEY_INVALID'}]}}))):
+                response = await client.request('POST','/api/ai/analyze',json={'provider':'gemini','token':'new','refresh':True})
+            self.assertEqual(response.status_code,502)
+            self.assertIn('HTTP 400',response.text)
+            self.assertIn('API-Schlüssel ungültig',response.text)
+            self.assertNotIn('secret-key',response.text)
+        self.run_api(check)
+
     def test_write_only_keys_preserve_replace_delete_and_validation(self):
         async def check(client):
             body = {'openai': {'key': 'secret-one', 'model': 'test-model'}, 'gemini': {'key': 'secret-two', 'model': 'test-gemini'}}
@@ -144,7 +197,7 @@ class AIAnalysisTests(unittest.TestCase):
             with patch.object(ai.asyncio, 'timeout', side_effect=lambda seconds: deadline(0.001)), patch.object(ai.httpx.AsyncClient, 'post', new=AsyncMock(side_effect=slow)):
                 response = await client.request('POST', '/api/ai/analyze', json={'provider': 'openai', 'token': 'test'})
             self.assertEqual(response.status_code, 504)
-            self.assertIn('45 Sekunden', response.json()['detail'])
+            self.assertIn('60 Sekunden', response.json()['detail'])
             self.assertFalse(ai._busy.locked())
         self.run_api(check)
 

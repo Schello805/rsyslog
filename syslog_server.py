@@ -60,9 +60,10 @@ def handle_incoming_log_sync(raw_data: str, client_ip: str) -> Optional[Dict[str
 
 async def handle_incoming_log(raw_data: str, client_ip: str) -> Optional[Dict[str, Any]]:
     """Processes, stores, alerts, and broadcasts an incoming log."""
-    # 1. Parse and store in DB
-    loop = asyncio.get_running_loop()
-    saved = await loop.run_in_executor(None, handle_incoming_log_sync, raw_data, client_ip)
+    from host_resolution import identify_source
+    from log_writer import writer
+    parsed = await asyncio.to_thread(lambda: identify_source(parse_syslog_message(raw_data, client_ip=client_ip), client_ip))
+    saved = await writer.submit(**{key: parsed.get(key) for key in ('host','app','level','facility','message','raw','timestamp','metadata')}, apply_ingestion_rules=True)
 
     if saved is None:
         return None

@@ -52,6 +52,7 @@ from syslog_server import (
     server_manager,
     unregister_log_subscriber,
 )
+from log_writer import writer as log_writer
 from metrics_cache import snapshot, invalidate as invalidate_metrics
 from version import get_version_info
 from network_utils import get_network_connection_info
@@ -113,6 +114,7 @@ async def lifespan(app: FastAPI):
 
     # Start UDP & TCP Syslog servers
     logger.info("Starting Syslog background listeners...")
+    await log_writer.start()
     await server_manager.start()
 
     logger.info(
@@ -125,12 +127,14 @@ async def lifespan(app: FastAPI):
     finally:
         maintenance_task.cancel()
         await asyncio.gather(maintenance_task, return_exceptions=True)
+        logger.info("Shutting down Syslog listeners...")
+        try:
+            await server_manager.stop()
+        finally:
+            await log_writer.stop()
+            unregister_log_subscriber(websocket_broadcaster)
+        logger.info("RSyslog Web stopped.")
 
-    # Shutdown
-    logger.info("Shutting down Syslog listeners...")
-    unregister_log_subscriber(websocket_broadcaster)
-    await server_manager.stop()
-    logger.info("RSyslog Web stopped.")
 
 
 app = FastAPI(
@@ -340,7 +344,7 @@ async def api_post_log(request: Request):
             body = await request.json()
             # If payload is structured JSON
             if isinstance(body, dict) and "message" in body:
-                saved = insert_log(
+                saved = await log_writer.submit(
                     apply_ingestion_rules=True,
                     host=client_ip,
                     metadata={"source_ip": client_ip, "reported_host": body.get("host")},
@@ -353,7 +357,7 @@ async def api_post_log(request: Request):
                 )
             else:
                 # Raw JSON object fallback
-                saved = insert_log(
+                saved = await log_writer.submit(
                     apply_ingestion_rules=True,
                     host=client_ip,
                     metadata={"source_ip": client_ip},
@@ -370,7 +374,7 @@ async def api_post_log(request: Request):
         raw_body = (await request.body()).decode("utf-8", errors="replace")
         from host_resolution import identify_source
         parsed = await asyncio.to_thread(identify_source, parse_syslog_message(raw_body, client_ip=client_ip), client_ip)
-        saved = insert_log(
+        saved = await log_writer.submit(
             apply_ingestion_rules=True,
             host=parsed["host"],
             app=parsed["app"],

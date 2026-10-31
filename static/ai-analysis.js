@@ -22,6 +22,13 @@
         }
     }
     if (byId('ai-save')) {
+        for (const provider of ['openai','gemini']) byId(`ai-check-${provider}`).addEventListener('click', async () => {
+            const button = byId(`ai-check-${provider}`); button.disabled = true;
+            byId('ai-settings-result').textContent = 'Prüfe gespeicherten Schlüssel und Modellzugriff (max. 12 Sekunden) …';
+            try { const data = await api('check', {provider}); byId('ai-settings-result').textContent = data.message; }
+            catch (error) { byId('ai-settings-result').textContent = error.message; }
+            finally { button.disabled = false; }
+        });
         api('settings').then(settingsStatus).catch(error => {byId('ai-settings-result').textContent = error.message;});
         byId('ai-save').addEventListener('click', async () => {
             const button = byId('ai-save'); button.disabled = true;
@@ -49,7 +56,7 @@
     refreshSetupLink();
     window.addEventListener('focus', refreshSetupLink);
     window.addEventListener('pageshow', event => { if (event.persisted) refreshSetupLink(); });
-    let token = null, loading = false, hasCachedAnalysis = false;
+    let token = null, loading = false, hasCachedAnalysis = false, manualPrompt = '', previewRequest = 0;
     const dialog = byId('ai-dialog');
     byId('ai-close').addEventListener('click', () => dialog.close());
     function renderAnalysis(data) {
@@ -72,24 +79,35 @@
         } catch (error) { byId('ai-result-status').textContent = error.message; }
     }
     byId('ai-provider').addEventListener('change', loadCached);
+    byId('ai-copy').addEventListener('click', async () => {
+        if (!manualPrompt) return;
+        const copied = await copyText(manualPrompt);
+        byId('ai-copy-status').textContent = copied ? 'Meldungen mit Analyseauftrag kopiert. Du kannst sie jetzt manuell in deine KI einfügen.' : 'Kopieren nicht möglich. Bitte den Vorschautext markieren und manuell kopieren.';
+    });
 
-    byId('ai-open').addEventListener('click', async () => {
+    async function loadPreview() {
         if (loading) return;
-        token = null; hasCachedAnalysis = false;
+        const request = ++previewRequest;
+        token = null; hasCachedAnalysis = false; manualPrompt = '';
+        byId('ai-copy').disabled = true; byId('ai-copy-status').textContent = '';
         byId('ai-send').disabled = true;
         byId('ai-result').textContent = '';
         byId('ai-result-status').textContent = '';
         byId('ai-preview').textContent = '';
         byId('ai-summary').textContent = 'Vorschau wird geladen …';
-        dialog.showModal();
+        if (!dialog.open) dialog.showModal();
         try {
             const body = {};
             for (const name of ['level', 'host', 'app', 'search']) body[name] = byId(`filter-${name}`).value;
             const period = byId('filter-period').value;
             if (period !== 'ALL') body.hours = Number(period);
             body.exclude_hosts = Array.from(excludedHosts);
+            body.limit = Number(byId('ai-sample-limit').value);
             const [preview, settings] = await Promise.all([api('preview', body), api('settings')]);
+            if (request !== previewRequest) return;
             updateSetupLink(settings);
+            manualPrompt = preview.manual_prompt || '';
+            byId('ai-copy').disabled = !manualPrompt;
             token = preview.token;
             byId('ai-summary').textContent = `${preview.count} von ${preview.total} passenden Warnungen/Fehlern, ${preview.groups || preview.count} unterschiedliche Meldungen. Wiederholungen zusammengefasst, Texte ggf. gekürzt. Vorschau 10 Minuten gültig.`;
             byId('ai-preview').textContent = preview.preview;
@@ -103,21 +121,24 @@
             else byId('ai-result-status').textContent = 'Bitte zuerst unter Einstellungen → KI-Analyse einen API-Schlüssel und eine Modell-ID speichern.';
             byId('ai-send').disabled = !token || !available;
             if (token && available) await loadCached();
-        } catch (error) {byId('ai-summary').textContent = error.message;}
-    });
+        } catch (error) {if (request === previewRequest) byId('ai-summary').textContent = error.message;}
+    }
+    byId('ai-open').addEventListener('click', loadPreview);
+    byId('ai-copy-open').addEventListener('click', loadPreview);
+    byId('ai-sample-limit').addEventListener('change', loadPreview);
     byId('ai-send').addEventListener('click', async () => {
         if (loading || !token) return;
         loading = true; byId('ai-send').disabled = true;
-        byId('ai-provider').disabled = true;
+        byId('ai-provider').disabled = true; byId('ai-sample-limit').disabled = true;
         byId('ai-result').textContent = '';
         const started = Date.now();
-        const progress = () => {byId('ai-result-status').textContent = `Analyse läuft seit ${Math.floor((Date.now() - started) / 1000)} Sekunden · warte auf Anbieter (max. 45 Sekunden) …`;};
+        const progress = () => {byId('ai-result-status').textContent = `Analyse läuft seit ${Math.floor((Date.now() - started) / 1000)} Sekunden · warte auf Anbieter (max. 60 Sekunden) …`;};
         progress();
         const timer = setInterval(progress, 1000);
         try {
-            const data = await api('analyze', {provider: byId('ai-provider').value, token, refresh: Boolean(hasCachedAnalysis)}, AbortSignal.timeout(55000));
+            const data = await api('analyze', {provider: byId('ai-provider').value, token, refresh: Boolean(hasCachedAnalysis)}, AbortSignal.timeout(70000));
             renderAnalysis(data);
         } catch (error) {byId('ai-result-status').textContent = ['TimeoutError', 'AbortError'].includes(error.name) ? 'Zeitüberschreitung. Verbindung zum Server prüfen und Analyse erneut starten.' : error.message;}
-        finally {clearInterval(timer); loading = false; byId('ai-send').disabled = false; byId('ai-provider').disabled = false;}
+        finally {clearInterval(timer); loading = false; byId('ai-send').disabled = false; byId('ai-provider').disabled = false; byId('ai-sample-limit').disabled = false;}
     });
 })();

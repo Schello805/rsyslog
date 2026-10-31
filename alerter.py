@@ -31,7 +31,7 @@ def get_severity_score(level: str) -> int:
         "WARNING": 30,
         "ERROR": 40,
         "CRITICAL": 50,
-        "EMERGENCY": 60,
+        "EMERGENCY": 70,
         "ALERT": 60,
     }
     return hierarchy.get(level.upper(), 20)
@@ -64,6 +64,9 @@ def record_incident_and_check_threshold(fingerprint: str, threshold_count: int, 
     # Filter out entries older than the window
     _incident_timestamps[fingerprint] = [t for t in _incident_timestamps[fingerprint] if t >= cutoff]
     _incident_timestamps[fingerprint].append(now)
+    _incident_timestamps[fingerprint] = _incident_timestamps[fingerprint][-max(100, min(threshold_count, 10000)):]
+    if len(_incident_timestamps) > 4096:
+        _incident_timestamps.pop(next(iter(_incident_timestamps)))
 
     return len(_incident_timestamps[fingerprint])
 
@@ -203,7 +206,10 @@ async def process_alert(log: Dict[str, Any]) -> None:
 
     # Evaluate occurrences within the time window
     app = log.get("app", "syslog")
-    fingerprint = f"{host}:{app}:{log_level.upper()}"
+    import hashlib
+    import re
+    normalized = re.sub(r'\s+', ' ', log.get('message','')).strip()
+    fingerprint = hashlib.sha256(f"{host}\0{app}\0{log_level.upper()}\0{normalized}".encode()).hexdigest()
     threshold_count = max(1, int(settings.get("alert_threshold_count", 1)))
     window_minutes = max(1, int(settings.get("alert_threshold_window_minutes", 5)))
     cooldown_seconds = max(5, int(settings.get("alert_throttle_seconds", 30)))
@@ -211,40 +217,24 @@ async def process_alert(log: Dict[str, Any]) -> None:
     current_occurrences = record_incident_and_check_threshold(fingerprint, threshold_count, window_minutes)
 
     # Check if threshold is reached (e.g., at least 2 errors)
-    if current_occurrences < threshold_count:
+    from notification_gate import is_escalation
+    escalation = is_escalation(log, cooldown_seconds)
+    if current_occurrences < threshold_count and not escalation:
         logger.debug(
             f"Incident recorded for {fingerprint}: {current_occurrences}/{threshold_count} "
             f"(waiting for threshold before alerting)"
         )
         return
 
-    # Check cooldown / rate limiting
-    if is_in_cooldown(fingerprint, cooldown_seconds):
-        logger.debug(f"Alert for {fingerprint} in cooldown (occurrences: {current_occurrences})")
-        return
-
-    # Mark as sent
-    mark_alert_sent(fingerprint)
-
-    # 1. Telegram
-    if settings.get("telegram_enabled") and settings.get("telegram_bot_token") and settings.get("telegram_chat_id"):
-        await send_telegram_alert(
-            log=log,
-            token=settings["telegram_bot_token"],
-            chat_id=settings["telegram_chat_id"],
-            occurrence_count=current_occurrences,
-            window_minutes=window_minutes,
-        )
-
-    # 2. Ntfy
-    if settings.get("ntfy_enabled") and settings.get("ntfy_topic"):
-        await send_ntfy_alert(
-            log=log,
-            topic=settings["ntfy_topic"],
-            server=settings.get("ntfy_server", "https://ntfy.sh"),
-            occurrence_count=current_occurrences,
-            window_minutes=window_minutes,
-        )
+    from notification_gate import send
+    if settings.get('telegram_enabled') and settings.get('telegram_bot_token') and settings.get('telegram_chat_id'):
+        await send(log, 'telegram', lambda: send_telegram_alert(
+            log=log, token=settings['telegram_bot_token'], chat_id=settings['telegram_chat_id'],
+            occurrence_count=current_occurrences, window_minutes=window_minutes), cooldown_seconds)
+    if settings.get('ntfy_enabled') and settings.get('ntfy_topic'):
+        await send(log, 'ntfy', lambda: send_ntfy_alert(
+            log=log, topic=settings['ntfy_topic'], server=settings.get('ntfy_server','https://ntfy.sh'),
+            occurrence_count=current_occurrences, window_minutes=window_minutes), cooldown_seconds)
 
 
 async def test_telegram_config(token: str, chat_id: str) -> Dict[str, Any]:

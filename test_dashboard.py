@@ -27,6 +27,13 @@ class DashboardTests(unittest.TestCase):
         self.override.stop()
         self.directory.cleanup()
 
+    def test_device_identity_keeps_manual_name_dns_and_source_separate(self):
+        database.insert_log('192.0.2.1','app','INFO','hello',metadata={'source_ip':'192.0.2.1'})
+        database.remember_source_dns('192.0.2.1','device.lan')
+        database.set_host_alias('192.0.2.1','Mein Gerät')
+        host = database.get_dashboard_summary()['hosts'][0]
+        self.assertEqual((host['host'],host['source_ip'],host['dns_name'],host['display_host']),('192.0.2.1','192.0.2.1','device.lan','Mein Gerät'))
+
     def test_http_identity_uses_peer_ip_and_cef_still_sets_severity(self):
         import asyncio
         import httpx

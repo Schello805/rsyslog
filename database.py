@@ -8,6 +8,7 @@ import json
 import re
 import sqlite3
 import threading
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from config import config
@@ -250,6 +251,7 @@ def insert_log(
     timestamp: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
     apply_ingestion_rules: bool = False,
+    _batch: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """Inserts a new log entry and returns the inserted record as a dict."""
     if not timestamp:
@@ -287,7 +289,7 @@ def insert_log(
             discarded('storage')
             return None
     try:
-        with conn:
+        with (nullcontext() if _batch else conn):
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -311,7 +313,7 @@ def insert_log(
             record(conn, dict(host=clean_host,app=clean_app,level=normalized_level,message=clean_msg,
                               timestamp=timestamp,received_at=datetime.now(timezone.utc).isoformat()))
     except sqlite3.OperationalError as exc:
-        if apply_ingestion_rules and getattr(exc, 'sqlite_errorcode', None) == sqlite3.SQLITE_FULL:
+        if not _batch and apply_ingestion_rules and getattr(exc, 'sqlite_errorcode', None) == sqlite3.SQLITE_FULL:
             from ingestion_counters import discarded
             discarded('storage')
             return None
@@ -329,6 +331,30 @@ def insert_log(
         "raw": raw or clean_msg,
         "metadata": metadata or {},
     }
+
+
+def insert_logs(entries):
+    """Commit a bounded batch before returning any successful records."""
+    conn = get_db_connection()
+    results = []
+    try:
+        with conn:
+            for entry in entries:
+                results.append(insert_log(**entry, _batch=True))
+        return results
+    except Exception:
+        # The enclosing transaction rolled back. Retry independently so one bad
+        # packet/full disk cannot lose other accepted entries or leak phantom IDs.
+        retry = []
+        for index, entry in enumerate(entries):
+            if index < len(results) and results[index] is None:
+                retry.append(None)  # Already rejected by ingestion policy.
+                continue
+            try:
+                retry.append(insert_log(**entry))
+            except Exception as exc:
+                retry.append(exc)
+        return retry
 
 
 def get_logs(
@@ -555,7 +581,14 @@ def get_dashboard_summary():
         host.setdefault('heartbeat_last_seen', None)
         host.setdefault('status', 'syslog')
     aliases = get_host_aliases()
+    dns_names = {row['ip']: row['name'] for row in conn.execute('SELECT ip,name FROM source_dns')}
+    from ipaddress import ip_address
     for host in hosts.values():
+        try:
+            host['source_ip'] = str(ip_address(host['host']))
+        except ValueError:
+            host['source_ip'] = None
+        host['dns_name'] = dns_names.get(host['host'])
         host["display_host"] = aliases.get(host["host"], host["host"])
     unassigned = [host for host in hosts.values() if is_unassigned_syslog_host(host['host']) and host['heartbeat_last_seen'] is None]
     devices = sorted((host for host in hosts.values() if host not in unassigned), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))

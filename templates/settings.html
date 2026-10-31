@@ -117,6 +117,7 @@
 <div class="space-y-2"><label for="ai-gemini-key" class="block text-sm font-medium">Gemini API-Key</label><input id="ai-gemini-key" type="password" autocomplete="new-password" class="w-full border rounded-lg p-2" placeholder="Neuen Schlüssel eingeben"><p id="ai-gemini-status" class="text-xs"></p><label class="block text-sm"><input id="ai-gemini-delete" type="checkbox"> Gespeicherten Schlüssel löschen</label><label for="ai-gemini-model" class="block text-sm">Gemini Modell-ID</label><input id="ai-gemini-model" class="w-full border rounded-lg p-2" placeholder="z. B. gemini-3.8-flash"></div>
 </div>
 <p class="text-xs text-slate-600">Sternchen zeigen einen gespeicherten Schlüssel an. Leer lassen behält ihn; zum Ersetzen einen neuen Schlüssel eingeben. Schlüssel werden serverseitig in der lokalen Datenbank gespeichert und niemals zurück an den Browser geliefert. Zugriff auf App, Datenbank und Backups entsprechend schützen; für entfernten Zugriff HTTPS verwenden.</p>
+<div class="flex flex-wrap gap-2 my-3"><button type="button" id="ai-check-openai" class="border rounded-lg p-2 text-sm">OpenAI-Verbindung prüfen</button><button type="button" id="ai-check-gemini" class="border rounded-lg p-2 text-sm">Gemini-Verbindung prüfen</button></div>
 <button type="button" id="ai-save" class="px-4 py-2 bg-violet-700 text-white rounded-lg">KI-Einstellungen speichern</button><p id="ai-settings-result" role="status" class="text-sm"></p>
 </section>
             <section data-settings-panel="channels" class="space-y-4">
@@ -302,7 +303,7 @@
                             <option value="300">5 Minuten</option>
                             <option value="900">15 Minuten</option>
                         </select>
-                        <p class="text-[11px] text-slate-500 mt-1">Mindestpause zwischen zwei Alarmen für die gleiche Fehlerquelle.</p>
+                        <p class="text-[11px] text-slate-500 mt-1">Gleiche Meldungen je Gerät und Dienst werden gebündelt. Höchstens fünf Benachrichtigungen je Minute, Gerät und Kanal; ein höherer Schweregrad wird sofort gemeldet. Alle Logs bleiben gespeichert.</p>
                     </div>
 
                     <!-- Ignorierte Hosts -->

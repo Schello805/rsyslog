@@ -182,8 +182,8 @@
             <p id="device-list-count" class="text-xs text-slate-500 mt-3" role="status"></p>
             <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
                 <table class="device-table w-full text-left text-sm" aria-label="Alle bekannten Geräte">
-                    <thead class="bg-slate-50 text-xs text-slate-600"><tr><th scope="col">Gerät / Host</th><th scope="col">Status</th><th scope="col">Letzte Meldung</th><th scope="col">Logs gesamt</th><th scope="col">Fehler · 24 h</th><th scope="col">Aktionen</th></tr></thead>
-                    <tbody id="monitored-hosts"><tr><td colspan="6">Geräteliste wird geladen …</td></tr></tbody>
+                    <thead class="bg-slate-50 text-xs text-slate-600"><tr><th scope="col">Name / DNS</th><th scope="col">Quell-IP</th><th scope="col">Status</th><th scope="col">Letzte Aktivität</th><th scope="col">Logs gesamt</th><th scope="col">Fehler · 24 h</th><th scope="col">Aktionen</th></tr></thead>
+                    <tbody id="monitored-hosts"><tr><td colspan="7">Geräteliste wird geladen …</td></tr></tbody>
                 </table>
             </div>
             <details id="unassigned-hosts" hidden class="mt-4 border rounded-xl p-3">
@@ -197,7 +197,7 @@
             <a href="/guide" class="inline-block text-sm text-sky-700">Überwachung für ein Gerät einrichten →</a>
         </section>
         <section data-panel="logs" hidden class="space-y-4">
-        <div class="flex flex-wrap items-center gap-3"><button type="button" id="ai-open" class="px-4 py-2 rounded-lg bg-violet-700 text-white text-sm">Gefilterte Warnungen analysieren</button><a id="ai-setup" href="/settings#ai" hidden class="text-sm text-violet-700">KI einrichten</a></div>
+        <div class="flex flex-wrap items-center gap-3"><button type="button" id="ai-open" class="px-4 py-2 rounded-lg bg-violet-700 text-white text-sm">Gefilterte Warnungen analysieren</button><button type="button" id="ai-copy-open" class="border rounded-lg px-3 py-2 text-sm text-sky-700">Meldungen für KI kopieren</button><a id="ai-setup" href="/settings#ai" hidden class="text-sm text-violet-700">KI einrichten</a></div>
         <!-- Filter and Search Toolbar -->
         <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -242,7 +242,7 @@
 
                 <div>
                     <select id="filter-period" aria-label="Zeitraum" onchange="fetchLogs(1)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
-                        <option value="ALL">Gesamter Zeitraum</option><option value="24">Letzte 24 Stunden</option>
+                        <option value="ALL">Gesamter Zeitraum</option><option value="1">Letzte Stunde</option><option value="6">Letzte 6 Stunden</option><option value="24">Letzte 24 Stunden</option><option value="168">Letzte 7 Tage</option>
                     </select>
                 </div>
                 <details id="host-exclusion-picker" class="relative">
@@ -268,6 +268,13 @@
             <div id="excluded-host-summary" hidden class="space-y-2">
                 <div id="excluded-host-chips" class="flex flex-wrap gap-2"></div>
                 <p class="text-xs text-slate-600">Diese Hosts sind in Logansicht, Export und KI-Analyse ausgeblendet. Speicherung und Alarme bleiben aktiv.</p>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+                <select id="saved-view-select" aria-label="Gespeicherte Filteransicht" class="border rounded-lg p-2 text-sm"></select>
+                <input id="saved-view-name" aria-label="Name der Filteransicht" maxlength="80" placeholder="Name der Ansicht …" class="border rounded-lg p-2 text-sm">
+                <button type="button" id="saved-view-save" class="border rounded-lg p-2 text-sm text-sky-700">Ansicht speichern</button>
+                <button type="button" id="saved-view-delete" class="border rounded-lg p-2 text-sm">Ansicht löschen</button>
+                <span id="saved-view-status" role="status" class="text-xs text-slate-600"></span>
             </div>
             <!-- Secondary Action Row -->
             <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-200/80">
@@ -385,6 +392,8 @@
                     <span class="text-slate-600 block mb-0.5">Dienst / App:</span>
                     <span id="modal-app" class="font-mono text-slate-800"></span>
                 </div>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200"><span class="text-slate-600 block mb-0.5">Empfangene Quell-IP:</span><span id="modal-source-ip" class="font-mono"></span></div>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200"><span class="text-slate-600 block mb-0.5">Gemeldeter Hostname (Loginhalt):</span><span id="modal-reported-host" class="font-mono"></span></div>
                 <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                     <span class="text-slate-600 block mb-0.5">Facility:</span>
                     <span id="modal-facility" class="font-mono text-slate-800"></span>
@@ -511,6 +520,7 @@
         </div>
     </footer>
 
+    <script src="/assets/saved-views.js"></script>
     <!-- Frontend Application Logic -->
     <script>
         // State variables
@@ -841,7 +851,7 @@
             document.getElementById('device-list-count').textContent = `${hosts.length} von ${cachedDeviceHosts.length} Geräten angezeigt`;
             if (!hosts.length) {
                 const row = document.createElement('tr'), cell = document.createElement('td');
-                cell.colSpan = 6; cell.textContent = cachedDeviceHosts.length ? 'Keine Geräte für diese Suche oder diesen Status.' : 'Noch keine Geräte bekannt. Geräte erscheinen nach der ersten Meldung oder einem Lebenszeichen.';
+                cell.colSpan = 7; cell.textContent = cachedDeviceHosts.length ? 'Keine Geräte für diese Suche oder diesen Status.' : 'Noch keine Geräte bekannt. Geräte erscheinen nach der ersten Meldung oder einem Lebenszeichen.';
                 row.append(cell); tbody.append(row); return;
             }
             for (const host of hosts) {
@@ -849,10 +859,11 @@
                 const cell = text => {const td = document.createElement('td'); td.textContent = text; row.append(td); return td;};
                 const identity = cell(host.display_host || hostLabels[host.host] || host.host);
                 identity.className = 'font-medium';
-                if (identity.textContent !== host.host) {
+                if (host.dns_name && identity.textContent !== host.dns_name) {
                     const original = document.createElement('small'); original.className = 'block text-xs text-slate-500 mt-1';
-                    original.textContent = host.host; identity.append(original);
+                    original.textContent = `DNS: ${host.dns_name}`; identity.append(original);
                 }
+                cell(host.source_ip || 'Nicht gespeichert');
                 const state = cell(''); const badge = document.createElement('span');
                 const activity = deviceActivity(host);
                 badge.className = 'device-state device-state-' + activity.style;
@@ -944,11 +955,13 @@
                 hostSelect.innerHTML = '<option value="ALL">Alle Hosts</option>' + 
                     data.hosts.map(h => `<option value="${escapeHtml(h)}" ${h === currentHost ? 'selected' : ''}>${escapeHtml(hostLabel(h))}</option>`).join('');
 
+                if (currentHost !== 'ALL' && !data.hosts.includes(currentHost)) { hostSelect.add(new Option(hostLabel(currentHost), currentHost)); hostSelect.value = currentHost; }
                 updateHostNameButton();
                 const appSelect = document.getElementById('filter-app');
                 const currentApp = appSelect.value;
                 appSelect.innerHTML = '<option value="ALL">Alle Dienste</option>' + 
                     data.apps.map(a => `<option value="${escapeHtml(a)}" ${a === currentApp ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('');
+                if (currentApp !== 'ALL' && !data.apps.includes(currentApp)) { appSelect.add(new Option(currentApp, currentApp)); appSelect.value = currentApp; }
             } catch (err) {
                 console.error('Filter options error:', err);
             }
@@ -1023,6 +1036,8 @@
             document.getElementById('modal-level-badge').innerText = log.level;
             document.getElementById('modal-timestamp').innerText = log.timestamp;
             document.getElementById('modal-host').innerText = hostLabel(log.host, log.display_host);
+            document.getElementById('modal-source-ip').textContent = log.metadata?.source_ip || 'Nicht gespeichert';
+            document.getElementById('modal-reported-host').textContent = log.metadata?.reported_host || 'Nicht angegeben';
             document.getElementById('modal-app').innerText = log.app;
             document.getElementById('modal-facility').innerText = log.facility || 'user';
             document.getElementById('modal-message').innerText = log.message;
@@ -1051,7 +1066,7 @@
                 field.value = String(text);
                 field.setAttribute('readonly', '');
                 field.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
-                document.body.appendChild(field);
+                (document.querySelector('dialog[open]') || document.body).appendChild(field);
                 try {
                     field.focus();
                     field.select();
@@ -1079,8 +1094,10 @@
                 if (!copied) copied = copyWithSelection();
                 if (!copied) throw new Error('Clipboard unavailable');
                 showToast('In die Zwischenablage kopiert!', 'success');
+                return true;
             } catch (error) {
                 showToast('Kopieren nicht möglich. Bitte den Text markieren und manuell kopieren.', 'error');
+                return false;
             }
         }
 
@@ -1258,6 +1275,20 @@
 
         // Init on page load
         document.addEventListener('DOMContentLoaded', () => {
+            LogViews.init({
+                capture: () => ({filters: Object.fromEntries(['search','level','host','app','period','limit'].map(key => [key, document.getElementById(`filter-${key}`).value])), excluded: [...excludedHosts], sortBy: logSortBy, sortOrder: logSortOrder}),
+                apply: view => {
+                    clearTimeout(searchDebounceTimeout);
+                    for (const [key, value] of Object.entries(view.filters)) {
+                        if (!['search','level','host','app','period','limit'].includes(key)) continue;
+                        const field = document.getElementById(`filter-${key}`);
+                        if (field.tagName === 'SELECT' && ![...field.options].some(option => option.value === value)) field.add(new Option(value, value));
+                        field.value = value;
+                    }
+                    excludedHosts = new Set(view.excluded); saveExcludedHosts(); renderExcludedHosts();
+                    logSortBy = view.sortBy; logSortOrder = view.sortOrder; updateSortIndicators(); updateHostNameButton(); fetchLogs(1);
+                }
+            });
             showWorkflow();
             updateSortIndicators();
             renderExcludedHosts();
@@ -1287,8 +1318,10 @@
 <div class="flex justify-between gap-4"><h2 class="font-semibold text-lg">Warnungen analysieren</h2><button type="button" id="ai-close" aria-label="Analyse schließen">Schließen</button></div>
 <p class="my-3 text-sm">Aktive Filter und Host-Ausschlüsse gelten. Analysiert werden nur WARN, ERROR und kritische Meldungen, höchstens die 100 neuesten Treffer. Gleiche Meldungen werden mit ihrer Häufigkeit zusammengefasst. Prüfe die Vorschau auf vertrauliche Inhalte. Vorhandene Analysen für dieselbe Auswahl werden mit Datum wieder angezeigt. Nur „Erneut analysieren“ startet dann einen neuen API-Aufruf. Die letzten 20 vollständigen Analysen werden bis zu 7 Tage auf diesem Server gespeichert. Die Anfrage kann API-Kosten verursachen. Vorschläge vor Ausführung prüfen.</p>
 <label for="ai-provider">Anbieter</label><select id="ai-provider" class="border rounded-lg p-2"><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select>
+<label class="block my-3 text-sm">Auswahlgröße <select id="ai-sample-limit" class="border rounded-lg p-2"><option value="25">25 neueste Meldungen</option><option value="50">50 neueste Meldungen</option><option value="100" selected>100 neueste Meldungen</option></select></label>
 <p id="ai-summary" role="status" class="my-3 text-sm"></p>
 <details open><summary class="cursor-pointer">Diese Daten werden gesendet</summary><pre id="ai-preview" class="whitespace-pre-wrap break-words text-xs bg-slate-50 p-3 rounded-lg max-h-64 overflow-auto"></pre></details>
+<button type="button" id="ai-copy" disabled class="my-3 mr-2 border rounded-lg px-4 py-2 text-sky-700 disabled:opacity-40">Meldungen kopieren</button><p id="ai-copy-status" role="status" class="text-sm"></p>
 <button type="button" id="ai-send" disabled class="my-4 px-4 py-2 rounded-lg bg-violet-700 text-white disabled:opacity-40">Vorschau senden & analysieren</button>
 <p id="ai-result-status" role="status" class="text-sm"></p><pre id="ai-result" class="whitespace-pre-wrap break-words text-sm leading-relaxed"></pre>
 </dialog>

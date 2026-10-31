@@ -15,6 +15,8 @@ from custom_alerts import matches, validate_rules
 
 class MessageRuleTests(unittest.TestCase):
     def setUp(self):
+        import notification_gate
+        notification_gate.reset()
         self.temp = tempfile.TemporaryDirectory()
         self.previous = getattr(database._local,'connection',None)
         database._local.connection = None
