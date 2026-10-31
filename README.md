@@ -431,3 +431,8 @@ Gruppe und werden keinem IP-Gerät zugerechnet. Die Wartung prüft alle 30 Sekun
 höchstens acht bekannte Quell-IPs reihum mit dem begrenzten DNS-Cache, sodass auch
 späte DNS-Antworten ohne weitere Logmeldung in der Anzeige ankommen. DNS-Namen
 führen niemals zwei Quell-IPs zusammen; manuelle Anzeigenamen haben Vorrang.
+
+Namenslisten und Dropdowns sind alphabetisch (A–Z, deutsche Sortierung) geordnet.
+Hosts werden nach Name/DNS sortiert, ersatzweise nach IP.
+Die Geräteliste startet mit „Name A–Z“; andere Sortierungen bleiben auswählbar.
+Zeiträume und Schweregrade behalten ihre fachliche Reihenfolge.

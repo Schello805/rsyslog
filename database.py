@@ -523,7 +523,7 @@ def get_filter_options() -> Dict[str, Any]:
             legacy_hosts.append({'value':host, 'label':f'{host} · Quell-IP nicht gespeichert'})
             continue
         name = labels.get(host)
-        ip_hosts.append({'value':host, 'label':f'{host} ({name})' if name and name != host else f'{host} (DNS nicht aufgelöst)'})
+        ip_hosts.append({'value':host, 'label':f'{host} ({name})' if name and name != host else f'{host} (DNS nicht aufgelöst)', 'sort_name':name if name and name != host else host})
     ip_hosts.sort(key=lambda option: (ip_address(option['value']).version, int(ip_address(option['value']))))
     return {
         "hosts": hosts,

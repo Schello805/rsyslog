@@ -14,7 +14,7 @@
         let views = [];
         function render() {
             select.replaceChildren(new Option('Gespeicherte Ansicht wählen …', ''));
-            views.forEach((view, index) => select.add(new Option(view.name, String(index))));
+            views.map((view,index) => ({view,index})).sort((a,b) => a.view.name.localeCompare(b.view.name, 'de', {numeric:true, sensitivity:'base'})).forEach(({view,index}) => select.add(new Option(view.name, String(index))));
         }
         try { views = read(localStorage); } catch (_) { status.textContent = 'Gespeicherte Ansichten konnten nicht geladen werden.'; }
         render();

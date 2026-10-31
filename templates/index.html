@@ -177,7 +177,7 @@
             <div class="grid sm:grid-cols-3 gap-3 mt-4">
                 <input id="device-search" type="search" aria-label="Geräte durchsuchen" placeholder="Gerät oder Host suchen …" oninput="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full">
                 <select id="device-status-filter" aria-label="Geräte nach Status filtern" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="all">Alle Status</option><option value="offline">Nur offline</option><option value="online">Nur online</option><option value="syslog-active">Logs aktiv</option><option value="syslog-inactive">Keine aktuellen Logs</option></select>
-                <select id="device-sort" aria-label="Geräte sortieren" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="status">Offline zuerst</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="activity">Letzte Meldung: neueste zuerst</option><option value="errors">Fehler: meiste zuerst</option><option value="logs">Logs: meiste zuerst</option></select>
+                <select id="device-sort" aria-label="Geräte sortieren" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="name">Name A–Z</option><option value="status">Offline zuerst</option><option value="name-desc">Name Z–A</option><option value="activity">Letzte Meldung: neueste zuerst</option><option value="errors">Fehler: meiste zuerst</option><option value="logs">Logs: meiste zuerst</option></select>
             </div>
             <p id="device-list-count" class="text-xs text-slate-500 mt-3" role="status"></p>
             <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
@@ -561,7 +561,7 @@
             const previousScroll = list.scrollTop;
             const focusedHost = list.contains(document.activeElement) ? document.activeElement.dataset.host : null;
             list.replaceChildren();
-            const hosts = [...new Set([...availableExcludeHosts, ...excludedHosts])].sort((a, b) => a.localeCompare(b));
+            const hosts = [...new Set([...availableExcludeHosts, ...excludedHosts])].sort((a, b) => hostLabel(a).localeCompare(hostLabel(b), 'de', {numeric:true, sensitivity:'base'}) || a.localeCompare(b));
             const matches = hosts.filter(host => hostLabel(host).toLowerCase().includes(search));
             if (!matches.length) { const empty = document.createElement('p'); empty.textContent = 'Keine passenden Hosts'; empty.className = 'text-xs text-slate-600 py-2'; list.append(empty); }
             matches.forEach(host => {
@@ -794,7 +794,7 @@
             document.getElementById('unassigned-hosts').hidden = !hosts.length;
             document.getElementById('unassigned-summary').textContent = `Nicht zugeordnete alte Meldungen (${hosts.reduce((sum, host) => sum + host.log_count, 0).toLocaleString('de-DE')} Logs · ${hosts.length} Einträge)`;
             const body = document.getElementById('unassigned-rows'); body.replaceChildren();
-            for (const host of hosts) {
+            for (const host of [...hosts].sort((a,b) => a.host.localeCompare(b.host, 'de', {numeric:true, sensitivity:'base'}))) {
                 const row = document.createElement('tr');
                 for (const value of [host.host, host.log_count.toLocaleString('de-DE'), formatTimestamp(host.last_message)]) {
                     const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
@@ -835,7 +835,7 @@
             const state = document.getElementById('device-status-filter').value;
             const sort = document.getElementById('device-sort').value;
             const name = host => host.display_host || hostLabels[host.host] || host.host;
-            const byName = (a,b) => name(a).localeCompare(name(b), 'de', {numeric:true});
+            const byName = (a,b) => name(a).localeCompare(name(b), 'de', {numeric:true, sensitivity:'base'}) || a.host.localeCompare(b.host, 'de', {numeric:true});
             hosts = cachedDeviceHosts.filter(host => (!query || `${name(host)} ${host.host}`.toLocaleLowerCase('de').includes(query)) && (state === 'all' || host.status === state || (state === 'syslog-active' && host.status === 'syslog' && host.recent) || (state === 'syslog-inactive' && host.status === 'syslog' && !host.recent)));
             const rank = {offline:0, online:1, syslog:2};
             hosts.sort((a,b) => {
@@ -957,7 +957,7 @@
                 for (const group of groups) {
                     if (!group.options.length) continue;
                     const element = document.createElement('optgroup'); element.label = group.label;
-                    for (const option of group.options) element.append(new Option(option.label, option.value));
+                    for (const option of [...group.options].sort((a,b) => (a.sort_name || a.label).localeCompare(b.sort_name || b.label, 'de', {numeric:true, sensitivity:'base'}) || a.value.localeCompare(b.value, 'de', {numeric:true}))) element.append(new Option(option.label, option.value));
                     hostSelect.append(element);
                 }
                 if (data.hosts.includes(currentHost)) hostSelect.value = currentHost;
@@ -967,7 +967,7 @@
                 const appSelect = document.getElementById('filter-app');
                 const currentApp = appSelect.value;
                 appSelect.innerHTML = '<option value="ALL">Alle Dienste</option>' + 
-                    data.apps.map(a => `<option value="${escapeHtml(a)}" ${a === currentApp ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('');
+                    [...data.apps].sort((a,b) => a.localeCompare(b, 'de', {numeric:true, sensitivity:'base'})).map(a => `<option value="${escapeHtml(a)}" ${a === currentApp ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('');
                 if (currentApp !== 'ALL' && !data.apps.includes(currentApp)) { appSelect.add(new Option(currentApp, currentApp)); appSelect.value = currentApp; }
             } catch (err) {
                 console.error('Filter options error:', err);

@@ -77,13 +77,13 @@
             <label for="device-type" class="block font-semibold">1. Welches Gerät möchtest du anbinden?</label>
             <select id="device-type" onchange="selectDevice(this.value)" class="w-full sm:max-w-lg bg-slate-50 border border-slate-300 rounded-lg p-3 text-sm">
                 <option value="">System auswählen …</option>
+                <option value="docker">Docker</option>
+                <option value="router">Heim-Router</option>
+                <option value="http">HTTP / eigene Anwendung</option>
                 <option value="linux">Linux / Proxmox VE / Proxmox PBS (einzeln)</option>
                 <option value="pve">Proxmox: Alle Gäste anbinden</option>
                 <option value="nas">QNAP / Synology</option>
                 <option value="network">UniFi / Firewall / Switch</option>
-                <option value="docker">Docker</option>
-                <option value="http">HTTP / eigene Anwendung</option>
-                <option value="router">Heim-Router</option>
             </select>
         </section>
         <div id="setup-next-steps" hidden class="space-y-6">
@@ -483,7 +483,7 @@
                 // Populate IP selector dropdown
                 const select = document.getElementById('ip-selector');
                 const ips = Array.from(new Set([activeIP, ...(data.available_ips || []), "127.0.0.1"]));
-                select.innerHTML = ips.map(ip => `<option value="${ip}" ${ip === activeIP ? 'selected' : ''}>${ip}</option>`).join('');
+                select.innerHTML = ips.sort((a,b) => a.localeCompare(b, 'de', {numeric:true, sensitivity:'base'})).map(ip => `<option value="${ip}" ${ip === activeIP ? 'selected' : ''}>${ip}</option>`).join('');
 
                 updateAllSnippets();
             } catch (err) {
