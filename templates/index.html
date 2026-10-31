@@ -861,9 +861,12 @@
             });
         }
 
+        function activeWorkflow() {
+            return ['logs', 'devices', 'incidents'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+        }
         let dashboardRequestActive = false;
         async function fetchStats() {
-            if (dashboardRequestActive) return;
+            if (dashboardRequestActive || document.hidden || !['overview', 'devices'].includes(activeWorkflow())) return;
             dashboardRequestActive = true;
             try {
                 const response = await fetch('/api/dashboard');
@@ -883,11 +886,13 @@
                 document.getElementById('offline-badge').textContent = data.offline_hosts ? `(${data.offline_hosts} offline)` : '';
                 document.getElementById('onboarding-hint').hidden = data.known_hosts > 0;
                 document.getElementById('udp-dropped').textContent = data.udp_dropped ? `${data.udp_dropped} UDP-Meldungen seit Start wegen Überlast verworfen` : '';
+                if (activeWorkflow() === 'overview') {
                 renderOverviewEvents('overview-attention', data.attention, 'Keine Warnungen oder Fehler in den letzten 24 Stunden.');
                 renderOverviewEvents('overview-latest', data.latest, 'Noch keine Ereignisse vorhanden.');
                 const overviewDevices = document.getElementById('overview-devices'); overviewDevices.replaceChildren();
                 data.hosts.slice(0, 6).forEach(host => overviewDevices.append(deviceCard(host)));
-                renderDeviceTable(data.hosts);
+                }
+                if (activeWorkflow() === 'devices') renderDeviceTable(data.hosts);
                 document.getElementById('dashboard-updated').textContent = `Aktualisiert ${new Date().toLocaleTimeString('de-DE')} · alle 10 Sekunden`;
             } catch (error) {
                 document.getElementById('dashboard-updated').textContent = 'Aktualisierung fehlgeschlagen. Angezeigte Daten können veraltet sein.';
@@ -896,6 +901,7 @@
 
         // Fetch Filter Autocomplete (Hosts & Apps)
         async function fetchFilters() {
+            if (document.hidden || activeWorkflow() !== 'logs') return;
             try {
                 const res = await fetch('/api/filters');
                 const data = await res.json();
@@ -1215,6 +1221,8 @@
             });
             document.getElementById('workflow-title').textContent = copy[key][0];
             document.getElementById('workflow-description').textContent = copy[key][1];
+            fetchStats();
+            if (key === 'logs') { fetchFilters(); fetchLogs(currentPage); }
         }
         window.addEventListener('hashchange', showWorkflow);
 
@@ -1226,17 +1234,17 @@
             lucide.createIcons();
             loadVersionInfo();
             setInterval(loadVersionInfo, 60000);
-            fetchLogs(1);
-            fetchStats();
-            fetchFilters();
             initWebSocket();
 
             // Fixed refresh rate prevents access-log feedback and request amplification.
             setInterval(() => {
                 if (document.hidden) return;
                 fetchStats();
-                fetchFilters();
             }, 10000);
+            setInterval(fetchFilters, 60000);
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) showWorkflow();
+            });
             setInterval(() => {
                 if (!pendingLogRefresh || document.hidden || !isLiveStreamActive || location.hash !== '#logs') return;
                 pendingLogRefresh = false;

@@ -27,6 +27,23 @@ class DashboardTests(unittest.TestCase):
         self.override.stop()
         self.directory.cleanup()
 
+    def test_receipt_index_and_recent_metrics_include_legacy_rows(self):
+        database.insert_log('legacy', 'app', 'INFO', 'legacy')
+        database.insert_log('old', 'app', 'INFO', 'old')
+        database.insert_log('monitor', 'resource-monitor', 'INFO', 'HEARTBEAT')
+        conn = database.get_db_connection()
+        with conn:
+            conn.execute("UPDATE logs SET received_at='' WHERE host='legacy'")
+            conn.execute("UPDATE logs SET received_at='2000-01-01' WHERE host='old'")
+        metrics = database.get_ingestion_metrics()
+        self.assertEqual(metrics['total_logs'], 3)
+        self.assertEqual(metrics['logs_last_minute'], 2)
+        self.assertEqual(metrics['heartbeats_last_minute'], 1)
+        self.assertEqual(metrics['events_last_minute'], 1)
+        self.assertEqual(metrics['logs_per_minute_5m'], 0.4)
+        plan = conn.execute(f"EXPLAIN QUERY PLAN SELECT COUNT(*) FROM logs WHERE {database.RECEIPT_SQL} >= julianday('now','-5 minutes')").fetchall()
+        self.assertTrue(any('SEARCH logs USING' in row['detail'] and 'idx_logs_receipt_time' in row['detail'] for row in plan))
+
     def test_critical_card_counts_and_filter_match_without_double_counting_errors(self):
         for level in ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY', 'WARN']:
             database.insert_log('host', 'app', level, level)

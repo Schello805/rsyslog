@@ -52,6 +52,7 @@ from syslog_server import (
     server_manager,
     unregister_log_subscriber,
 )
+from metrics_cache import snapshot, invalidate as invalidate_metrics
 from version import get_version_info
 from network_utils import get_network_connection_info
 from system_metrics import collect_system_metrics
@@ -272,7 +273,9 @@ async def api_set_host_name(payload: HostNamePayload):
     from database import set_host_alias
     if not payload.host.strip() or any(ord(char) < 32 for char in payload.name):
         raise HTTPException(422, 'Bitte einen gültigen Host und einen einzeiligen Anzeigenamen verwenden')
-    return set_host_alias(payload.host, payload.name)
+    result = set_host_alias(payload.host, payload.name)
+    invalidate_metrics()
+    return result
 
 
 @app.get("/api/hosts")
@@ -283,19 +286,21 @@ async def api_hosts():
 
 @app.get("/api/dashboard")
 async def api_dashboard():
-    from database import get_dashboard_summary
-    summary = await asyncio.to_thread(get_dashboard_summary)
-    summary["udp_dropped"] = server_manager.dropped
-    from database import get_ingestion_metrics
-    summary["ingestion"] = await asyncio.to_thread(get_ingestion_metrics)
-    from storage_policy import status
-    summary["storage_policy"] = await asyncio.to_thread(status)
+    def collect():
+        from database import get_dashboard_summary, get_ingestion_metrics
+        from storage_policy import status
+        summary = get_dashboard_summary()
+        summary['ingestion'] = get_ingestion_metrics()
+        summary['storage_policy'] = status()
+        return summary
+    summary = await asyncio.to_thread(snapshot, 'dashboard', 10, collect)
+    summary['udp_dropped'] = server_manager.dropped
     return summary
 
 
 @app.get('/api/system')
 async def api_system_metrics():
-    result = await asyncio.to_thread(collect_system_metrics)
+    result = await asyncio.to_thread(snapshot, 'system', 10, collect_system_metrics)
     result['receiver'] = {
         'udp_dropped': server_manager.dropped,
         'queue_size': server_manager.queue.qsize(),
@@ -312,13 +317,13 @@ async def api_system_metrics():
 @app.get("/api/stats")
 async def api_get_stats():
     """Returns dashboard statistics (totals, counts by level, active hosts)."""
-    return get_stats()
+    return await asyncio.to_thread(snapshot, 'stats', 10, get_stats)
 
 
 @app.get("/api/filters")
 async def api_get_filters():
     """Returns distinct hosts and applications for UI dropdown filters."""
-    return get_filter_options()
+    return await asyncio.to_thread(snapshot, 'filters', 60, get_filter_options)
 
 
 @app.post("/api/logs", status_code=201)
@@ -391,6 +396,7 @@ async def api_post_log(request: Request):
 async def api_clear_logs():
     """Clears all stored logs from the database."""
     deleted_count = clear_all_logs()
+    invalidate_metrics()
     return {"success": True, "deleted": deleted_count}
 
 
@@ -481,6 +487,7 @@ async def api_save_settings(request: Request):
         if any(str(key).startswith("ai_") for key in body):
             raise ValueError("KI-Einstellungen bitte über /api/ai/settings speichern.")
         save_all_settings(body)
+        invalidate_metrics()
         return {"success": True, "settings": get_all_settings()}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

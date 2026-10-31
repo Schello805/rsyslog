@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from config import config
 
 _local = threading.local()
+# Keep the expression identical in queries and index, including legacy rows.
+RECEIPT_SQL = "julianday(COALESCE(NULLIF(received_at,''),timestamp))"
 
 
 def get_db_connection() -> sqlite3.Connection:
@@ -55,6 +57,7 @@ def init_db() -> None:
         if 'received_at' not in columns:
             conn.execute("ALTER TABLE logs ADD COLUMN received_at TEXT NOT NULL DEFAULT ''")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_received ON logs(received_at)")
+        conn.execute(f"CREATE INDEX IF NOT EXISTS idx_logs_receipt_time ON logs({RECEIPT_SQL})")
         # Performance indexes for dashboard filtering and sorting
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)")
@@ -570,7 +573,7 @@ def get_dashboard_summary():
     import time
     now = time.time()
     conn = get_db_connection()
-    recent = "julianday(COALESCE(NULLIF(received_at, ''), timestamp)) >= julianday('now', '-1 day')"
+    recent = f"{RECEIPT_SQL} >= julianday('now', '-1 day')"
     totals = dict(conn.execute(f"""SELECT COUNT(*) AS logs_24h,
         COALESCE(SUM(level IN ('ERROR','CRITICAL','EMERGENCY','ALERT')),0) AS errors_24h,
         COALESCE(SUM(level = 'ERROR'),0) AS error_only_24h,
@@ -615,12 +618,13 @@ def get_dashboard_summary():
 def get_ingestion_metrics():
     """Rolling receipt-time counts; five-minute rate is an average, not a counter."""
     conn = get_db_connection()
-    receipt = "julianday(COALESCE(NULLIF(received_at,''),timestamp))"
-    counts = dict(conn.execute(f"""SELECT COUNT(*) AS total_logs,
+    receipt = RECEIPT_SQL
+    counts = dict(conn.execute(f"""SELECT
         COALESCE(SUM({receipt} >= julianday('now','-1 minute')),0) AS logs_last_minute,
         COALESCE(SUM({receipt} >= julianday('now','-5 minutes')),0) AS logs_last_5_minutes,
         COALESCE(SUM({receipt} >= julianday('now','-1 minute') AND app='resource-monitor' AND message='HEARTBEAT'),0) AS heartbeats_last_minute
-        FROM logs""").fetchone())
+        FROM logs WHERE {receipt} >= julianday('now','-5 minutes')""").fetchone())
+    counts['total_logs'] = conn.execute('SELECT COUNT(*) FROM logs').fetchone()[0]
     counts['logs_per_minute_5m'] = round(counts.pop('logs_last_5_minutes') / 5, 1)
     counts['events_last_minute'] = counts['logs_last_minute'] - counts['heartbeats_last_minute']
     return counts

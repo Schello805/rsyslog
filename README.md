@@ -373,3 +373,8 @@ Web-Updates melden ihre Schritte im Footer: Prüfen, Herunterladen, Vorbereiten,
 Sichern, Installieren, Neustart und Prüfung der neuen Revision. Die Schrittzahl
 ist keine Schätzung der verbleibenden Zeit; Wiederherstellungen werden gesondert
 angezeigt.
+
+Kennzahlen werden serverseitig für zehn Sekunden gemeinsam zwischengespeichert.
+Überblick und Geräteliste aktualisieren sich nur, solange ihre Ansicht sichtbar ist;
+die Host-/Dienstfilter auf der Log-Seite werden alle 60 Sekunden und beim Öffnen geladen.
+Speichern von Einstellungen, Umbenennen eines Hosts und Leeren der Logs löschen den Cache sofort.
