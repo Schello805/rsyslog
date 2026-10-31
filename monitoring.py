@@ -42,6 +42,8 @@ async def maintenance():
                     level='WARN', message=storage['message'])
                 await process_alert(entry)
                 last_storage_warning = time.monotonic()
+            from host_resolution import refresh_known_sources
+            await asyncio.to_thread(refresh_known_sources)
             if time.monotonic() - last_cleanup >= 3600:
                 settings = await asyncio.to_thread(database.get_all_settings)
                 await asyncio.to_thread(database.delete_logs_older_than, settings['retention_days'])

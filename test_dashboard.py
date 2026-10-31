@@ -27,6 +27,36 @@ class DashboardTests(unittest.TestCase):
         self.override.stop()
         self.directory.cleanup()
 
+    def test_host_filter_uses_uniform_ip_labels_and_separate_legacy_group(self):
+        for host in ['192.0.2.10','192.0.2.6','192.0.2.22','old-device']:
+            database.insert_log(host,'app','INFO','hello')
+        database.remember_source_dns('192.0.2.6','same-name.lan')
+        database.remember_source_dns('192.0.2.10','same-name.lan')
+        database.set_host_alias('192.0.2.10','Manuell')
+        groups = database.get_filter_options()['host_groups']
+        self.assertEqual([item['value'] for item in groups[0]['options']], ['192.0.2.6','192.0.2.10','192.0.2.22'])
+        self.assertEqual(groups[0]['options'][0]['label'], '192.0.2.6 (same-name.lan)')
+        self.assertEqual(groups[0]['options'][1]['label'], '192.0.2.10 (Manuell)')
+        self.assertEqual(groups[0]['options'][2]['label'], '192.0.2.22 (DNS nicht aufgelöst)')
+        self.assertEqual(groups[1]['options'], [{'value':'old-device','label':'old-device · Quell-IP nicht gespeichert'}])
+        self.assertEqual(database.get_logs()[1],4)
+
+    def test_dns_refresh_updates_labels_without_new_messages_or_merging_hosts(self):
+        import host_resolution
+        for host in ['192.0.2.6','192.0.2.10','old-device']:
+            database.insert_log(host,'app','INFO','hello')
+        database.set_host_alias('192.0.2.6','Mein Gerät')
+        with patch.object(host_resolution,'_refresh_cursor',0), patch.object(host_resolution,'resolve_ip',return_value='shared-name.lan') as resolve:
+            self.assertEqual(host_resolution.refresh_known_sources(batch_size=1),1)
+            self.assertEqual(host_resolution.refresh_known_sources(batch_size=1),1)
+            self.assertEqual(resolve.call_count,2)
+            self.assertEqual({call.args[0] for call in resolve.call_args_list},{'192.0.2.6','192.0.2.10'})
+        aliases = database.get_host_aliases()
+        self.assertEqual(aliases['192.0.2.6'],'Mein Gerät')
+        self.assertEqual(aliases['192.0.2.10'],'shared-name.lan')
+        self.assertEqual(set(database.get_filter_options()['hosts']),{'192.0.2.6','192.0.2.10','old-device'})
+        self.assertEqual(database.get_logs()[1],3)
+
     def test_device_identity_keeps_manual_name_dns_and_source_separate(self):
         database.insert_log('192.0.2.1','app','INFO','hello',metadata={'source_ip':'192.0.2.1'})
         database.remember_source_dns('192.0.2.1','device.lan')

@@ -82,3 +82,38 @@ def identify_source(entry, address):
     if name != address:
         remember_source_dns(address, name)
     return entry
+
+
+_refresh_cursor = 0
+
+
+def refresh_known_sources(batch_size=8):
+    """Refresh a small rotating DNS batch, including senders with no new packets.
+
+    Late DNS answers used to stay only in RAM until another packet arrived.
+    This maintenance path persists them and retries sources skipped by a busy pool.
+    DNS changes only labels; no host identity is changed or combined.
+    """
+    global _refresh_cursor
+    from database import get_db_connection, remember_source_dns
+    addresses = []
+    for row in get_db_connection().execute('SELECT DISTINCT host FROM logs ORDER BY host'):
+        try:
+            ip_address(row['host'])
+        except ValueError:
+            continue
+        addresses.append(row['host'])
+    if not addresses:
+        return 0
+    changed = 0
+    count = min(batch_size, len(addresses))
+    for index in range(count):
+        address = addresses[(_refresh_cursor + index) % len(addresses)]
+        name = resolve_ip(address)
+        if name != address:
+            changed += bool(remember_source_dns(address, name))
+    _refresh_cursor = (_refresh_cursor + count) % len(addresses)
+    if changed:
+        from metrics_cache import invalidate
+        invalidate()
+    return changed

@@ -423,3 +423,11 @@ Modell und sichere Fehlerkategorie; Zugangsdaten werden nicht ausgegeben.
 Die Modellparameter orientieren sich an den offiziellen Dokumentationen:
 [OpenAI Reasoning](https://developers.openai.com/api/docs/guides/reasoning) und
 [Gemini Thinking](https://ai.google.dev/gemini-api/docs/generate-content/thinking).
+
+Im Hostfilter stehen Geräte einheitlich als `Quell-IP (Name/DNS)`, numerisch nach
+IP sortiert. Ohne aufgelösten Namen steht ausdrücklich „DNS nicht aufgelöst“.
+Altbestand und interne Meldungen ohne gespeicherte Quell-IP bilden eine eigene
+Gruppe und werden keinem IP-Gerät zugerechnet. Die Wartung prüft alle 30 Sekunden
+höchstens acht bekannte Quell-IPs reihum mit dem begrenzten DNS-Cache, sodass auch
+späte DNS-Antworten ohne weitere Logmeldung in der Anzeige ankommen. DNS-Namen
+führen niemals zwei Quell-IPs zusammen; manuelle Anzeigenamen haben Vorrang.

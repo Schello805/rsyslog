@@ -952,8 +952,15 @@
                 if (labelsChanged || JSON.stringify(availableExcludeHosts) !== JSON.stringify(data.hosts)) { availableExcludeHosts = data.hosts; renderExcludedHosts(); }
                 const hostSelect = document.getElementById('filter-host');
                 const currentHost = hostSelect.value;
-                hostSelect.innerHTML = '<option value="ALL">Alle Hosts</option>' + 
-                    data.hosts.map(h => `<option value="${escapeHtml(h)}" ${h === currentHost ? 'selected' : ''}>${escapeHtml(hostLabel(h))}</option>`).join('');
+                hostSelect.replaceChildren(new Option('Alle Hosts', 'ALL'));
+                const groups = data.host_groups || [{label:'Hosts', options:data.hosts.map(host => ({value:host, label:hostLabel(host)}))}];
+                for (const group of groups) {
+                    if (!group.options.length) continue;
+                    const element = document.createElement('optgroup'); element.label = group.label;
+                    for (const option of group.options) element.append(new Option(option.label, option.value));
+                    hostSelect.append(element);
+                }
+                if (data.hosts.includes(currentHost)) hostSelect.value = currentHost;
 
                 if (currentHost !== 'ALL' && !data.hosts.includes(currentHost)) { hostSelect.add(new Option(hostLabel(currentHost), currentHost)); hostSelect.value = currentHost; }
                 updateHostNameButton();

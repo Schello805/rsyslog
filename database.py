@@ -97,6 +97,8 @@ def remember_source_dns(ip, name):
     if not row or row['name'] != name:
         with conn:
             conn.execute('INSERT INTO source_dns VALUES(?,?) ON CONFLICT(ip) DO UPDATE SET name=excluded.name', (ip, name))
+        return True
+    return False
 
 
 def normalize_recorded_sources():
@@ -512,9 +514,22 @@ def get_filter_options() -> Dict[str, Any]:
 
     labels = {host: f'Nicht zugeordnet · {host}' for host in hosts if is_unassigned_syslog_host(host)}
     labels.update(get_host_aliases())
+    from ipaddress import ip_address
+    ip_hosts, legacy_hosts = [], []
+    for host in hosts:
+        try:
+            address = ip_address(host)
+        except ValueError:
+            legacy_hosts.append({'value':host, 'label':f'{host} · Quell-IP nicht gespeichert'})
+            continue
+        name = labels.get(host)
+        ip_hosts.append({'value':host, 'label':f'{host} ({name})' if name and name != host else f'{host} (DNS nicht aufgelöst)'})
+    ip_hosts.sort(key=lambda option: (ip_address(option['value']).version, int(ip_address(option['value']))))
     return {
         "hosts": hosts,
         "host_labels": labels,
+        "host_groups": [{"label":"Geräte nach Quell-IP", "options":ip_hosts},
+                        {"label":"Altbestand / interne Meldungen ohne Quell-IP", "options":legacy_hosts}],
         "apps": apps,
     }
 
