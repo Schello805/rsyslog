@@ -451,3 +451,15 @@ Ein Zeitstempel kennzeichnet gespeicherte/veraltete Daten. Der Cache enthält ei
 Dashboard-Antwort (inklusive der dort sichtbaren Ereignisse), höchstens 512 KB,
 maximal 24 Stunden. Browser ohne verfügbaren Speicher nutzen weiterhin den
 Live-Abruf. Beim Leeren der Logs wird auch dieser lokale Cache geleert.
+
+Unter Einstellungen → System lassen sich lokale DNS-Server (z. B. Pi-hole) und
+eine optionale Suchdomain angeben. DNS-Abfragen nutzen feste Zeitlimits und den
+begrenzten Hintergrund-Pool. Fehlt ein PTR-Eintrag, wird ein gemeldeter Hostname
+nur dann als DNS-Name bestätigt, wenn sein A-/AAAA-Eintrag zur Quell-IP passt.
+
+Ohne DNS-Eintrag zeigt die App einen eindeutigen, in den letzten 30 Meldungen
+enthaltenen Hostnamen als „Gemeldet · nicht DNS-bestätigt“. Dafür muss die
+Quell-IP im betreffenden Log gespeichert sein. Mehrere unterschiedliche Namen
+hinter derselben IP werden nicht willkürlich ausgewählt; CEF-Gerätenamen werden
+nicht mit dem meldenden Controller verwechselt. DNS und manuelle Namen haben
+Vorrang. Die Geräteidentität bleibt immer die Quell-IP.

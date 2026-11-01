@@ -821,7 +821,7 @@
             activity.className = 'text-xs text-slate-500 mt-2';
             activity.textContent = host.last_message ? `Letzte Meldung: ${formatTimestamp(host.last_message)} · ${host.errors_24h} Fehler / 24 h` : 'Noch keine gespeicherten Meldungen';
             const identity = document.createElement('p'); identity.className = 'text-xs text-slate-500 mt-1';
-            identity.textContent = host.display_host && host.display_host !== host.host ? host.host : '';
+            identity.textContent = (host.display_host && host.display_host !== host.host ? host.host : '') + (host.name_source === 'reported' ? ' · Name gemeldet, nicht DNS-bestätigt' : '');
             const actions = document.createElement('div'); actions.className = 'flex gap-4 mt-3 text-xs text-sky-700';
             const logs = document.createElement('button'); logs.type = 'button'; logs.textContent = 'Logs ansehen →';
             logs.addEventListener('click', () => openLogFilter('ALL', host.host));
@@ -865,6 +865,10 @@
                 if (host.dns_name && identity.textContent !== host.dns_name) {
                     const original = document.createElement('small'); original.className = 'block text-xs text-slate-500 mt-1';
                     original.textContent = `DNS: ${host.dns_name}`; identity.append(original);
+                }
+                if (host.name_source === 'reported') {
+                    const provenance = document.createElement('small'); provenance.className = 'block text-xs text-slate-500 mt-1';
+                    provenance.textContent = 'Gemeldet · nicht DNS-bestätigt'; identity.append(provenance);
                 }
                 cell(host.source_ip || 'Nicht gespeichert');
                 const state = cell(''); const badge = document.createElement('span');

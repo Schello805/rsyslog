@@ -196,6 +196,8 @@ def get_all_settings() -> Dict[str, Any]:
         "alert_threshold_window_minutes": as_int(db_settings.get("alert_threshold_window_minutes"), 5),
         "alert_throttle_seconds": as_int(db_settings.get("alert_throttle_seconds"), config.ALERT_THROTTLE_SECONDS or 30),
         "alert_ignore_hosts": db_settings.get("alert_ignore_hosts", ""),
+        "dns_servers": db_settings.get("dns_servers", ""),
+        "dns_search_domain": db_settings.get("dns_search_domain", ""),
         # Retention
         "retention_days": as_int(db_settings.get("retention_days"), 0),
         "discard_debug": as_bool(db_settings.get("discard_debug"), True),
@@ -209,6 +211,21 @@ def save_all_settings(settings: Dict[str, Any]) -> None:
         value = settings['max_database_mb']
         if isinstance(value, bool) or not str(value).isdigit() or (int(value) != 0 and not 16 <= int(value) <= 1048576):
             raise ValueError('Datenbankgrenze: 0 (unbegrenzt) oder 16 bis 1048576 MB.')
+    if 'dns_servers' in settings:
+        from ipaddress import ip_address
+        servers = [value.strip() for value in str(settings['dns_servers']).split(',') if value.strip()]
+        if len(servers) > 3:
+            raise ValueError('Höchstens drei DNS-Server als IP-Adressen eingeben.')
+        try:
+            settings['dns_servers'] = ', '.join(str(ip_address(value)) for value in servers)
+        except ValueError:
+            raise ValueError('DNS-Server müssen gültige IP-Adressen sein.') from None
+    if 'dns_search_domain' in settings:
+        from host_resolution import clean_hostname
+        domain = str(settings['dns_search_domain']).strip().rstrip('.')
+        if domain and not clean_hostname(domain):
+            raise ValueError('Bitte eine gültige lokale DNS-Domain eingeben.')
+        settings['dns_search_domain'] = domain
     conn = get_db_connection()
     with conn:
         for k, v in settings.items():
@@ -224,6 +241,10 @@ def save_all_settings(settings: Dict[str, Any]) -> None:
                 "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (str(k), str(v)),
             )
+
+    if {'dns_servers','dns_search_domain'} & settings.keys():
+        from host_resolution import reset_dns_cache
+        reset_dns_cache()
 
 
 def delete_logs_older_than(days: int) -> int:
@@ -522,6 +543,11 @@ def get_filter_options() -> Dict[str, Any]:
 
     labels = {host: f'Nicht zugeordnet · {host}' for host in hosts if is_unassigned_syslog_host(host)}
     labels.update(get_host_aliases())
+    reported_names = get_reported_source_names()
+    verified_names = {row['ip'] for row in conn.execute('SELECT ip FROM source_dns')}
+    verified_names.update(row['host'] for row in conn.execute('SELECT host FROM host_aliases'))
+    from host_resolution import source_names
+    verified_names.update(source_names())
     from ipaddress import ip_address
     ip_hosts, legacy_hosts = [], []
     for host in hosts:
@@ -531,6 +557,8 @@ def get_filter_options() -> Dict[str, Any]:
             legacy_hosts.append({'value':host, 'label':f'{host} · Quell-IP nicht gespeichert'})
             continue
         name = labels.get(host)
+        if host in reported_names and host not in verified_names:
+            name = f'{name} · gemeldet'
         ip_hosts.append({'value':host, 'label':f'{host} ({name})' if name and name != host else f'{host} (DNS nicht aufgelöst)', 'sort_name':name if name and name != host else host})
     ip_hosts.sort(key=lambda option: (ip_address(option['value']).version, int(ip_address(option['value']))))
     return {
@@ -607,6 +635,10 @@ def get_dashboard_summary():
         host.setdefault('status', 'syslog')
     aliases = get_host_aliases()
     dns_names = {row['ip']: row['name'] for row in conn.execute('SELECT ip,name FROM source_dns')}
+    reported_names = get_reported_source_names()
+    explicit_names = {row['host'] for row in conn.execute('SELECT host FROM host_aliases')}
+    from host_resolution import source_names
+    explicit_names.update(source_names())
     from ipaddress import ip_address
     for host in hosts.values():
         try:
@@ -614,6 +646,7 @@ def get_dashboard_summary():
         except ValueError:
             host['source_ip'] = None
         host['dns_name'] = dns_names.get(host['host'])
+        host['name_source'] = 'manual' if host['host'] in explicit_names else 'dns' if host['host'] in dns_names else 'reported' if host['host'] in reported_names else 'ip'
         host["display_host"] = aliases.get(host["host"], host["host"])
     unassigned = [host for host in hosts.values() if host['source_ip'] is None]
     devices = sorted((host for host in hosts.values() if host['source_ip'] is not None), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
@@ -649,9 +682,38 @@ def get_ingestion_metrics():
     return counts
 
 
+def get_reported_source_names():
+    from metrics_cache import snapshot
+    def collect():
+        from host_resolution import reported_hostname
+        from ipaddress import ip_address
+        conn = get_db_connection()
+        result = {}
+        for row in conn.execute('SELECT DISTINCT host FROM logs'):
+            host = row['host']
+            if not is_source_ip(host):
+                continue
+            names = {}
+            for log in conn.execute('SELECT metadata FROM logs WHERE host=? ORDER BY id DESC LIMIT 30', (host,)):
+                try:
+                    metadata = json.loads(log['metadata'] or '{}')
+                    if not isinstance(metadata,dict) or str(ip_address(metadata.get('source_ip'))) != host:
+                        continue
+                    name = reported_hostname(metadata)
+                    if name:
+                        names.setdefault(name.casefold(),name)
+                except (ValueError,TypeError):
+                    continue
+            if len(names) == 1:
+                result[host] = next(iter(names.values()))
+        return result
+    return snapshot('reported_source_names',15,collect)
+
+
 def get_host_aliases():
     conn = get_db_connection()
-    names = {row['ip']: row['name'] for row in conn.execute('SELECT ip,name FROM source_dns')}
+    names = get_reported_source_names()
+    names.update({row['ip']: row['name'] for row in conn.execute('SELECT ip,name FROM source_dns')})
     try:
         configured = json.loads(get_setting('syslog_source_names', '{}'))
         if isinstance(configured, dict):

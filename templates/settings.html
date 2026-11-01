@@ -376,6 +376,12 @@
 
             </section>
             <section data-settings-panel="system" hidden class="space-y-6">
+                <section class="bg-white border rounded-2xl p-4 space-y-3">
+                    <h3 class="font-semibold">Namen deiner Geräte auflösen</h3>
+                    <label class="block text-sm" for="dns_servers">Lokale DNS-Server</label><input id="dns_servers" class="w-full border rounded-lg p-2" placeholder="z. B. 192.168.1.100"><p class="text-xs text-slate-600">Leer = DNS des App-Servers. Höchstens drei IP-Adressen, durch Kommas getrennt, z. B. Pi-hole und Router.</p>
+                    <label class="block text-sm" for="dns_search_domain">Lokale DNS-Domain (optional)</label><input id="dns_search_domain" class="w-full border rounded-lg p-2" placeholder="z. B. schello"><p class="text-xs text-slate-600">Die App prüft Rückwärtsauflösung und gemeldete Hostnamen per DNS. Fehlende DNS-Einträge werden als „gemeldet, nicht DNS-bestätigt“ gekennzeichnet. Geräte bleiben ihrer Quell-IP zugeordnet.</p>
+                </section>
+
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="system-card"><p>Logs · letzte Minute</p><strong id="system-rate">…</strong><small id="system-rate-average"></small></div>
                     <div class="system-card"><p>Gespeicherte Logs</p><strong id="system-log-total">…</strong><small>In der aktuellen Datenbank</small></div>
@@ -532,6 +538,8 @@
                 document.getElementById('retention_days').value = data.retention_days || 0;
                 document.getElementById('discard_debug').checked = data.discard_debug !== false;
                 document.getElementById('max_database_mb').value = data.max_database_mb || 0;
+                document.getElementById('dns_servers').value = data.dns_servers || '';
+                document.getElementById('dns_search_domain').value = data.dns_search_domain || '';
             } catch (err) {
                 console.error('Error loading settings:', err);
                 showToast('Fehler beim Laden der Einstellungen', 'error');
@@ -556,6 +564,8 @@
                 ntfy_topic: document.getElementById('ntfy_topic').value.trim(),
                 ntfy_server: document.getElementById('ntfy_server').value.trim(),
 
+                dns_servers: document.getElementById('dns_servers').value.trim(),
+                dns_search_domain: document.getElementById('dns_search_domain').value.trim(),
                 discard_debug: document.getElementById('discard_debug').checked,
                 max_database_mb: Number(document.getElementById('max_database_mb').value),
                 retention_days: parseInt(document.getElementById('retention_days').value) || 0
