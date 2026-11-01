@@ -69,7 +69,7 @@ class DebugIngestionTests(unittest.TestCase):
         asyncio.run(check())
 
     def test_cef_effective_severity_takes_precedence_over_outer_debug(self):
-        raw = '<15>Oct 31 08:00:00 gateway unifi: CEF:0|Ubiquiti|UniFi Network|10|512|Device Offline|8|UNIFIhost=Gateway msg=offline'
+        raw = '<15>Oct 31 08:00:00 gateway unifi: CEF:0|Ubiquiti|UniFi Network|10|513|Hardware Failure|8|UNIFIhost=Gateway msg=hardware failure'
         saved = syslog_server.handle_incoming_log_sync(raw, '192.0.2.1')
         self.assertIsNotNone(saved)
         self.assertEqual(saved['level'], 'ERROR')

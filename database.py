@@ -87,6 +87,12 @@ def init_db() -> None:
     normalize_recorded_sources()
     from incidents import initialize
     initialize(conn)
+    if not conn.execute("SELECT 1 FROM settings WHERE key='migration_quiet_availability_v1'").fetchone():
+        with conn:
+            messages = ('ALARM: Seit 5 Minuten kein Heartbeat', 'ENTWARNUNG: Heartbeat wieder empfangen')
+            conn.execute("UPDATE logs SET level='INFO' WHERE app='host-monitor' AND message IN (?,?) AND level!='INFO'", messages)
+            conn.execute("DELETE FROM incidents WHERE app='host-monitor' AND message IN (?,?)", messages)
+            conn.execute("INSERT INTO settings(key,value) VALUES('migration_quiet_availability_v1','done')")
     from analysis_cache import initialize as initialize_cache
     initialize_cache(conn)
 
@@ -294,6 +300,10 @@ def insert_log(
             host = str(ip_address(metadata['source_ip']))
         except ValueError:
             pass
+    if apply_ingestion_rules:
+        from availability_policy import is_availability_notice
+        if is_availability_notice(app, message, metadata):
+            return None
     normalized_level = level.upper().strip()
     if (apply_ingestion_rules and normalized_level == 'DEBUG'
             and str(get_setting('discard_debug', 'true')).lower() in ('true', '1', 'yes', 'on')):

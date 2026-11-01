@@ -487,3 +487,5 @@ Lebenszeichen, Namen und gerätespezifischen Regeln der bestätigten Quell-IP.
 Alle zwischengespeicherten KI-Analysen werden dabei ebenfalls zurückgesetzt, da
 sie mehrere Hosts enthalten können; der Dialog zeigt dies vor der Bestätigung an.
 Die App führt den Deinstallationsbefehl nicht selbst auf dem Client aus.
+
+Nicht erreichbare Geräte erzeugen keine Heartbeat-Alarme oder Entwarnungen; der Online-/Offline-Status bleibt in der Geräteliste sichtbar. Eindeutige eingehende Geräte-Statusmeldungen wie „Device Offline“ oder „Host server is unreachable“ werden vor Speicherung und Alarmierung verworfen. Dienst-, Backup- und sonstige Verbindungsfehler bleiben erhalten. Frühere, intern erzeugte Heartbeat-Alarme werden beim Update zu INFO herabgestuft und aus den Vorfällen entfernt.

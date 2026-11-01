@@ -7,21 +7,9 @@ import database
 logger = logging.getLogger(__name__)
 
 
-async def status_event(host, recovered):
-    from alerter import process_alert
-    from syslog_server import broadcast_log
-    entry = await asyncio.to_thread(database.insert_log, host=host, app='host-monitor',
-        level='WARN' if recovered else 'ERROR',
-        message='ENTWARNUNG: Heartbeat wieder empfangen' if recovered else 'ALARM: Seit 5 Minuten kein Heartbeat')
-    await process_alert(entry)
-    await broadcast_log(entry)
-
-
 async def observe_log(log):
     if log.get('app') == 'resource-monitor' and log.get('message') == 'HEARTBEAT':
-        recovered = await asyncio.to_thread(database.touch_monitored_host, log['host'])
-        if recovered:
-            await status_event(log['host'], True)
+        await asyncio.to_thread(database.touch_monitored_host, log['host'])
 
 
 async def maintenance():
@@ -29,8 +17,7 @@ async def maintenance():
     last_storage_warning = float('-inf')
     while True:
         try:
-            for host in await asyncio.to_thread(database.mark_offline_hosts):
-                await status_event(host, False)
+            await asyncio.to_thread(database.mark_offline_hosts)
             from analysis_cache import cleanup as cleanup_analyses
             await asyncio.to_thread(lambda: cleanup_analyses(database.get_db_connection()))
             from storage_policy import trim_database, status

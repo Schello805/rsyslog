@@ -45,6 +45,18 @@ class ReliabilityTests(unittest.TestCase):
         self.assertTrue(database.touch_monitored_host('192.0.2.1'))
         self.assertFalse(database.touch_monitored_host('192.0.2.1'))
 
+    def test_old_heartbeat_alarm_becomes_information(self):
+        database.insert_log('192.0.2.1', 'host-monitor', 'ERROR', 'ALARM: Seit 5 Minuten kein Heartbeat')
+        database.insert_log('192.0.2.1', 'backup', 'ERROR', 'Backup failed')
+        with database.get_db_connection() as conn:
+            conn.execute("DELETE FROM settings WHERE key='migration_quiet_availability_v1'")
+        database.init_db()
+        logs, _ = database.get_logs(app='host-monitor')
+        self.assertEqual(logs[0]['level'], 'INFO')
+        with database.get_db_connection() as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM incidents WHERE app='host-monitor'").fetchone()[0], 0)
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM incidents WHERE app='backup'").fetchone()[0], 1)
+
     def test_sustained_alarm_repeat_and_recovery(self):
         state, event = monitor.transition({}, 95, 90, 0, 600, 1800)
         self.assertIsNone(event)

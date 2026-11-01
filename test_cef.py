@@ -79,9 +79,8 @@ class CefTests(unittest.TestCase):
                             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
                                 for body in ({'content': self.event(), 'headers': {'content-type':'text/plain'}}, {'json': {'message': self.event()}}):
                                     response = await client.post('/api/logs', **body)
-                                    self.assertEqual(response.status_code, 201)
-                                    self.assertEqual(response.json()['log']['metadata']['event_id'], '512')
-                                    self.assertEqual(alert.await_args.args[0]['level'], 'ERROR')
+                                    self.assertEqual(response.status_code, 202)
+                                    alert.assert_not_awaited()
                     asyncio.run(verify_api())
                     database._local.connection.close()
                     database._local.connection = None
