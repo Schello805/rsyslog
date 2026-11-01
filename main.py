@@ -554,6 +554,9 @@ app.include_router(ai_router)
 from incidents import router as incident_router
 app.include_router(incident_router)
 
+from host_management import router as host_management_router
+app.include_router(host_management_router)
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -212,3 +212,9 @@ def refresh_known_sources(batch_size=8):
         from metrics_cache import invalidate
         invalidate()
     return changed
+
+
+def forget_source(address):
+    with _lock:
+        _cache.pop(address, None)
+        _hints.pop(address, None)

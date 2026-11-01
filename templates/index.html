@@ -888,7 +888,10 @@
                 const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Benennen'; edit.className = 'text-sky-700';
                 edit.setAttribute('aria-label', `${host.display_host || host.host} benennen`);
                 edit.addEventListener('click', () => openHostNameDialog(host));
-                group.append(logs, edit); actions.append(group); tbody.append(row);
+                const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Entfernen'; remove.className = 'text-rose-700';
+                remove.setAttribute('aria-label', `${host.display_host || host.host} entfernen`);
+                remove.addEventListener('click', () => openHostRemoval(host));
+                group.append(logs, edit, remove); actions.append(group); tbody.append(row);
             }
         }
 
@@ -1334,6 +1337,15 @@
             fetchStats();
             if (key === 'logs') { fetchFilters(); fetchLogs(currentPage); }
         }
+        window.addEventListener('rsyslog-host-removed', event => {
+            const host = event.detail.host;
+            cachedDeviceHosts = cachedDeviceHosts.filter(device => device.host !== host);
+            renderDeviceTable(); clearDashboardSnapshot();
+            excludedHosts.delete(host); saveExcludedHosts();
+            if (document.getElementById('filter-host').value === host) document.getElementById('filter-host').value = 'ALL';
+            updateHostNameButton(); fetchStats(); fetchFilters();
+            showToast('Gerät und zugehörige Daten entfernt.', 'success');
+        });
         window.addEventListener('hashchange', showWorkflow);
 
         // Init on page load
@@ -1390,5 +1402,20 @@
 </dialog>
 <script src="/assets/ai-analysis.js" defer></script>
 <script src="/assets/incidents.js" defer></script>
+
+<dialog id="remove-host-dialog" class="bg-white text-slate-900 border rounded-2xl p-5 w-full max-w-2xl shadow-xl" style="max-height:90vh;overflow:auto">
+    <div class="flex justify-between gap-3"><h2 class="font-semibold">Gerät entfernen</h2><button type="button" id="remove-host-close">Schließen</button></div>
+    <p id="remove-host-identity" class="font-medium my-3"></p>
+    <p class="text-sm">1. Auf dem betroffenen Linux-Client (Debian/Ubuntu, Proxmox VE/PBS oder Gast) ausführen. Der Befehl entfernt den Monitor und die passende Weiterleitung; lokales rsyslog und andere Ziele bleiben erhalten. Bei UniFi/QNAP stattdessen das Syslog-Ziel in den Geräteeinstellungen entfernen.</p>
+    <pre class="bg-slate-50 border rounded-lg p-3 my-3 text-xs whitespace-pre-wrap break-words"><code id="remove-host-command"></code></pre>
+    <button type="button" id="remove-host-copy" disabled class="border rounded-lg p-2 text-sm">Deinstallationsbefehl kopieren</button>
+    <p class="text-sm mt-4">2. Danach das Gerät aus dieser App löschen. Neue Meldungen oder Lebenszeichen können es erneut hinzufügen.</p>
+    <p id="remove-host-scope" class="text-sm text-rose-800 my-3"></p>
+    <label for="remove-host-confirm" class="block text-sm">Zum endgültigen Löschen die vollständige Quell-IP eingeben:</label>
+    <input id="remove-host-confirm" autocomplete="off" class="w-full border rounded-lg p-2 my-2">
+    <button type="button" id="remove-host-submit" disabled class="bg-rose-700 text-white rounded-lg p-3 disabled:opacity-40">Gerät inklusive Daten endgültig löschen</button>
+    <p id="remove-host-status" role="status" class="text-sm my-3"></p>
+</dialog>
+<script src="/assets/host-removal.js" defer></script>
 </body>
 </html>

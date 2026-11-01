@@ -19,6 +19,7 @@ _incident_timestamps: Dict[str, List[float]] = {}
 
 # In-memory history of last sent alerts for throttling cooldown: fingerprint -> last_sent_ts
 _last_sent_timestamps: Dict[str, float] = {}
+_incident_hosts: Dict[str, str] = {}
 
 
 def get_severity_score(level: str) -> int:
@@ -66,7 +67,9 @@ def record_incident_and_check_threshold(fingerprint: str, threshold_count: int, 
     _incident_timestamps[fingerprint].append(now)
     _incident_timestamps[fingerprint] = _incident_timestamps[fingerprint][-max(100, min(threshold_count, 10000)):]
     if len(_incident_timestamps) > 4096:
-        _incident_timestamps.pop(next(iter(_incident_timestamps)))
+        evicted = next(iter(_incident_timestamps))
+        _incident_timestamps.pop(evicted)
+        _incident_hosts.pop(evicted,None)
 
     return len(_incident_timestamps[fingerprint])
 
@@ -215,6 +218,7 @@ async def process_alert(log: Dict[str, Any]) -> None:
     cooldown_seconds = max(5, int(settings.get("alert_throttle_seconds", 30)))
 
     current_occurrences = record_incident_and_check_threshold(fingerprint, threshold_count, window_minutes)
+    _incident_hosts[fingerprint] = host
 
     # Check if threshold is reached (e.g., at least 2 errors)
     from notification_gate import is_escalation
@@ -303,3 +307,11 @@ async def send_test_alert() -> Dict[str, Any]:
         results["ntfy"] = "Ntfy ist deaktiviert oder Thema ist leer."
 
     return results
+
+
+def forget_host(host):
+    for fingerprint, source in list(_incident_hosts.items()):
+        if source == host:
+            _incident_hosts.pop(fingerprint,None)
+            _incident_timestamps.pop(fingerprint,None)
+            _last_sent_timestamps.pop(fingerprint,None)

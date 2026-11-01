@@ -93,3 +93,9 @@ async def send(log, channel, callback, cooldown):
         raise
     finish(reservation, success)
     return success
+
+
+def forget_host(host):
+    for key in list(_hosts):
+        if key[0] == host:
+            _hosts.pop(key, None)

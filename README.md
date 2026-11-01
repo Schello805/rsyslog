@@ -463,3 +463,27 @@ Quell-IP im betreffenden Log gespeichert sein. Mehrere unterschiedliche Namen
 hinter derselben IP werden nicht willkürlich ausgewählt; CEF-Gerätenamen werden
 nicht mit dem meldenden Controller verwechselt. DNS und manuelle Namen haben
 Vorrang. Die Geräteidentität bleibt immer die Quell-IP.
+
+Unter Gerätestatus → Entfernen findest du den Deinstallationsbefehl für den
+jeweiligen Linux-Client. Zuerst dort ausführen, danach die Quell-IP im Dialog
+eingeben und das Gerät endgültig löschen. Für UniFi/QNAP das Syslog-Ziel in deren
+Geräteeinstellungen entfernen. Neue eingehende Meldungen können Geräte wieder
+hinzufügen.
+
+Beispiel für einen Debian-/Ubuntu-/Proxmox-Client (als root ohne `sudo`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Schello805/rsyslog/main/scripts/uninstall-client.sh | sudo bash -s -- --server 192.168.1.158 --port 5514
+```
+
+Das Skript entfernt den Ressourcenmonitor und passende Weiterleitungszeilen in
+`99-resource-monitor-remote.conf` und `99-remote.conf`. Das lokale rsyslog-Paket,
+andere Ziele und eigene Konfigurationsdateien bleiben erhalten. Bei einer
+ungültigen verbleibenden rsyslog-Konfiguration werden die Dateien wiederhergestellt.
+Weitere Serveradressen/Ports lassen sich mit `--server`/`--port` wiederholt angeben.
+
+Das endgültige Entfernen in der App löscht ausschließlich die Logs, Vorfälle,
+Lebenszeichen, Namen und gerätespezifischen Regeln der bestätigten Quell-IP.
+Alle zwischengespeicherten KI-Analysen werden dabei ebenfalls zurückgesetzt, da
+sie mehrere Hosts enthalten können; der Dialog zeigt dies vor der Bestätigung an.
+Die App führt den Deinstallationsbefehl nicht selbst auf dem Client aus.
