@@ -248,7 +248,7 @@ async def api_get_logs(
     exclude_host: Optional[List[str]] = Query(None, max_length=200),
 ):
     """Retrieves paginated and filtered logs."""
-    logs, total = get_logs(
+    logs, total = await asyncio.to_thread(get_logs,
         page=page,
         per_page=per_page,
         level=level,
@@ -422,7 +422,7 @@ async def api_export_logs(
 ):
     """Exports matching logs as a downloadable CSV or JSON file."""
     # Retrieve all matching rows (up to 10,000 for export)
-    logs, _ = get_logs(
+    logs, _ = await asyncio.to_thread(get_logs,
         page=1,
         per_page=10000,
         level=level,

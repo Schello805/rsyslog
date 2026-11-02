@@ -194,7 +194,7 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(len(result['attention']), 6)
         self.assertEqual(result['latest'][0]['message'], '7')
 
-    def test_timestamp_sort_uses_indexes_and_preserves_order(self):
+    def test_timestamp_sort_preserves_order_without_startup_index_build(self):
         database.insert_log('192.0.2.4', 'app', 'INFO', 'older', timestamp='2026-01-01T10:00:00+00:00')
         database.insert_log('192.0.2.4', 'app', 'INFO', 'newer', timestamp='2026-01-01T12:00:00+00:00')
         database.insert_log('192.0.2.5', 'app', 'INFO', 'other', timestamp='2026-01-01T13:00:00+00:00')
@@ -203,10 +203,27 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(total, 2)
             self.assertEqual([log['message'] for log in logs], expected)
         conn = database.get_db_connection()
-        for where, index in [('', 'idx_logs_sort_time'), ("WHERE host='192.0.2.4'", 'idx_logs_host_sort_time')]:
-            plan = ' '.join(str(tuple(row)) for row in conn.execute(f"EXPLAIN QUERY PLAN SELECT id FROM logs {where} ORDER BY COALESCE(julianday(timestamp), julianday(received_at)) DESC, id DESC LIMIT 50"))
-            self.assertIn(index, plan)
-            self.assertNotIn('TEMP B-TREE', plan)
+        indexes = {row['name'] for row in conn.execute('PRAGMA index_list(logs)')}
+        self.assertNotIn('idx_logs_sort_time', indexes)
+        self.assertNotIn('idx_logs_host_sort_time', indexes)
+
+    def test_slow_log_query_does_not_block_event_loop(self):
+        import asyncio
+        import time
+        import httpx
+        import main
+        from unittest.mock import patch
+        def slow_query(**kwargs):
+            time.sleep(0.15)
+            return [], 0
+        async def check():
+            with patch.object(main, 'get_logs', side_effect=slow_query):
+                async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
+                    request = asyncio.create_task(client.get('/api/logs'))
+                    await asyncio.sleep(0.03)
+                    self.assertFalse(request.done(), 'Log SQL blocked the event loop')
+                    self.assertEqual((await request).status_code, 200)
+        asyncio.run(check())
 
     def test_old_events_do_not_count_as_current_attention(self):
         database.insert_log('192.0.2.4', 'app', 'ERROR', '192.0.2.4')

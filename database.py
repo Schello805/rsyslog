@@ -62,10 +62,8 @@ def init_db() -> None:
         conn.execute(f"CREATE INDEX IF NOT EXISTS idx_logs_receipt_time ON logs({RECEIPT_SQL})")
         # Performance indexes for dashboard filtering and sorting
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC)")
-        # Match get_logs' actual ordering expression; a plain timestamp index
-        # cannot serve ORDER BY julianday(...), especially for a busy host.
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_sort_time ON logs(COALESCE(julianday(timestamp), julianday(received_at)), id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_host_sort_time ON logs(host, COALESCE(julianday(timestamp), julianday(received_at)), id)")
+        # Do not build additional full-history sorting indexes during startup:
+        # this blocks service readiness on large existing databases.
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_host ON logs(host)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_app ON logs(app)")
@@ -665,10 +663,19 @@ def get_dashboard_summary():
     unassigned = [host for host in hosts.values() if host['source_ip'] is None]
     devices = sorted((host for host in hosts.values() if host['source_ip'] is not None), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
     def entries(extra='', prioritize=False):
-        order = "CASE level WHEN 'EMERGENCY' THEN 0 WHEN 'ALERT' THEN 1 WHEN 'CRITICAL' THEN 2 WHEN 'ERROR' THEN 3 ELSE 4 END, id DESC" if prioritize else 'id DESC'
-        rows = conn.execute(f"""SELECT id,timestamp,host,app,level,facility,message,raw,metadata
-            FROM logs WHERE NOT (app='resource-monitor' AND message='HEARTBEAT') {extra}
-            ORDER BY {order} LIMIT 6""").fetchall()
+        query = f"""SELECT id,timestamp,host,app,level,facility,message,raw,metadata
+            FROM logs WHERE NOT (app='resource-monitor' AND message='HEARTBEAT') {extra}"""
+        if prioritize:
+            # Equality on level uses its existing index (including rowid order).
+            # Limit each level before ranking, instead of sorting a day's logs.
+            rows = []
+            ranks = {'EMERGENCY': 0, 'ALERT': 1, 'CRITICAL': 2, 'ERROR': 3, 'WARN': 4, 'WARNING': 4}
+            for level in ranks:
+                rows.extend(conn.execute(query + ' AND level=? ORDER BY id DESC LIMIT 6', (level,)).fetchall())
+            rows.sort(key=lambda row: (ranks[row['level']], -row['id']))
+            rows = rows[:6]
+        else:
+            rows = conn.execute(query + ' ORDER BY id DESC LIMIT 6').fetchall()
         result = [dict(row) for row in rows]
         for entry in result:
             entry['display_host'] = aliases.get(entry['host'], entry['host'])
