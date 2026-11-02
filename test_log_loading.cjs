@@ -1,0 +1,21 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('templates/index.html','utf8');
+const code=html.slice(html.indexOf('        async function fetchLogs('),html.indexOf('        function debounceFetchLogs'));
+const elements={};
+for(const id of ['filter-level','filter-host','filter-app','filter-period','filter-search','filter-limit','active-filter-count','filtered-count']) elements[id]={value:'ALL'};
+let visible=false,busy,rendered,toasts=0;
+elements['logs-loading']={classList:{remove(){visible=true},add(){visible=false}}};
+elements['logs-table']={setAttribute(key,value){busy=value}};
+const pending=[];
+const ctx={AbortController,URLSearchParams,console,logRequestController:null,currentPage:1,excludedHosts:new Set(),logSortBy:'timestamp',logSortOrder:'desc',document:{getElementById:id=>elements[id]},fetch:()=>new Promise((resolve,reject)=>pending.push({resolve,reject})),renderTable:logs=>rendered=logs,updatePagination(){},showToast(){toasts++}};
+vm.runInNewContext(code,ctx);
+const response=logs=>({ok:true,json:async()=>({logs,page:1,per_page:50,total:logs.length})});
+(async()=>{
+ const first=ctx.fetchLogs();assert.equal(visible,true);assert.equal(busy,'true');
+ const second=ctx.fetchLogs();pending[0].resolve(response(['old']));await first;
+ assert.equal(visible,true);assert.equal(rendered,undefined);
+ pending[1].resolve(response(['new']));await second;assert.equal(visible,false);assert.equal(busy,'false');assert.equal(rendered[0],'new');
+ const failed=ctx.fetchLogs();pending[2].resolve({ok:false,status:500});await failed;assert.equal(visible,false);assert.equal(toasts,1);assert.equal(rendered[0],'new');
+ const aborted=ctx.fetchLogs();pending[3].reject(Object.assign(new Error(),{name:'AbortError'}));await aborted;assert.equal(visible,false);
+ console.log('Ladeanzeige: Erfolg, Fehler, Abbruch und überholte Antworten OK');
+})().catch(error=>{console.error(error);process.exitCode=1});

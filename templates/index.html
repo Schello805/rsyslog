@@ -311,10 +311,14 @@
             <span class="level-badge severity-warn">WARN</span><span class="level-badge severity-info">INFO</span>
             <span class="level-badge severity-notice">NOTICE</span><span class="level-badge severity-debug">DEBUG</span>
         </div>
+        <div id="logs-loading" class="hidden flex items-center gap-2 text-sm text-sky-700" role="status" aria-live="polite">
+            <svg class="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity="0.25"></circle><path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path></svg>
+            Meldungen werden geladen …
+        </div>
         <!-- Log Table Card -->
         <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <div class="overflow-x-auto">
-                <table class="log-table w-full text-left border-collapse text-sm" aria-label="Syslog-Meldungen">
+                <table id="logs-table" class="log-table w-full text-left border-collapse text-sm" aria-label="Syslog-Meldungen">
                     <thead>
                         <tr class="bg-slate-50/60 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                             <th data-sort-column="timestamp" aria-sort="none" class="py-3 px-4 w-36"><button type="button" onclick="sortLogs('timestamp')" class="flex items-center gap-2 hover:text-slate-900 focus-visible:outline focus-visible:outline-sky-500" aria-label="Nach Zeitstempel sortieren">Zeitstempel<span data-sort-arrow="timestamp" aria-hidden="true">↕︎</span></button></th>
@@ -640,6 +644,8 @@
             if (logRequestController) logRequestController.abort();
             const controller = new AbortController();
             logRequestController = controller;
+            document.getElementById('logs-loading').classList.remove('hidden');
+            document.getElementById('logs-table').setAttribute('aria-busy', 'true');
             currentPage = page;
             const activeFilters = ['filter-level', 'filter-host', 'filter-app', 'filter-period'].filter(id => document.getElementById(id).value !== 'ALL').length + (excludedHosts.size ? 1 : 0);
             document.getElementById('active-filter-count').textContent = activeFilters ? `(${activeFilters} aktiv)` : '';
@@ -665,7 +671,9 @@
             excludedHosts.forEach(host => params.append('exclude_host', host));
             try {
                 const res = await fetch(`/api/logs?${params.toString()}`, { signal: controller.signal });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
+                if (logRequestController !== controller) return;
                 renderTable(data.logs);
                 updatePagination(data.page, data.per_page, data.total);
                 document.getElementById('filtered-count').innerText = data.total;
@@ -673,6 +681,12 @@
                 if (err.name === 'AbortError') return;
                 console.error('Error fetching logs:', err);
                 showToast('Fehler beim Laden der Logs', 'error');
+            } finally {
+                if (logRequestController === controller) {
+                    document.getElementById('logs-loading').classList.add('hidden');
+                    document.getElementById('logs-table').setAttribute('aria-busy', 'false');
+                    logRequestController = null;
+                }
             }
         }
 
