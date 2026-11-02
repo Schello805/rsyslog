@@ -225,6 +225,24 @@ class DashboardTests(unittest.TestCase):
                     self.assertEqual((await request).status_code, 200)
         asyncio.run(check())
 
+    def test_fast_received_order_ignores_device_clock_and_needs_no_sort(self):
+        database.insert_log('192.0.2.4', 'app', 'INFO', 'first', timestamp='2099-01-01T00:00:00Z')
+        database.insert_log('192.0.2.4', 'app', 'INFO', 'second', timestamp='2000-01-01T00:00:00Z')
+        logs, total = database.get_logs(sort_by='received')
+        self.assertEqual([row['message'] for row in logs], ['second', 'first'])
+        self.assertEqual(total, 2)
+        for where in ('', "WHERE host='192.0.2.4'", "WHERE level='INFO'"):
+            plan = ' '.join(str(tuple(row)) for row in database.get_db_connection().execute(f'EXPLAIN QUERY PLAN SELECT id FROM logs {where} ORDER BY id DESC,id DESC LIMIT 50'))
+            self.assertNotIn('TEMP B-TREE', plan)
+        import asyncio
+        import httpx
+        import main
+        async def check():
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
+                result = await client.get('/api/logs')
+                self.assertEqual(result.json()['logs'][0]['message'], 'second')
+        asyncio.run(check())
+
     def test_old_events_do_not_count_as_current_attention(self):
         database.insert_log('192.0.2.4', 'app', 'ERROR', '192.0.2.4')
         with database.get_db_connection() as connection:

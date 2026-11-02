@@ -462,6 +462,7 @@ def get_logs(
     total_count = cursor.fetchone()[0]
 
     sort_columns = {
+        'received': 'id',  # Indexed insertion order, independent of device clocks.
         'timestamp': 'COALESCE(julianday(timestamp), julianday(received_at))',
         'level': "CASE level WHEN 'DEBUG' THEN 0 WHEN 'INFO' THEN 1 WHEN 'NOTICE' THEN 2 WHEN 'WARN' THEN 3 WHEN 'WARNING' THEN 3 WHEN 'ERROR' THEN 4 WHEN 'CRITICAL' THEN 5 WHEN 'ALERT' THEN 6 WHEN 'EMERGENCY' THEN 7 ELSE -1 END",
         'host': 'COALESCE((SELECT name FROM host_aliases WHERE host_aliases.host=logs.host),host) COLLATE NOCASE',

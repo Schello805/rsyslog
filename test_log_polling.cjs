@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('templates/index.html','utf8');
+const start=html.lastIndexOf('            setInterval(() => {');
+const end=html.indexOf('            }, 2000);',start)+'            }, 2000);'.length;
+let callback,calls=0;
+const ctx={setInterval:fn=>callback=fn,logRequestController:{},pendingLogRefresh:true,document:{hidden:false},isLiveStreamActive:true,location:{hash:'#logs'},currentPage:1,fetchLogs:()=>calls++};
+vm.runInNewContext(html.slice(start,end),ctx);
+callback();assert.equal(calls,0);assert.equal(ctx.pendingLogRefresh,true);
+ctx.logRequestController=null;callback();assert.equal(calls,1);assert.equal(ctx.pendingLogRefresh,false);
+callback();assert.equal(calls,1);
+console.log('Live-Abfragen warten laufende Anfragen ab und behalten ausstehende Aktualisierung OK');

@@ -243,7 +243,7 @@ async def api_get_logs(
     app: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     hours: Optional[int] = Query(None, ge=1, le=8760),
-    sort_by: Literal['timestamp', 'level', 'host', 'app', 'message'] = Query('timestamp'),
+    sort_by: Literal['received', 'timestamp', 'level', 'host', 'app', 'message'] = Query('received'),
     sort_order: Literal['asc', 'desc'] = Query('desc'),
     exclude_host: Optional[List[str]] = Query(None, max_length=200),
 ):
@@ -416,7 +416,7 @@ async def api_export_logs(
     app: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     hours: Optional[int] = Query(None, ge=1, le=8760),
-    sort_by: Literal['timestamp', 'level', 'host', 'app', 'message'] = Query('timestamp'),
+    sort_by: Literal['received', 'timestamp', 'level', 'host', 'app', 'message'] = Query('received'),
     sort_order: Literal['asc', 'desc'] = Query('desc'),
     exclude_host: Optional[List[str]] = Query(None, max_length=200),
 ):

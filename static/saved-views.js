@@ -4,7 +4,7 @@
     const fields = ['search', 'level', 'host', 'app', 'period', 'limit'];
     function validate(value) {
         if (!Array.isArray(value)) return [];
-        return value.slice(0, 20).filter(v => v && typeof v.name === 'string' && v.name.trim() && v.name.length <= 80 && v.filters && fields.every(f => typeof v.filters[f] === 'string' && v.filters[f].length <= 2000) && Array.isArray(v.excluded) && v.excluded.length <= 200 && v.excluded.every(h => typeof h === 'string' && h.length <= 255) && ['timestamp','level','host','app','message'].includes(v.sortBy) && ['asc','desc'].includes(v.sortOrder));
+        return value.slice(0, 20).filter(v => v && typeof v.name === 'string' && v.name.trim() && v.name.length <= 80 && v.filters && fields.every(f => typeof v.filters[f] === 'string' && v.filters[f].length <= 2000) && Array.isArray(v.excluded) && v.excluded.length <= 200 && v.excluded.every(h => typeof h === 'string' && h.length <= 255) && ['received','timestamp','level','host','app','message'].includes(v.sortBy) && ['asc','desc'].includes(v.sortOrder));
     }
     function read(storage) { return validate(JSON.parse(storage.getItem(key) || '[]')); }
     function write(storage, views) { storage.setItem(key, JSON.stringify(validate(views))); }
