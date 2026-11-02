@@ -194,6 +194,20 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(len(result['attention']), 6)
         self.assertEqual(result['latest'][0]['message'], '7')
 
+    def test_timestamp_sort_uses_indexes_and_preserves_order(self):
+        database.insert_log('192.0.2.4', 'app', 'INFO', 'older', timestamp='2026-01-01T10:00:00+00:00')
+        database.insert_log('192.0.2.4', 'app', 'INFO', 'newer', timestamp='2026-01-01T12:00:00+00:00')
+        database.insert_log('192.0.2.5', 'app', 'INFO', 'other', timestamp='2026-01-01T13:00:00+00:00')
+        for direction, expected in [('desc', ['newer', 'older']), ('asc', ['older', 'newer'])]:
+            logs, total = database.get_logs(host='192.0.2.4', sort_order=direction)
+            self.assertEqual(total, 2)
+            self.assertEqual([log['message'] for log in logs], expected)
+        conn = database.get_db_connection()
+        for where, index in [('', 'idx_logs_sort_time'), ("WHERE host='192.0.2.4'", 'idx_logs_host_sort_time')]:
+            plan = ' '.join(str(tuple(row)) for row in conn.execute(f"EXPLAIN QUERY PLAN SELECT id FROM logs {where} ORDER BY COALESCE(julianday(timestamp), julianday(received_at)) DESC, id DESC LIMIT 50"))
+            self.assertIn(index, plan)
+            self.assertNotIn('TEMP B-TREE', plan)
+
     def test_old_events_do_not_count_as_current_attention(self):
         database.insert_log('192.0.2.4', 'app', 'ERROR', '192.0.2.4')
         with database.get_db_connection() as connection:

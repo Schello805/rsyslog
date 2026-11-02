@@ -62,6 +62,10 @@ def init_db() -> None:
         conn.execute(f"CREATE INDEX IF NOT EXISTS idx_logs_receipt_time ON logs({RECEIPT_SQL})")
         # Performance indexes for dashboard filtering and sorting
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC)")
+        # Match get_logs' actual ordering expression; a plain timestamp index
+        # cannot serve ORDER BY julianday(...), especially for a busy host.
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_sort_time ON logs(COALESCE(julianday(timestamp), julianday(received_at)), id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_host_sort_time ON logs(host, COALESCE(julianday(timestamp), julianday(received_at)), id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_host ON logs(host)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_app ON logs(app)")
