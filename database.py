@@ -660,10 +660,11 @@ def get_dashboard_summary():
         host["display_host"] = aliases.get(host["host"], host["host"])
     unassigned = [host for host in hosts.values() if host['source_ip'] is None]
     devices = sorted((host for host in hosts.values() if host['source_ip'] is not None), key=lambda h: (h['status'] != 'offline', -max(h['heartbeat_last_seen'] or 0, h.get('last_activity') or 0), h['host'].lower()))
-    def entries(extra=''):
+    def entries(extra='', prioritize=False):
+        order = "CASE level WHEN 'EMERGENCY' THEN 0 WHEN 'ALERT' THEN 1 WHEN 'CRITICAL' THEN 2 WHEN 'ERROR' THEN 3 ELSE 4 END, id DESC" if prioritize else 'id DESC'
         rows = conn.execute(f"""SELECT id,timestamp,host,app,level,facility,message,raw,metadata
             FROM logs WHERE NOT (app='resource-monitor' AND message='HEARTBEAT') {extra}
-            ORDER BY id DESC LIMIT 6""").fetchall()
+            ORDER BY {order} LIMIT 6""").fetchall()
         result = [dict(row) for row in rows]
         for entry in result:
             entry['display_host'] = aliases.get(entry['host'], entry['host'])
@@ -674,7 +675,7 @@ def get_dashboard_summary():
         recent_hosts=sum(bool(host['recent']) for host in devices),
         heartbeat_hosts=sum(host['heartbeat_last_seen'] is not None for host in devices),
         offline_hosts=sum(host['status']=='offline' for host in devices),
-        latest=entries(), attention=entries(f"AND {recent} AND level IN ('WARN','WARNING','ERROR','CRITICAL','EMERGENCY','ALERT')"))
+        latest=entries(), attention=entries(f"AND {recent} AND level IN ('WARN','WARNING','ERROR','CRITICAL','EMERGENCY','ALERT')", prioritize=True))
 
 
 def get_ingestion_metrics():

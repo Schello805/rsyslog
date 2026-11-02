@@ -184,6 +184,16 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(len(result['latest']), 1)
         self.assertEqual(result['hosts'][0]['host'], '192.0.2.3')
 
+    def test_critical_events_remain_visible_before_newer_warnings(self):
+        for level in ('CRITICAL', 'ALERT', 'EMERGENCY'):
+            database.insert_log('192.0.2.4', 'app', level, level)
+        for number in range(8):
+            database.insert_log('192.0.2.4', 'app', 'WARN', str(number))
+        result = database.get_dashboard_summary()
+        self.assertEqual([item['level'] for item in result['attention'][:3]], ['EMERGENCY', 'ALERT', 'CRITICAL'])
+        self.assertEqual(len(result['attention']), 6)
+        self.assertEqual(result['latest'][0]['message'], '7')
+
     def test_old_events_do_not_count_as_current_attention(self):
         database.insert_log('192.0.2.4', 'app', 'ERROR', '192.0.2.4')
         with database.get_db_connection() as connection:

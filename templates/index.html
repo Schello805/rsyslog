@@ -148,7 +148,7 @@
             </div>
             <div class="grid lg:grid-cols-2 gap-6">
                 <section class="bg-white border border-slate-200 rounded-2xl p-5">
-                    <h3 class="font-semibold">Warnungen & Fehler</h3><p class="text-xs text-slate-600 mt-1 mb-4">Letzte Ereignisse aus 24 Stunden · keine Liste offener Vorfälle</p>
+                    <h3 class="font-semibold">Kritische Ereignisse, Fehler & Warnungen</h3><p class="text-xs text-slate-600 mt-1 mb-4">Letzte 24 Stunden · höchste Schwere zuerst · maximal 6 Meldungen</p>
                     <div id="overview-attention" class="space-y-2"></div>
                 </section>
                 <section class="bg-white border border-slate-200 rounded-2xl p-5">
@@ -949,7 +949,7 @@
                 document.getElementById('onboarding-hint').hidden = data.known_hosts > 0;
                 document.getElementById('udp-dropped').textContent = data.udp_dropped ? `${data.udp_dropped} UDP-Meldungen seit Start wegen Überlast verworfen` : '';
                 if (activeWorkflow() === 'overview') {
-                renderOverviewEvents('overview-attention', data.attention, 'Keine Warnungen oder Fehler in den letzten 24 Stunden.');
+                renderOverviewEvents('overview-attention', data.attention, 'Keine kritischen Ereignisse, Fehler oder Warnungen in den letzten 24 Stunden.');
                 renderOverviewEvents('overview-latest', data.latest, 'Noch keine Ereignisse vorhanden.');
                 const overviewDevices = document.getElementById('overview-devices'); overviewDevices.replaceChildren();
                 data.hosts.slice(0, 6).forEach(host => overviewDevices.append(deviceCard(host)));
