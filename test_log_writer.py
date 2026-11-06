@@ -32,6 +32,26 @@ class BatchTests(unittest.TestCase):
         self.assertEqual(database.get_logs()[1], 20)
         self.assertEqual(conn.execute('SELECT occurrences FROM incidents').fetchone()[0], 20)
 
+    def test_name_enrichment_holds_no_writer_lock_and_failure_cannot_duplicate(self):
+        import sqlite3
+        def lookup():
+            self.assertFalse(database.get_db_connection().in_transaction)
+            # A separate writer must be able to commit during name resolution.
+            other = sqlite3.connect(config.DATABASE_PATH, timeout=0.1)
+            try:
+                other.execute("INSERT INTO settings(key,value) VALUES('concurrent-test','ok')")
+                other.commit()
+            finally:
+                other.close()
+            return {'192.0.2.1': 'Test client'}
+        with patch.object(database, 'get_host_aliases', side_effect=lookup):
+            results = database.insert_logs([self.entry] * 2)
+        self.assertEqual(results[0]['display_host'], 'Test client')
+        with patch.object(database, 'get_host_aliases', side_effect=RuntimeError('cache failure')):
+            results = database.insert_logs([self.entry])
+        self.assertEqual(results[0]['display_host'], '192.0.2.1')
+        self.assertEqual(database.get_logs()[1], 3)
+
     def test_failed_batch_rolls_back_before_individual_retry(self):
         results = database.insert_logs([self.entry, dict(self.entry, metadata={'bad': object()}), self.entry])
         self.assertIsInstance(results[1], TypeError)

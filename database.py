@@ -373,7 +373,7 @@ def insert_log(
         "id": log_id,
         "timestamp": timestamp,
         "host": clean_host,
-        "display_host": get_host_display_name(clean_host),
+        "display_host": clean_host if _batch else get_host_display_name(clean_host),
         "app": clean_app,
         "level": normalized_level,
         "facility": facility or "user",
@@ -391,7 +391,6 @@ def insert_logs(entries):
         with conn:
             for entry in entries:
                 results.append(insert_log(**entry, _batch=True))
-        return results
     except Exception:
         # The enclosing transaction rolled back. Retry independently so one bad
         # packet/full disk cannot lose other accepted entries or leak phantom IDs.
@@ -405,6 +404,17 @@ def insert_logs(entries):
             except Exception as exc:
                 retry.append(exc)
         return retry
+    # UI name lookups may wait on the metrics cache. Never do that while the
+    # outer batch still owns SQLite's single writer lock, and never retry an
+    # already committed batch if enrichment fails.
+    try:
+        aliases = get_host_aliases() if any(result is not None for result in results) else {}
+        for result in results:
+            if result is not None:
+                result['display_host'] = aliases.get(result['host'], result['host'])
+    except Exception:
+        pass  # Stored records already have a safe source-IP display fallback.
+    return results
 
 
 def get_logs(
@@ -615,6 +625,7 @@ def touch_monitored_host(host):
     import time
     conn = get_db_connection()
     with conn:
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT offline FROM monitored_hosts WHERE host=?", (host,)).fetchone()
         conn.execute("INSERT INTO monitored_hosts(host,last_seen,offline) VALUES(?,?,0) ON CONFLICT(host) DO UPDATE SET last_seen=excluded.last_seen,offline=0", (host,time.time()))
     return bool(row and row['offline'])
@@ -624,6 +635,7 @@ def mark_offline_hosts(timeout=300):
     import time
     conn = get_db_connection()
     with conn:
+        conn.execute("BEGIN IMMEDIATE")
         rows = conn.execute("SELECT host FROM monitored_hosts WHERE offline=0 AND last_seen < ?", (time.time()-timeout,)).fetchall()
         rows = [row for row in rows if is_source_ip(row['host'])]
         conn.executemany('UPDATE monitored_hosts SET offline=1 WHERE host=?', [(row['host'],) for row in rows])
