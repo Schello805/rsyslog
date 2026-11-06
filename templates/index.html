@@ -36,6 +36,12 @@
             70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
+        #app-main.devices-wide { max-width: 1800px; }
+        #device-status-table { min-width: 1080px; }
+        #device-status-table th, #device-status-table td { padding: 12px 10px; }
+        #device-status-table td:first-child { min-width: 145px; max-width: 220px; }
+        #device-status-table td:nth-child(4) { min-width: 190px; }
+        #device-status-table td:last-child { min-width: 150px; }
         .dashboard-card { display:block; background:#ffffff; border:1px solid #dbe3ee; border-radius:1rem; padding:1.25rem; }
         .dashboard-card:hover { border-color:#0369a1; }
         .dashboard-label { font-size:.75rem; color:#526176; }
@@ -116,7 +122,7 @@
     </header>
 
     <!-- Main Content Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <main id="app-main" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div><p class="text-xs text-sky-700 font-medium mb-2">BETRIEB</p>
@@ -179,11 +185,18 @@
                 <select id="device-status-filter" aria-label="Geräte nach Status filtern" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="all">Alle Status</option><option value="offline">Nur offline</option><option value="online">Nur online</option><option value="syslog-active">Logs aktiv</option><option value="syslog-inactive">Keine aktuellen Logs</option></select>
                 <select id="device-sort" aria-label="Geräte sortieren" onchange="renderDeviceTable()" class="border rounded-lg p-3 text-sm w-full"><option value="name">Name A–Z</option><option value="status">Offline zuerst</option><option value="name-desc">Name Z–A</option><option value="activity">Letzte Meldung: neueste zuerst</option><option value="errors">Fehler: meiste zuerst</option><option value="logs">Logs: meiste zuerst</option></select>
             </div>
+            <details id="resource-setup" class="mt-3 border border-sky-200 rounded-xl p-3 text-sm bg-sky-50">
+                <summary class="cursor-pointer font-medium text-sky-800">Keine CPU-/RAM-Werte? Client-Monitor installieren oder aktualisieren</summary>
+                <p class="my-2">Die Webapp allein kann diese Werte nicht auslesen. Auf jedem Linux-Client den folgenden Befehl als root ausführen. Bestehende Monitore müssen einmal aktualisiert werden. Der Installer fragt Serveradresse, Schwellen und Laufwerke ab.</p>
+                <pre class="text-xs whitespace-pre-wrap break-all bg-white border rounded-lg p-3"><code id="resource-install-command">curl -fsSL https://raw.githubusercontent.com/Schello805/rsyslog/main/scripts/install-monitor.sh | bash</code></pre>
+                <button type="button" class="text-sky-700 mt-2" onclick="copyText(document.getElementById('resource-install-command').textContent)">Befehl kopieren</button>
+                <p class="mt-2 text-xs">Danach erscheint der erste Messstand normalerweise innerhalb von zwei Minuten. Reine Syslog-Weiterleitung sowie QNAP/UniFi liefern damit keine Messwerte.</p>
+            </details>
             <p id="device-list-count" class="text-xs text-slate-500 mt-3" role="status"></p>
             <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-                <table class="device-table w-full text-left text-sm" aria-label="Alle bekannten Geräte">
+                <table id="device-status-table" class="device-table w-full text-left text-sm" aria-label="Alle bekannten Geräte">
                     <thead class="bg-slate-50 text-xs text-slate-600"><tr><th scope="col">Name / DNS</th><th scope="col">Quell-IP</th><th scope="col">Status</th><th scope="col">CPU / RAM / Speicherplatz</th><th scope="col">Letzte Aktivität</th><th scope="col">Logs gesamt</th><th scope="col">Fehler · 24 h</th><th scope="col">Aktionen</th></tr></thead>
-                    <tbody id="monitored-hosts"><tr><td colspan="7">Geräteliste wird geladen …</td></tr></tbody>
+                    <tbody id="monitored-hosts"><tr><td colspan="8">Geräteliste wird geladen …</td></tr></tbody>
                 </table>
             </div>
             <details id="unassigned-hosts" hidden class="mt-4 border rounded-xl p-3">
@@ -921,14 +934,17 @@
                     resources.append(stamp);
                 } else {
                     resources.textContent = 'Keine Messwerte';
-                    resources.title = 'Ressourcenmonitor auf diesem Client installieren oder aktualisieren.';
+                    const setup = document.createElement('button'); setup.type = 'button';
+                    setup.className = 'block text-sky-700 mt-1'; setup.textContent = 'Monitor einrichten / aktualisieren';
+                    setup.addEventListener('click', () => { const help = document.getElementById('resource-setup'); help.open = true; help.scrollIntoView({behavior:'smooth', block:'center'}); });
+                    resources.append(setup);
                 }
                 const latest = cell(host.last_message ? formatTimestamp(host.last_message) : 'Noch keine Meldung');
                 latest.className = 'whitespace-nowrap text-xs text-slate-600';
                 cell((host.log_count || 0).toLocaleString('de-DE'));
                 const errors = cell((host.errors_24h || 0).toLocaleString('de-DE'));
                 if (host.errors_24h) errors.className = 'font-semibold text-rose-700';
-                const actions = cell(''); const group = document.createElement('div'); group.className = 'flex gap-3 whitespace-nowrap';
+                const actions = cell(''); const group = document.createElement('div'); group.className = 'flex flex-wrap gap-x-3 gap-y-2';
                 const logs = document.createElement('button'); logs.type = 'button'; logs.textContent = 'Logs ansehen';
                 logs.className = 'text-sky-700'; logs.setAttribute('aria-label', `Logs von ${host.display_host || host.host} ansehen`);
                 logs.addEventListener('click', () => openLogFilter('ALL', host.host));
@@ -1367,6 +1383,12 @@
 
         function showWorkflow() {
             const key = ['overview', 'logs', 'devices', 'incidents'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+            document.getElementById('app-main').classList.toggle('devices-wide', key === 'devices');
+            const server = location.hostname;
+            if (/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(server)) {
+                document.getElementById('resource-install-command').textContent = `curl -fsSL https://raw.githubusercontent.com/Schello805/rsyslog/main/scripts/install-monitor.sh | env RSYSLOG_SERVER=${server} bash`;
+            }
+
             const copy = {
                 incidents: ['Vorfälle bearbeiten', 'Wiederholte Warnungen und Fehler gemeinsam untersuchen und als erledigt markieren.'],
                 overview: ['Deine Systeme auf einen Blick', 'Aktuelle Meldungen, auffällige Ereignisse und die Aktivität deiner Absender.'],
