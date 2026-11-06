@@ -137,3 +137,18 @@ main, main section, main .grid > *, header a, footer > div { min-width:0; }
 }
 
 .device-state-active { color:#075985; background:#e0f2fe; }
+
+/* Compact resource meters retain exact numbers and readable volume labels. */
+.resource-meters { display:grid; gap:6px; min-width:190px; max-width:280px; }
+.resource-meter { display:grid; grid-template-columns:minmax(32px,55px) minmax(60px,1fr) 48px; align-items:center; gap:8px; font-size:11px; line-height:1.2; }
+.resource-label { color:#526176; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.resource-track { display:block; height:6px; background:#e8eef5; border-radius:99px; overflow:hidden; }
+.resource-fill { display:block; height:100%; border-radius:99px; min-width:2px; }
+.resource-cpu { background:#3b82f6; }
+.resource-ram { background:#8b5cf6; }
+.resource-disk { background:#14b8a6; }
+.resource-elevated { background:#f59e0b; }
+.resource-high { background:#ef4444; }
+.resource-stale { background:#94a3b8; }
+.resource-number { text-align:right; font-variant-numeric:tabular-nums; color:#334155; }
+.resource-time { margin-top:7px; font-size:10px; line-height:1.3; }

@@ -40,7 +40,7 @@
         #device-status-table { min-width: 1080px; }
         #device-status-table th, #device-status-table td { padding: 12px 10px; }
         #device-status-table td:first-child { min-width: 145px; max-width: 220px; }
-        #device-status-table td:nth-child(4) { min-width: 190px; }
+        #device-status-table td:nth-child(4) { min-width: 210px; }
         #device-status-table td:last-child { min-width: 150px; }
         .dashboard-card { display:block; background:#ffffff; border:1px solid #dbe3ee; border-radius:1rem; padding:1.25rem; }
         .dashboard-card:hover { border-color:#0369a1; }
@@ -923,13 +923,23 @@
                 resources.className = 'text-xs';
                 if (host.resources) {
                     const sample = host.resources;
-                    const value = document.createElement('div');
-                    value.textContent = `CPU ${sample.cpu.toLocaleString('de-DE')} % · RAM ${sample.ram.toLocaleString('de-DE')} %`;
-                    resources.append(value);
-                    for (const [path, percent] of Object.entries(sample.disks)) {
-                        const disk = document.createElement('div'); disk.textContent = `${path}: ${percent.toLocaleString('de-DE')} % belegt`; resources.append(disk);
-                    }
-                    const stamp = document.createElement('div'); stamp.className = sample.stale ? 'text-amber-700' : 'text-slate-500';
+                    const meters = document.createElement('div'); meters.className = 'resource-meters';
+                    const meter = (label, percent, kind) => {
+                        const item = document.createElement('div'); item.className = 'resource-meter';
+                        const caption = document.createElement('span'); caption.className = 'resource-label'; caption.textContent = label; caption.title = label;
+                        const track = document.createElement('span'); track.className = 'resource-track';
+                        track.setAttribute('role', 'meter'); track.setAttribute('aria-label', label);
+                        track.setAttribute('aria-valuemin', '0'); track.setAttribute('aria-valuemax', '100'); track.setAttribute('aria-valuenow', String(percent));
+                        const fill = document.createElement('span');
+                        fill.className = `resource-fill ${sample.stale ? 'resource-stale' : percent >= 90 ? 'resource-high' : percent >= 75 ? 'resource-elevated' : `resource-${kind}`}`;
+                        fill.style.width = `${Math.min(100, Math.max(0, percent))}%`; track.append(fill);
+                        const number = document.createElement('span'); number.className = 'resource-number'; number.textContent = `${percent.toLocaleString('de-DE', {maximumFractionDigits:1})} %`;
+                        item.append(caption, track, number); meters.append(item);
+                    };
+                    meter('CPU', sample.cpu, 'cpu'); meter('RAM', sample.ram, 'ram');
+                    for (const [path, percent] of Object.entries(sample.disks)) meter(path, percent, 'disk');
+                    resources.append(meters);
+                    const stamp = document.createElement('div'); stamp.className = `resource-time ${sample.stale ? 'text-amber-700' : 'text-slate-500'}`;
                     stamp.textContent = `${sample.stale ? 'Veraltet · ' : 'Stand: '}${formatTimestamp(new Date(sample.sampled_at * 1000).toISOString())}`;
                     resources.append(stamp);
                 } else {
