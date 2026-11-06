@@ -43,7 +43,11 @@ ask 'Dateisystempfade durch Komma getrennt' '/'; mounts=$REPLY
 ask 'Messbereich auto/host/cgroup' 'auto'; scope=$REPLY
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd) || source_dir=''
+source_dir=''
+# bash reading stdin (curl | bash) has no BASH_SOURCE entry under set -u.
+if [[ -n ${BASH_SOURCE[0]:-} ]]; then
+    source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd) || source_dir=''
+fi
 for file in resource-monitor.py rsyslog-resource-monitor.service rsyslog-resource-monitor.timer; do
     if [[ -n $source_dir && -f $source_dir/$file ]]; then
         cp "$source_dir/$file" "$work/$file"
