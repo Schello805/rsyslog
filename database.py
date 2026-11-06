@@ -626,19 +626,38 @@ def get_dashboard_summary():
     now = time.time()
     conn = get_db_connection()
     recent = f"{RECEIPT_SQL} >= julianday('now', '-1 day')"
-    totals = dict(conn.execute(f"""SELECT COUNT(*) AS logs_24h,
-        COALESCE(SUM(level IN ('ERROR','CRITICAL','EMERGENCY','ALERT')),0) AS errors_24h,
-        COALESCE(SUM(level = 'ERROR'),0) AS error_only_24h,
-        COALESCE(SUM(level IN ('CRITICAL','EMERGENCY','ALERT')),0) AS critical_24h,
-        COALESCE(SUM(level IN ('WARN','WARNING')),0) AS warnings_24h
-        FROM logs WHERE {recent}""").fetchone())
-    rows = conn.execute(f"""SELECT host, COUNT(*) AS log_count,
-        MAX(COALESCE(NULLIF(received_at,''),timestamp)) AS last_message,
-        MAX(CAST(strftime('%s',COALESCE(NULLIF(received_at,''),timestamp)) AS REAL)) AS last_activity,
-        MAX(julianday(COALESCE(NULLIF(received_at,''),timestamp))) >= julianday('now','-15 minutes') AS recent,
-        SUM(CASE WHEN {recent} AND level IN ('ERROR','CRITICAL','EMERGENCY','ALERT') THEN 1 ELSE 0 END) AS errors_24h
-        FROM logs WHERE app <> 'host-monitor' GROUP BY host""").fetchall()
-    hosts = {row['host']: dict(row) for row in rows}
+    # Count the receipt range using its existing expression index; read full
+    # records only for warning/error levels, rather than every INFO/DEBUG row.
+    totals = dict(logs_24h=conn.execute(f'SELECT COUNT(*) FROM logs WHERE {recent}').fetchone()[0],
+                  errors_24h=0, error_only_24h=0, critical_24h=0, warnings_24h=0)
+    errors_by_host = {}
+    for row in conn.execute(f"""SELECT host,level,COUNT(*) AS n,SUM(app <> 'host-monitor') AS device_n FROM logs INDEXED BY idx_logs_level
+            WHERE level IN ('WARN','WARNING','ERROR','CRITICAL','EMERGENCY','ALERT') AND {recent}
+            GROUP BY host,level"""):
+        level, count = row['level'], row['n']
+        if level in ('WARN','WARNING'):
+            totals['warnings_24h'] += count
+        else:
+            totals['errors_24h'] += count
+            totals['error_only_24h' if level == 'ERROR' else 'critical_24h'] += count
+            errors_by_host[row['host']] = errors_by_host.get(row['host'], 0) + row['device_n']
+    # GROUP BY can count directly in the small covering host index. Previously
+    # app filtering and per-row date conversion forced a full history table read.
+    monitor_counts = {row['host']: row['n'] for row in conn.execute(
+        "SELECT host,COUNT(*) AS n FROM logs WHERE app='host-monitor' GROUP BY host")}
+    hosts = {}
+    for row in conn.execute('SELECT host,COUNT(*) AS n FROM logs GROUP BY host'):
+        host = row['host']
+        count = row['n'] - monitor_counts.get(host, 0)
+        if count <= 0:
+            continue
+        # received_at is assigned at insertion. Use the latest stored entry,
+        # independent of the sending device's clock, with the existing host index.
+        latest = conn.execute(f"""SELECT COALESCE(NULLIF(received_at,''),timestamp) AS last_message,
+            CAST(strftime('%s',COALESCE(NULLIF(received_at,''),timestamp)) AS REAL) AS last_activity,
+            {RECEIPT_SQL} >= julianday('now','-15 minutes') AS recent
+            FROM logs WHERE host=? AND app <> 'host-monitor' ORDER BY id DESC LIMIT 1""", (host,)).fetchone()
+        hosts[host] = dict(host=host, log_count=count, errors_24h=errors_by_host.get(host,0), **dict(latest))
     for heartbeat in get_monitored_hosts(include_legacy=True):
         host = hosts.setdefault(heartbeat['host'], dict(host=heartbeat['host'], log_count=0, last_message=None, recent=0, errors_24h=0))
         host['heartbeat_last_seen'] = heartbeat['last_seen']

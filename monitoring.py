@@ -15,6 +15,9 @@ async def observe_log(log):
 async def maintenance():
     last_cleanup = 0
     last_storage_warning = float('-inf')
+    # Let HTTP readiness and the initial dashboard load finish before disk-heavy
+    # retention/storage maintenance competes for the same SQLite database.
+    await asyncio.sleep(30)
     while True:
         try:
             await asyncio.to_thread(database.mark_offline_hosts)

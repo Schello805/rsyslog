@@ -243,6 +243,18 @@ class DashboardTests(unittest.TestCase):
                 self.assertEqual(result.json()['logs'][0]['message'], 'second')
         asyncio.run(check())
 
+    def test_dashboard_host_counts_exclude_internal_monitor(self):
+        database.insert_log('192.0.2.4', 'app', 'ERROR', 'device error', timestamp='2000-01-01T00:00:00Z')
+        database.insert_log('192.0.2.4', 'host-monitor', 'ERROR', 'historical status')
+        database.insert_log('192.0.2.5', 'host-monitor', 'INFO', 'status only')
+        result = database.get_dashboard_summary()
+        self.assertEqual(result['known_hosts'], 1)
+        self.assertEqual(result['errors_24h'], 2)
+        self.assertEqual(result['hosts'][0]['log_count'], 1)
+        self.assertEqual(result['hosts'][0]['errors_24h'], 1)
+        self.assertTrue(result['hosts'][0]['recent'])
+        self.assertNotEqual(result['hosts'][0]['last_message'], '2000-01-01T00:00:00Z')
+
     def test_old_events_do_not_count_as_current_attention(self):
         database.insert_log('192.0.2.4', 'app', 'ERROR', '192.0.2.4')
         with database.get_db_connection() as connection:

@@ -102,13 +102,8 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing RSyslog Web database...")
     init_db()
 
-    # Optional retention cleanup on startup
-    settings = get_all_settings()
-    retention_days = int(settings.get("retention_days", 0))
-    if retention_days > 0:
-        deleted = delete_logs_older_than(retention_days)
-        if deleted > 0:
-            logger.info(f"Cleaned up {deleted} logs older than {retention_days} days.")
+    # Retention is handled by maintenance after startup. A full-history DELETE
+    # here delays HTTP readiness and repeats the maintenance task's first pass.
 
     # Register broadcaster for real-time live logs
     register_log_subscriber(websocket_broadcaster)
