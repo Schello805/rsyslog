@@ -68,6 +68,7 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_host ON logs(host)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logs_app ON logs(app)")
 
+        conn.execute("CREATE TABLE IF NOT EXISTS resource_samples(host TEXT PRIMARY KEY, sampled_at REAL NOT NULL, payload TEXT NOT NULL)")
         conn.execute("CREATE TABLE IF NOT EXISTS monitored_hosts (host TEXT PRIMARY KEY, last_seen REAL NOT NULL, offline INTEGER NOT NULL DEFAULT 0)")
 
         conn.execute("CREATE TABLE IF NOT EXISTS host_aliases (host TEXT PRIMARY KEY, name TEXT NOT NULL)")
@@ -306,6 +307,12 @@ def insert_log(
         from availability_policy import is_availability_notice
         if is_availability_notice(app, message, metadata):
             return None
+    if apply_ingestion_rules and app == 'resource-monitor' and str(message).startswith('METRICS '):
+        from resource_metrics import store
+        conn = get_db_connection()
+        with (nullcontext() if _batch else conn):
+            store(conn, host, message)
+        return None  # Samples are state, not log events or alert candidates.
     normalized_level = level.upper().strip()
     if apply_ingestion_rules:
         from message_severity import effective_level
@@ -666,6 +673,12 @@ def get_dashboard_summary():
             {RECEIPT_SQL} >= julianday('now','-15 minutes') AS recent
             FROM logs WHERE host=? AND app <> 'host-monitor' ORDER BY id DESC LIMIT 1""", (host,)).fetchone()
         hosts[host] = dict(host=host, log_count=count, errors_24h=errors_by_host.get(host,0), **dict(latest))
+    from resource_metrics import latest as latest_resources
+    resources = latest_resources(conn)
+    for host, sample in resources.items():
+        hosts.setdefault(host, dict(host=host, log_count=0, last_message=None, recent=0, errors_24h=0))
+    for host in hosts.values():
+        host['resources'] = resources.get(host['host'])
     for heartbeat in get_monitored_hosts(include_legacy=True):
         host = hosts.setdefault(heartbeat['host'], dict(host=heartbeat['host'], log_count=0, last_message=None, recent=0, errors_24h=0))
         host['heartbeat_last_seen'] = heartbeat['last_seen']

@@ -255,6 +255,28 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(result['hosts'][0]['recent'])
         self.assertNotEqual(result['hosts'][0]['last_message'], '2000-01-01T00:00:00Z')
 
+    def test_resource_samples_are_bounded_validated_and_assigned_by_source(self):
+        import json
+        payload = 'METRICS ' + json.dumps({'cpu': 12.5, 'ram': 62, 'disks': {'/': 43, '/data': 91}})
+        for _ in range(3):
+            self.assertIsNone(database.insert_log('reported-name', 'resource-monitor', 'INFO', payload,
+                metadata={'source_ip': '192.0.2.4'}, apply_ingestion_rules=True))
+        conn = database.get_db_connection()
+        self.assertEqual(conn.execute('SELECT COUNT(*) FROM resource_samples').fetchone()[0], 1)
+        self.assertEqual(database.get_logs()[1], 0)
+        result = database.get_dashboard_summary()
+        self.assertEqual(result['known_hosts'], 1)
+        self.assertEqual(result['hosts'][0]['host'], '192.0.2.4')
+        sample = result['hosts'][0]['resources']
+        self.assertEqual(sample['cpu'], 12.5)
+        self.assertEqual(sample['disks']['/data'], 91)
+        self.assertFalse(sample['stale'])
+        database.insert_log('192.0.2.4', 'resource-monitor', 'INFO', 'METRICS {"cpu": NaN}', apply_ingestion_rules=True)
+        self.assertEqual(database.get_dashboard_summary()['hosts'][0]['resources']['cpu'], 12.5)
+        with conn:
+            conn.execute('UPDATE resource_samples SET sampled_at=?', (time.time()-200,))
+        self.assertTrue(database.get_dashboard_summary()['hosts'][0]['resources']['stale'])
+
     def test_old_events_do_not_count_as_current_attention(self):
         database.insert_log('192.0.2.4', 'app', 'ERROR', '192.0.2.4')
         with database.get_db_connection() as connection:

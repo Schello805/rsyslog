@@ -182,7 +182,7 @@
             <p id="device-list-count" class="text-xs text-slate-500 mt-3" role="status"></p>
             <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
                 <table class="device-table w-full text-left text-sm" aria-label="Alle bekannten Geräte">
-                    <thead class="bg-slate-50 text-xs text-slate-600"><tr><th scope="col">Name / DNS</th><th scope="col">Quell-IP</th><th scope="col">Status</th><th scope="col">Letzte Aktivität</th><th scope="col">Logs gesamt</th><th scope="col">Fehler · 24 h</th><th scope="col">Aktionen</th></tr></thead>
+                    <thead class="bg-slate-50 text-xs text-slate-600"><tr><th scope="col">Name / DNS</th><th scope="col">Quell-IP</th><th scope="col">Status</th><th scope="col">CPU / RAM / Speicherplatz</th><th scope="col">Letzte Aktivität</th><th scope="col">Logs gesamt</th><th scope="col">Fehler · 24 h</th><th scope="col">Aktionen</th></tr></thead>
                     <tbody id="monitored-hosts"><tr><td colspan="7">Geräteliste wird geladen …</td></tr></tbody>
                 </table>
             </div>
@@ -884,7 +884,7 @@
             document.getElementById('device-list-count').textContent = `${hosts.length} von ${cachedDeviceHosts.length} Geräten angezeigt`;
             if (!hosts.length) {
                 const row = document.createElement('tr'), cell = document.createElement('td');
-                cell.colSpan = 7; cell.textContent = cachedDeviceHosts.length ? 'Keine Geräte für diese Suche oder diesen Status.' : 'Noch keine Geräte bekannt. Geräte erscheinen nach der ersten Meldung oder einem Lebenszeichen.';
+                cell.colSpan = 8; cell.textContent = cachedDeviceHosts.length ? 'Keine Geräte für diese Suche oder diesen Status.' : 'Noch keine Geräte bekannt. Geräte erscheinen nach der ersten Meldung oder einem Lebenszeichen.';
                 row.append(cell); tbody.append(row); return;
             }
             for (const host of hosts) {
@@ -906,6 +906,23 @@
                 badge.className = 'device-state device-state-' + activity.style;
                 badge.textContent = activity.label; badge.title = activity.hint;
                 state.append(badge);
+                const resources = cell('');
+                resources.className = 'text-xs';
+                if (host.resources) {
+                    const sample = host.resources;
+                    const value = document.createElement('div');
+                    value.textContent = `CPU ${sample.cpu.toLocaleString('de-DE')} % · RAM ${sample.ram.toLocaleString('de-DE')} %`;
+                    resources.append(value);
+                    for (const [path, percent] of Object.entries(sample.disks)) {
+                        const disk = document.createElement('div'); disk.textContent = `${path}: ${percent.toLocaleString('de-DE')} % belegt`; resources.append(disk);
+                    }
+                    const stamp = document.createElement('div'); stamp.className = sample.stale ? 'text-amber-700' : 'text-slate-500';
+                    stamp.textContent = `${sample.stale ? 'Veraltet · ' : 'Stand: '}${formatTimestamp(new Date(sample.sampled_at * 1000).toISOString())}`;
+                    resources.append(stamp);
+                } else {
+                    resources.textContent = 'Keine Messwerte';
+                    resources.title = 'Ressourcenmonitor auf diesem Client installieren oder aktualisieren.';
+                }
                 const latest = cell(host.last_message ? formatTimestamp(host.last_message) : 'Noch keine Meldung');
                 latest.className = 'whitespace-nowrap text-xs text-slate-600';
                 cell((host.log_count || 0).toLocaleString('de-DE'));

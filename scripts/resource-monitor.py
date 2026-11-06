@@ -147,6 +147,10 @@ def main():
             subprocess.run(['logger', '-p', f'user.{severity}', '-t', 'resource-monitor', '--', message], check=True)
         state[name] = updated
     if not args.dry_run:
+        sample = {'cpu': round(min(100, max(0, cpu)), 1), 'ram': round(min(100, max(0, ram)), 1),
+                  'disks': {name[5:]: round(value, 1) for name, value, _, _ in checks if name.startswith('Disk ')}}
+        subprocess.run(['logger', '-p', 'user.info', '-t', 'resource-monitor', '--',
+                        'METRICS ' + json.dumps(sample, separators=(',', ':'))], check=True)
         subprocess.run(['logger', '-p', 'user.info', '-t', 'resource-monitor', '--', 'HEARTBEAT'], check=True)
         state['_boot_id'] = boot_id
         state_path.parent.mkdir(parents=True, exist_ok=True)

@@ -62,6 +62,7 @@ def remove_host(host):
         for table in ('monitored_hosts','host_aliases','incidents','rule_notifications'):
             conn.execute(f'DELETE FROM {table} WHERE host=?',(host,))
         conn.execute('DELETE FROM source_dns WHERE ip=?',(host,))
+        conn.execute('DELETE FROM resource_samples WHERE host=?',(host,))
         # A stored analysis may cover several hosts; this reset is explicit in the dialog.
         conn.execute('DELETE FROM analysis_cache')
         rules_row = conn.execute("SELECT value FROM settings WHERE key='alert_rules'").fetchone()

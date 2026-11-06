@@ -128,6 +128,8 @@ curl -fsSL https://raw.githubusercontent.com/Schello805/rsyslog/main/scripts/ins
 ```
 
 Der Installer fragt Serveradresse, Schwellen und Dateisystempfade ab.
+Aktuelle CPU-, RAM- und Dateisystemwerte erscheinen im **Gerätestatus**. Der Monitor sendet etwa jede Minute einen Messstand; die App hält nur den letzten Wert je Quell-IP vor und markiert ihn nach drei Minuten als veraltet. Dafür bestehende Client-Monitore einmal mit obigem Installer aktualisieren. Ein Update der Webapp allein aktualisiert die Clients nicht. Ohne Monitor steht „Keine Messwerte“. Es werden keine Verlaufskurven gespeichert.
+
 Standard: CPU/RAM ab **90 % für 10 Minuten**, Speicherplatz ab **90 %** für `/`.
 Warnungen werden nach 30 Minuten wiederholt; bei Erholung gibt es eine Entwarnung.
 Für Push-Warnungen in der Webapp **WARN** und **sofort beim ersten Auftreten** wählen.
