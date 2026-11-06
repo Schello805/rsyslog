@@ -44,9 +44,11 @@ if [ ! -f ".env" ]; then
 fi
 
 # 6. Starte den RSyslog Server und das Dashboard
+PORT=$(grep -E "^WEB_PORT=" .env 2>/dev/null | cut -d '=' -f2 | tr -d ' ' || echo "8080")
+PORT=${PORT:-8080}
 echo "--------------------------------------------------------"
 echo "  ✅ Server läuft!"
-echo "  🌐 Web Dashboard: http://localhost:8000"
+echo "  🌐 Web Dashboard: http://localhost:${PORT}"
 echo "  📡 Syslog UDP:    Port 5514 (oder laut .env)"
 echo "  📡 Syslog TCP:    Port 5514 (oder laut .env)"
 echo "  Beenden mit:      STRG + C"
