@@ -103,9 +103,9 @@ async def preview(body: Filters, request: Request):
     for token in list(_snapshots):
         if now - _snapshots[token]['created'] > 600:
             del _snapshots[token]
-    rows, total = get_logs(per_page=body.limit, level=body.level, host=body.host, app=body.app,
+    rows, total = await asyncio.to_thread(get_logs, per_page=body.limit, level=body.level, host=body.host, app=body.app,
         search=body.search, hours=body.hours, exclude_hosts=body.exclude_hosts,
-        sort_by='timestamp', sort_order='desc', warning_only=True)
+        sort_by='received', sort_order='desc', warning_only=True)
     grouped = {}
     for row in rows:
         entry = {key: redact(str(row.get(key, ''))[:2000]) for key in ('timestamp', 'host', 'app', 'level', 'message')}

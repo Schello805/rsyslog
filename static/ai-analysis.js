@@ -94,6 +94,7 @@
         byId('ai-result').textContent = '';
         byId('ai-result-status').textContent = '';
         byId('ai-preview').textContent = '';
+        byId('ai-empty-hint').hidden = true; byId('ai-clear-level').hidden = true;
         byId('ai-summary').textContent = 'Vorschau wird geladen …';
         if (!dialog.open) dialog.showModal();
         try {
@@ -111,6 +112,15 @@
             token = preview.token;
             byId('ai-summary').textContent = `${preview.count} von ${preview.total} passenden Warnungen/Fehlern, ${preview.groups || preview.count} unterschiedliche Meldungen. Wiederholungen zusammengefasst, Texte ggf. gekürzt. Vorschau 10 Minuten gültig.`;
             byId('ai-preview').textContent = preview.preview;
+            if (!preview.count) {
+                const blockedLevel = ['INFO', 'NOTICE', 'DEBUG'].includes(body.level.toUpperCase());
+                byId('ai-empty-hint').hidden = false;
+                byId('ai-empty-hint').textContent = blockedLevel
+                    ? `Der aktive Schweregradfilter „${body.level}“ schließt alle analysierbaren Meldungen aus. Die KI analysiert WARN, ERROR und kritische Meldungen. Du kannst nur diesen Filter aufheben; Host, Dienst, Suchtext, Zeitraum und Host-Ausschlüsse bleiben erhalten.`
+                    : 'Für die aktuellen Filter gibt es keine Warnungen, Fehler oder kritischen Meldungen. Bitte prüfe Host, Dienst, Suchtext, Zeitraum und Host-Ausschlüsse in der Logansicht. Es wurde keine Anfrage an den KI-Anbieter gesendet.';
+                byId('ai-clear-level').hidden = !blockedLevel;
+            }
+
             for (const option of byId('ai-provider').options) {
                 const cfg = settings[option.value];
                 option.disabled = !cfg.configured || !cfg.model;
@@ -123,6 +133,11 @@
             if (token && available) await loadCached();
         } catch (error) {if (request === previewRequest) byId('ai-summary').textContent = error.message;}
     }
+    byId('ai-clear-level').addEventListener('click', () => {
+        byId('filter-level').value = 'ALL';
+        fetchLogs(1);
+        loadPreview();
+    });
     byId('ai-open').addEventListener('click', loadPreview);
     byId('ai-copy-open').addEventListener('click', loadPreview);
     byId('ai-sample-limit').addEventListener('change', loadPreview);

@@ -1425,6 +1425,8 @@
 <label for="ai-provider">Anbieter</label><select id="ai-provider" class="border rounded-lg p-2"><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select>
 <label class="block my-3 text-sm">Auswahlgröße <select id="ai-sample-limit" class="border rounded-lg p-2"><option value="25">25 neueste Meldungen</option><option value="50">50 neueste Meldungen</option><option value="100" selected>100 neueste Meldungen</option></select></label>
 <p id="ai-summary" role="status" class="my-3 text-sm"></p>
+<p id="ai-empty-hint" role="status" class="my-3 text-sm text-amber-800" hidden></p>
+<button type="button" id="ai-clear-level" class="border rounded-lg p-2 text-sm text-sky-700" hidden>Schweregradfilter aufheben und Vorschau laden</button>
 <details open><summary class="cursor-pointer">Diese Daten werden gesendet</summary><pre id="ai-preview" class="whitespace-pre-wrap break-words text-xs bg-slate-50 p-3 rounded-lg max-h-64 overflow-auto"></pre></details>
 <button type="button" id="ai-copy" disabled class="my-3 mr-2 border rounded-lg px-4 py-2 text-sky-700 disabled:opacity-40">Meldungen kopieren</button><p id="ai-copy-status" role="status" class="text-sm"></p>
 <button type="button" id="ai-send" disabled class="my-4 px-4 py-2 rounded-lg bg-violet-700 text-white disabled:opacity-40">Vorschau senden & analysieren</button>
