@@ -307,6 +307,14 @@ def insert_log(
         if is_availability_notice(app, message, metadata):
             return None
     normalized_level = level.upper().strip()
+    if apply_ingestion_rules:
+        from message_severity import effective_level
+        corrected_level = effective_level(normalized_level, message, metadata)
+        if corrected_level != normalized_level:
+            metadata = dict(metadata or {})
+            metadata['transport_level'] = normalized_level
+            metadata['severity_source'] = 'application_prefix'
+            normalized_level = corrected_level
     if (apply_ingestion_rules and normalized_level == 'DEBUG'
             and str(get_setting('discard_debug', 'true')).lower() in ('true', '1', 'yes', 'on')):
         from ingestion_counters import discarded

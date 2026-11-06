@@ -68,6 +68,14 @@ class DebugIngestionTests(unittest.TestCase):
                     self.assertEqual(database.get_stats()['total'], 1)
         asyncio.run(check())
 
+    def test_application_error_prefix_is_stored_as_error(self):
+        raw = '<14>Nov  6 18:58:49 NVR onvifscanner-start: 2026/11/06 18:58:49 ERR [RTSP source] connect: no route to host'
+        saved = syslog_server.handle_incoming_log_sync(raw, '192.0.2.75')
+        self.assertEqual(saved['level'], 'ERROR')
+        self.assertEqual(saved['host'], '192.0.2.75')
+        self.assertEqual(saved['metadata']['transport_level'], 'INFO')
+        self.assertEqual(database.get_logs(level='ERROR')[1], 1)
+
     def test_cef_effective_severity_takes_precedence_over_outer_debug(self):
         raw = '<15>Oct 31 08:00:00 gateway unifi: CEF:0|Ubiquiti|UniFi Network|10|513|Hardware Failure|8|UNIFIhost=Gateway msg=hardware failure'
         saved = syslog_server.handle_incoming_log_sync(raw, '192.0.2.1')
