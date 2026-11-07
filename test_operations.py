@@ -85,7 +85,11 @@ class OperationalTests(unittest.TestCase):
         before = ingestion_counters.snapshot()['storage']
         self.assertIsNone(database.insert_log('host','app','INFO','new',apply_ingestion_rules=True))
         self.assertEqual(ingestion_counters.snapshot()['storage'],before+1)
+        trace = []
+        database.get_db_connection().set_trace_callback(trace.append)
         self.assertGreater(storage_policy.trim_database(),0)
+        database.get_db_connection().set_trace_callback(None)
+        self.assertFalse(any('SELECT COUNT(*) FROM logs' in sql for sql in trace))
         self.assertIsNotNone(database.insert_log('host','app','INFO','new',apply_ingestion_rules=True))
         rows,total=database.get_logs(sort_by='timestamp',sort_order='asc')
         self.assertFalse(any(row['message'].endswith('0') for row in rows))

@@ -46,8 +46,10 @@ def trim_database():
     _pressure.clear()
     while limit and usage(conn)['used_bytes'] > target and time.monotonic() < deadline:
         with conn:
-            total = conn.execute('SELECT COUNT(*) FROM logs').fetchone()[0]
-            batch = min(1000, max(1, total // 20))
+            # Count at most 20k index entries, not the entire history. Keep
+            # small databases conservative so one batch does not erase all logs.
+            available = conn.execute('SELECT COUNT(*) FROM (SELECT id FROM logs LIMIT 20000)').fetchone()[0]
+            batch = min(1000, max(1, available // 20))
             result = conn.execute('DELETE FROM logs WHERE id IN (SELECT id FROM logs ORDER BY id LIMIT ?)', (batch,))
         deleted += result.rowcount
         if not result.rowcount:
