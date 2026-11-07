@@ -30,6 +30,8 @@ class ReliabilityTests(unittest.TestCase):
 
     def test_cleanup_commits_and_preserves_recent(self):
         database.insert_log('old', 'test', 'INFO', 'old', timestamp='2000-01-01T00:00:00Z')
+        with database.get_db_connection() as conn:
+            conn.execute("UPDATE logs SET received_at='2000-01-01T00:00:00Z' WHERE host='old'")
         database.insert_log('new', 'test', 'INFO', 'new')
         self.assertEqual(database.delete_logs_older_than(7), 1)
         self.assertEqual(database.get_stats()['total'], 1)

@@ -516,13 +516,24 @@ async def api_test_ntfy(request: Request):
     return res
 
 
+class CleanupPayload(BaseModel):
+    days: int = Field(0, ge=0, le=3650)
+    mode: Literal['retention', 'size'] = 'retention'
+
+
 @app.post("/api/database/cleanup")
-async def api_database_cleanup(request: Request):
-    """Deletes logs older than the specified retention days."""
-    body = await request.json()
-    days = int(body.get("days", 0))
-    deleted = delete_logs_older_than(days)
-    return {"success": True, "deleted": deleted}
+async def api_database_cleanup(body: CleanupPayload, request: Request):
+    origin = request.headers.get('origin')
+    if request.headers.get('sec-fetch-site') == 'cross-site' or (origin and origin.rstrip('/') != str(request.base_url).rstrip('/')):
+        raise HTTPException(403, 'Bereinigung bitte aus derselben App starten.')
+    def clean():
+        from storage_policy import trim_database, status
+        deleted = trim_database() if body.mode == 'size' else delete_logs_older_than(body.days)
+        invalidate_metrics()
+        storage = status()
+        return {'success': True, 'deleted': deleted, 'mode': body.mode, 'storage': storage,
+                'more_pending': bool(body.mode == 'size' and storage['limit_bytes'] and storage['used_bytes'] > storage['limit_bytes'] * .9)}
+    return await asyncio.to_thread(clean)
 
 
 @app.websocket("/ws/logs")

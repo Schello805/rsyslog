@@ -57,6 +57,8 @@ def trim_database():
             with conn:
                 conn.execute("DELETE FROM incidents WHERE julianday(last_seen) < COALESCE((SELECT MIN(julianday(COALESCE(NULLIF(received_at,''),timestamp))) FROM logs),julianday('now'))")
         conn.execute('PRAGMA wal_checkpoint(PASSIVE)')
+        from metrics_cache import invalidate
+        invalidate()
     return deleted
 
 

@@ -264,12 +264,21 @@ def delete_logs_older_than(days: int) -> int:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
     conn = get_db_connection()
+    count = 0
+    # Short commits release SQLite's writer lock between batches. The existing
+    # receipt-time expression index also avoids repeated full-history scans.
+    while True:
+        with conn:
+            deleted = conn.execute(f"DELETE FROM logs WHERE id IN (SELECT id FROM logs WHERE {RECEIPT_SQL} < julianday(?) LIMIT 1000)", (cutoff,)).rowcount
+        count += deleted
+        if deleted < 1000:
+            break
     with conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM logs WHERE julianday(timestamp) < julianday(?)", (cutoff,))
-        count = cursor.fetchone()[0]
-        cursor.execute("DELETE FROM logs WHERE julianday(timestamp) < julianday(?)", (cutoff,))
-        cursor.execute("DELETE FROM incidents WHERE julianday(last_seen) < julianday(?)", (cutoff,))
+        conn.execute("DELETE FROM incidents WHERE julianday(last_seen) < julianday(?)", (cutoff,))
+    if count:
+        from metrics_cache import invalidate
+        invalidate()
+        conn.execute('PRAGMA wal_checkpoint(PASSIVE)')
     return count
 
 

@@ -362,14 +362,17 @@
                             <option value="30">Logs älter als 30 Tage löschen</option>
                             <option value="90">Logs älter als 90 Tage löschen</option>
                         </select>
-                        <p class="text-[11px] text-slate-500 mt-1">Alte Logs werden beim Serverstart, stündlich oder manuell per Klick aufgeräumt.</p>
+                        <p class="text-[11px] text-slate-500 mt-1">Automatisch ab etwa 30 Sekunden nach dem Start und danach stündlich, nach Empfangszeit. Automatik verwendet die gespeicherten Einstellungen.</p>
                     </div>
 
                     <div>
-                        <button type="button" onclick="triggerManualCleanup()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-800 border border-slate-300 transition">
+                        <button id="cleanup-retention" type="button" onclick="triggerManualCleanup()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-800 border border-slate-300 transition">
                             <i data-lucide="sparkles" class="w-4 h-4 text-amber-700"></i>
                             <span>Jetzt nach Aufbewahrungsdauer bereinigen</span>
                         </button>
+                        <button id="cleanup-size" type="button" onclick="triggerManualCleanup('size')" class="w-full mt-2 border rounded-xl px-4 py-2.5 text-xs text-sky-700">Gespeichertes Größenlimit jetzt anwenden</button>
+                        <p id="cleanup-result" role="status" class="mt-2 text-xs text-slate-600"></p>
+                        <p class="mt-2 text-xs text-slate-500">Gelöschter Platz wird von SQLite wiederverwendet. Die Datenbankdatei wird dadurch nicht zwingend kleiner.</p>
                     </div>
                 </div>
             </div>
@@ -646,26 +649,32 @@
         }
 
         // Manual Cleanup
-        async function triggerManualCleanup() {
+        async function triggerManualCleanup(mode = 'retention') {
             const days = parseInt(document.getElementById('retention_days').value) || 0;
-            if (days <= 0) {
-                alert('Die Aufbewahrungsdauer steht auf "Unbegrenzt". Wähle z. B. 7 oder 30 Tage, um alte Logs zu bereinigen.');
+            const result = document.getElementById('cleanup-result');
+            if (mode === 'retention' && days <= 0) {
+                result.textContent = 'Aufbewahrung ist unbegrenzt. Bitte zuerst eine Aufbewahrungsdauer wählen.';
                 return;
             }
-
-            if (confirm(`Möchtest du jetzt alle Logs löschen, die älter als ${days} Tage sind?`)) {
-                try {
-                    const res = await fetch('/api/database/cleanup', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ days })
-                    });
-                    const data = await res.json();
-                    alert(`Bereinigung abgeschlossen: ${data.deleted} alte Logs wurden entfernt.`);
-                } catch (e) {
-                    alert('Fehler bei der Bereinigung.');
-                }
-            }
+            const question = mode === 'size' ? 'Jetzt die ältesten Logs gemäß gespeichertem Größenlimit entfernen?' : `Logs entfernen, die vor mehr als ${days} Tagen empfangen wurden? Dies speichert die gewählte Aufbewahrungsdauer nicht.`;
+            if (!confirm(question)) return;
+            const buttons = ['cleanup-retention', 'cleanup-size'].map(id => document.getElementById(id));
+            buttons.forEach(button => button.disabled = true);
+            result.textContent = 'Bereinigung läuft …';
+            try {
+                const res = await fetch('/api/database/cleanup', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({days, mode})
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(typeof data.detail === 'string' ? data.detail : `Serverfehler (${res.status})`);
+                const mb = value => (value / 1048576).toLocaleString('de-DE', {maximumFractionDigits:1});
+                result.textContent = `${data.deleted.toLocaleString('de-DE')} Logs entfernt. Aktiv belegt: ${mb(data.storage.used_bytes)} MB · zur Wiederverwendung frei: ${mb(data.storage.reusable_bytes)} MB.`;
+                if (mode === 'retention' && !data.deleted) result.textContent += ` Keine Logs älter als ${days} Tage nach Empfangszeit vorhanden.`;
+                if (mode === 'size' && !data.storage.limit_bytes) result.textContent += ' Kein Größenlimit gespeichert. Bitte zuerst ein Limit speichern.';
+                if (data.more_pending) result.textContent += ' Weitere Bereinigung nötig; die Automatik setzt sie fort.';
+            } catch (error) {
+                result.textContent = `Bereinigung fehlgeschlagen: ${error.message}`;
+            } finally { buttons.forEach(button => button.disabled = false); }
         }
 
         // Toggle password show/hide

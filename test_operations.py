@@ -28,6 +28,52 @@ class OperationalTests(unittest.TestCase):
         self.assertIsNotNone(database.insert_log('host','app','DEBUG','needed',apply_ingestion_rules=True))
         self.assertEqual(ingestion_counters.snapshot()['debug'], before+1)
 
+    def test_retention_uses_receipt_time_batches_and_invalidates_metrics(self):
+        from metrics_cache import snapshot
+        conn = database.get_db_connection()
+        # A wrong device clock must not delete a newly received record.
+        database.insert_log('192.0.2.1','app','INFO','recent',timestamp='2000-01-01T00:00:00Z')
+        with conn:
+            conn.executemany("INSERT INTO logs(timestamp,received_at,host,app,level,message) VALUES('2099-01-01','2000-01-01','192.0.2.2','app','INFO','old')", [()] * 2005)
+        self.assertEqual(snapshot('cleanup-test',60,lambda:database.get_logs()[1]),2006)
+        self.assertEqual(database.delete_logs_older_than(14),2005)
+        self.assertEqual(snapshot('cleanup-test',60,lambda:database.get_logs()[1]),1)
+        self.assertEqual(database.get_logs()[0][0]['message'],'recent')
+        self.assertEqual(database.delete_logs_older_than(14),0)
+
+    def test_manual_cleanup_api_validates_and_reports_real_results(self):
+        import asyncio
+        import httpx
+        import main
+        async def check():
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app),base_url='http://test') as client:
+                result = await client.post('/api/database/cleanup',json={'days':14})
+                self.assertEqual(result.status_code,200)
+                self.assertEqual(result.json()['deleted'],0)
+                self.assertIn('reusable_bytes',result.json()['storage'])
+                result = await client.post('/api/database/cleanup',json={'mode':'size'})
+                self.assertEqual(result.json()['storage']['limit_bytes'],0)
+                self.assertEqual((await client.post('/api/database/cleanup',json={'days':-1})).status_code,422)
+                self.assertEqual((await client.post('/api/database/cleanup',json={'days':14},headers={'Origin':'http://other'})).status_code,403)
+        asyncio.run(check())
+
+    def test_automatic_cleanup_survives_status_failure(self):
+        import asyncio
+        from unittest.mock import AsyncMock
+        import monitoring
+        async def stop_after_one(_):
+            stop_after_one.calls += 1
+            if stop_after_one.calls > 1:
+                raise asyncio.CancelledError
+        stop_after_one.calls = 0
+        async def run_in_place(fn,*args):
+            return fn(*args)
+        with patch.object(monitoring.asyncio,'sleep',side_effect=stop_after_one), patch.object(monitoring.asyncio,'to_thread',side_effect=run_in_place), patch.object(database,'mark_offline_hosts',side_effect=RuntimeError('status locked')), patch.object(database,'delete_logs_older_than',return_value=0) as retention, patch('storage_policy.trim_database',return_value=0) as size, patch('host_resolution.refresh_known_sources'), patch.object(monitoring.logger,'exception'):
+            with self.assertRaises(asyncio.CancelledError):
+                asyncio.run(monitoring.maintenance())
+            retention.assert_called_once()
+            size.assert_called_once()
+
     def test_size_limit_warns_reclaims_oldest_and_resumes_intake(self):
         import ingestion_counters
         import storage_policy

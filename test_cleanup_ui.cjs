@@ -1,0 +1,15 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('templates/settings.html','utf8');
+const source=html.slice(html.indexOf('        async function triggerManualCleanup'),html.indexOf('        // Toggle password'));
+const elements={retention_days:{value:'14'},'cleanup-result':{},'cleanup-retention':{},'cleanup-size':{}};
+let response;
+const ctx={document:{getElementById:id=>elements[id]},confirm:()=>true,fetch:async()=>response};
+vm.runInNewContext(source,ctx);
+(async()=>{
+ response={ok:false,status:500,json:async()=>({detail:'database locked'})};await ctx.triggerManualCleanup();
+ assert.match(elements['cleanup-result'].textContent,/fehlgeschlagen.*database locked/);assert.equal(elements['cleanup-retention'].disabled,false);
+ response={ok:true,json:async()=>({success:true,deleted:0,storage:{used_bytes:1000,reusable_bytes:2000,limit_bytes:0}})};
+ await ctx.triggerManualCleanup();assert.match(elements['cleanup-result'].textContent,/Keine Logs älter als 14/);
+ await ctx.triggerManualCleanup('size');assert.match(elements['cleanup-result'].textContent,/Kein Größenlimit gespeichert/);
+ console.log('Manuelle Bereinigung zeigt Serverfehler, null Treffer und fehlendes Größenlimit korrekt OK');
+})().catch(e=>{console.error(e);process.exitCode=1});
