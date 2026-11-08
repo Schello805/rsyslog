@@ -188,15 +188,15 @@ def refresh_known_sources(batch_size=8):
     DNS changes only labels; no host identity is changed or combined.
     """
     global _refresh_cursor
-    from database import get_db_connection, remember_source_dns, get_reported_source_names
+    from database import get_db_connection, remember_source_dns, get_reported_source_names, get_distinct_hosts
     reported_names = get_reported_source_names()
     addresses = []
-    for row in get_db_connection().execute('SELECT DISTINCT host FROM logs ORDER BY host'):
+    for host in get_distinct_hosts(get_db_connection()):
         try:
-            ip_address(row['host'])
+            ip_address(host)
         except ValueError:
             continue
-        addresses.append(row['host'])
+        addresses.append(host)
     if not addresses:
         return 0
     changed = 0

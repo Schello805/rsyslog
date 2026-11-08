@@ -324,7 +324,7 @@ async def api_get_stats():
 @app.get("/api/filters")
 async def api_get_filters():
     """Returns distinct hosts and applications for UI dropdown filters."""
-    return await asyncio.to_thread(snapshot, 'filters', 60, get_filter_options)
+    return await asyncio.to_thread(snapshot, 'filters', 120, get_filter_options)
 
 
 @app.post("/api/logs", status_code=201)

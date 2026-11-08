@@ -426,6 +426,55 @@ def insert_logs(entries):
     return results
 
 
+def get_distinct_hosts(conn=None) -> List[str]:
+    """Fast Index Skip Scan using recursive CTE on idx_logs_host."""
+    if conn is None:
+        conn = get_db_connection()
+    query = """
+    WITH RECURSIVE distinct_hosts(host) AS (
+        SELECT MIN(host) FROM logs WHERE host IS NOT NULL
+        UNION ALL
+        SELECT (SELECT MIN(host) FROM logs WHERE host > distinct_hosts.host AND host IS NOT NULL)
+        FROM distinct_hosts WHERE distinct_hosts.host IS NOT NULL
+    )
+    SELECT host FROM distinct_hosts WHERE host IS NOT NULL ORDER BY host ASC
+    """
+    try:
+        return [r[0] for r in conn.execute(query).fetchall() if r[0]]
+    except Exception:
+        return [r[0] for r in conn.execute("SELECT DISTINCT host FROM logs ORDER BY host ASC").fetchall() if r[0]]
+
+
+def get_distinct_apps(conn=None) -> List[str]:
+    """Fast Index Skip Scan using recursive CTE on idx_logs_app."""
+    if conn is None:
+        conn = get_db_connection()
+    query = """
+    WITH RECURSIVE distinct_apps(app) AS (
+        SELECT MIN(app) FROM logs WHERE app IS NOT NULL
+        UNION ALL
+        SELECT (SELECT MIN(app) FROM logs WHERE app > distinct_apps.app AND app IS NOT NULL)
+        FROM distinct_apps WHERE distinct_apps.app IS NOT NULL
+    )
+    SELECT app FROM distinct_apps WHERE app IS NOT NULL ORDER BY app ASC
+    """
+    try:
+        return [r[0] for r in conn.execute(query).fetchall() if r[0]]
+    except Exception:
+        return [r[0] for r in conn.execute("SELECT DISTINCT app FROM logs ORDER BY app ASC").fetchall() if r[0]]
+
+
+def get_total_logs_count_fast(conn=None) -> int:
+    """Fast cached or instant row count avoiding full index scans on large databases."""
+    if conn is None:
+        conn = get_db_connection()
+    from metrics_cache import snapshot
+    def _compute():
+        row = conn.execute("SELECT COUNT(*) FROM logs").fetchone()
+        return row[0] if row else 0
+    return snapshot('total_logs_count', 30, _compute)
+
+
 def get_logs(
     page: int = 1,
     per_page: int = 50,
@@ -489,12 +538,6 @@ def get_logs(
     if conditions:
         where_clause = "WHERE " + " AND ".join(conditions)
 
-    # 1. Total count query
-    count_sql = f"SELECT COUNT(*) FROM logs {where_clause}"
-    cursor = conn.cursor()
-    cursor.execute(count_sql, params)
-    total_count = cursor.fetchone()[0]
-
     sort_columns = {
         'received': 'id',  # Indexed insertion order, independent of device clocks.
         'timestamp': 'COALESCE(julianday(timestamp), julianday(received_at))',
@@ -508,7 +551,7 @@ def get_logs(
     order_expression = sort_columns[sort_by]
     direction = sort_order.upper()
 
-    # 2. Paginated data query
+    # 1. Paginated data query first
     offset = max(0, (page - 1) * per_page)
     data_sql = f"""
         SELECT id, timestamp, host, app, level, facility, message, raw, metadata
@@ -517,6 +560,7 @@ def get_logs(
         ORDER BY {order_expression} {direction}, id {direction}
         LIMIT ? OFFSET ?
     """
+    cursor = conn.cursor()
     cursor.execute(data_sql, params + [per_page, offset])
     rows = cursor.fetchall()
 
@@ -528,6 +572,18 @@ def get_logs(
             log['metadata'] = json.loads(log['metadata'])
         except (ValueError, TypeError):
             log['metadata'] = {}
+
+    # 2. Total count determination
+    if not where_clause:
+        total_count = get_total_logs_count_fast(conn)
+    elif page == 1 and len(logs) < per_page:
+        total_count = len(logs)
+    else:
+        cache_key = f"count:{where_clause}:{tuple(params)}"
+        from metrics_cache import snapshot
+        count_sql = f"SELECT COUNT(*) FROM logs {where_clause}"
+        total_count = snapshot(cache_key, 20, lambda: conn.execute(count_sql, params).fetchone()[0])
+
     return logs, total_count
 
 
@@ -536,9 +592,8 @@ def get_stats() -> Dict[str, Any]:
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Total count
-    cursor.execute("SELECT COUNT(*) FROM logs")
-    total = cursor.fetchone()[0]
+    # Total count (instant/cached)
+    total = get_total_logs_count_fast(conn)
 
     # Counts by level
     cursor.execute(
@@ -559,7 +614,7 @@ def get_stats() -> Dict[str, Any]:
         "error": row["error_count"] or 0,
         "warn": row["warn_count"] or 0,
         "info": row["info_count"] or 0,
-        "active_hosts": sum(is_source_ip(item["host"]) for item in conn.execute("SELECT DISTINCT host FROM logs")),
+        "active_hosts": sum(is_source_ip(h) for h in get_distinct_hosts(conn)),
     }
 
 
@@ -578,15 +633,11 @@ def is_unassigned_syslog_host(host):
 
 
 def get_filter_options() -> Dict[str, Any]:
-    """Returns distinct hosts and applications for UI dropdown filters."""
+    """Returns distinct hosts and applications for UI dropdown filters using fast Index Skip Scan."""
     conn = get_db_connection()
-    cursor = conn.cursor()
 
-    cursor.execute("SELECT DISTINCT host FROM logs ORDER BY host ASC")
-    hosts = [r["host"] for r in cursor.fetchall() if r["host"]]
-
-    cursor.execute("SELECT DISTINCT app FROM logs ORDER BY app ASC")
-    apps = [r["app"] for r in cursor.fetchall() if r["app"]]
+    hosts = get_distinct_hosts(conn)
+    apps = get_distinct_apps(conn)
 
     labels = {host: f'Nicht zugeordnet · {host}' for host in hosts if is_unassigned_syslog_host(host)}
     labels.update(get_host_aliases())
@@ -627,6 +678,8 @@ def clear_all_logs() -> int:
         cursor.execute("DELETE FROM logs")
         cursor.execute("DELETE FROM incidents")
         cursor.execute("DELETE FROM analysis_cache")
+    from metrics_cache import invalidate
+    invalidate()
     return count
 
 
@@ -760,7 +813,7 @@ def get_ingestion_metrics():
         COALESCE(SUM({receipt} >= julianday('now','-5 minutes')),0) AS logs_last_5_minutes,
         COALESCE(SUM({receipt} >= julianday('now','-1 minute') AND app='resource-monitor' AND message='HEARTBEAT'),0) AS heartbeats_last_minute
         FROM logs WHERE {receipt} >= julianday('now','-5 minutes')""").fetchone())
-    counts['total_logs'] = conn.execute('SELECT COUNT(*) FROM logs').fetchone()[0]
+    counts['total_logs'] = get_total_logs_count_fast(conn)
     counts['logs_per_minute_5m'] = round(counts.pop('logs_last_5_minutes') / 5, 1)
     counts['events_last_minute'] = counts['logs_last_minute'] - counts['heartbeats_last_minute']
     return counts
@@ -773,12 +826,11 @@ def get_reported_source_names():
         from ipaddress import ip_address
         conn = get_db_connection()
         result = {}
-        for row in conn.execute('SELECT DISTINCT host FROM logs'):
-            host = row['host']
+        for host in get_distinct_hosts(conn):
             if not is_source_ip(host):
                 continue
             names = {}
-            for log in conn.execute('SELECT metadata FROM logs WHERE host=? ORDER BY id DESC LIMIT 30', (host,)):
+            for log in conn.execute('SELECT metadata FROM logs WHERE host=? ORDER BY id DESC LIMIT 5', (host,)):
                 try:
                     metadata = json.loads(log['metadata'] or '{}')
                     if not isinstance(metadata,dict) or str(ip_address(metadata.get('source_ip'))) != host:
@@ -791,7 +843,7 @@ def get_reported_source_names():
             if len(names) == 1:
                 result[host] = next(iter(names.values()))
         return result
-    return snapshot('reported_source_names',15,collect)
+    return snapshot('reported_source_names', 120, collect)
 
 
 def get_host_aliases():
