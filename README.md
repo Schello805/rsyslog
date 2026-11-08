@@ -55,7 +55,7 @@ zuerst den Installer wie oben ausführen, um den systemd-Dienst einzurichten.
 Das [Update-Skript](scripts/update-debian.sh) lädt den aktuellen Stand, sichert App,
 Datenbank und Konfiguration, startet den Dienst neu und prüft die neue Revision.
 Bei einem Fehler nach dem Wechsel stellt es App und Datenbank automatisch wieder her.
-Sicherungen liegen unter `/var/backups/rsyslog-web-*` und werden nicht automatisch gelöscht.
+Sicherungen liegen unter `/var/backups/rsyslog-web-*`. Um die Festplatte nicht zu überfüllen, behält der Updater automatisch nur die jeweils letzte Sicherung vor und bereinigt ältere Stände selbstständig.
 Die Dienst-Konfiguration bleibt erhalten. Eigene Datenbankpfade werden vor dem Update
 abgelehnt; dieses Skript unterstützt die Standardinstallation des Installers.
 

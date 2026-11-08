@@ -97,6 +97,12 @@ fi
 echo 'Prüfe Python-Dateien …'
 "$app/.venv/bin/python" -m compileall -q -x '/(\.venv|\.git)/' "$work/source"
 progress backup
+echo 'Bereinige frühere Sicherungen …'
+for old_b in /var/backups/rsyslog-web-*; do
+    if [[ -d "$old_b" ]]; then
+        rm -rf "$old_b"
+    fi
+done
 echo 'Erstelle Sicherungsverzeichnis …'
 backup=$(mktemp -d /var/backups/rsyslog-web-$(date +%Y%m%d-%H%M%S).XXXXXX)
 chmod 0700 "$backup"
