@@ -495,7 +495,14 @@ async def api_save_settings(request: Request):
             raise ValueError("KI-Einstellungen bitte über /api/ai/settings speichern.")
         save_all_settings(body)
         invalidate_metrics()
-        return {"success": True, "settings": get_all_settings()}
+        settings = get_all_settings()
+        if settings.get('retention_days', 0) > 0:
+            await asyncio.to_thread(delete_logs_older_than, settings['retention_days'])
+        if settings.get('max_database_mb', 0) > 0:
+            from storage_policy import trim_database
+            await asyncio.to_thread(trim_database)
+        invalidate_metrics()
+        return {"success": True, "settings": settings}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -532,12 +539,36 @@ async def api_database_cleanup(body: CleanupPayload, request: Request):
         raise HTTPException(403, 'Bereinigung bitte aus derselben App starten.')
     def clean():
         from storage_policy import trim_database, status
-        deleted = trim_database() if body.mode == 'size' else delete_logs_older_than(body.days)
+        from database import delete_logs_older_than, count_logs_older_than
+        # In retention mode, delete in batches of up to 25,000 to keep the HTTP request fast and responsive
+        deleted = trim_database() if body.mode == 'size' else delete_logs_older_than(body.days, max_records=25000)
         invalidate_metrics()
         storage = status()
+        more_pending = False
+        if body.mode == 'size':
+            more_pending = bool(storage['limit_bytes'] and storage['used_bytes'] > storage['limit_bytes'] * .9)
+        elif body.mode == 'retention' and body.days > 0:
+            more_pending = count_logs_older_than(body.days) > 0
         return {'success': True, 'deleted': deleted, 'mode': body.mode, 'storage': storage,
-                'more_pending': bool(body.mode == 'size' and storage['limit_bytes'] and storage['used_bytes'] > storage['limit_bytes'] * .9)}
+                'more_pending': more_pending}
     return await asyncio.to_thread(clean)
+
+
+@app.post("/api/database/vacuum")
+async def api_database_vacuum(request: Request):
+    """Compacts the SQLite database and releases unallocated pages back to the filesystem."""
+    origin = request.headers.get('origin')
+    if request.headers.get('sec-fetch-site') == 'cross-site' or (origin and origin.rstrip('/') != str(request.base_url).rstrip('/')):
+        raise HTTPException(403, 'Operation bitte aus derselben App starten.')
+    def do_vacuum():
+        from database import get_db_connection
+        conn = get_db_connection()
+        conn.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+        conn.execute('VACUUM')
+        invalidate_metrics()
+        from storage_policy import status
+        return {'success': True, 'storage': status()}
+    return await asyncio.to_thread(do_vacuum)
 
 
 @app.websocket("/ws/logs")

@@ -401,8 +401,23 @@
                     </section>
                     <section class="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
                         <h3 class="font-semibold">Log-Datenbank</h3>
-                        <dl class="system-list"><dt>Datenbankdatei</dt><dd id="system-db-size">…</dd><dt>Schreibprotokoll (WAL)</dt><dd id="system-db-wal">…</dd><dt>Verwaltung (SHM)</dt><dd id="system-db-shm">…</dd><dt>Dateien insgesamt</dt><dd id="system-db-total">…</dd><dt>Aufbewahrungsfrist</dt><dd id="system-retention">…</dd></dl>
+                        <dl class="system-list">
+                            <dt>Datenbankdatei</dt><dd id="system-db-size">…</dd>
+                            <dt>Schreibprotokoll (WAL)</dt><dd id="system-db-wal">…</dd>
+                            <dt>Verwaltung (SHM)</dt><dd id="system-db-shm">…</dd>
+                            <dt>Dateien insgesamt</dt><dd id="system-db-total">…</dd>
+                            <dt>Aktive Nutzdaten</dt><dd id="system-db-used">…</dd>
+                            <dt>Wiederverwendbar (Freelist)</dt><dd id="system-db-reusable">…</dd>
+                            <dt>Aufbewahrungsfrist</dt><dd id="system-retention">…</dd>
+                        </dl>
                         <p id="system-db-path" class="text-xs text-slate-500 break-all"></p>
+                        <div class="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                            <button id="btn-vacuum" type="button" onclick="triggerVacuum()" class="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-300 text-xs text-slate-700 transition">
+                                <i data-lucide="shrink" class="w-3.5 h-3.5 text-sky-700"></i>
+                                <span>Dateigröße auf Festplatte verkleinern (VACUUM)</span>
+                            </button>
+                            <p id="vacuum-result" role="status" class="text-[11px] text-slate-500"></p>
+                        </div>
                         <a href="#maintenance" class="inline-block text-sm text-sky-700">Aufbewahrung ändern →</a>
                     </section>
                 </div>
@@ -676,13 +691,32 @@
                     if (mode === 'retention' && !data.deleted) result.textContent += ` Keine Logs älter als ${days} Tage nach Empfangszeit vorhanden.`;
                     if (mode === 'retention' && limit && data.storage.used_bytes > limit) result.textContent += ' Größenlimit überschritten. Bitte „Gespeichertes Größenlimit jetzt anwenden“ verwenden; dies löscht bei Bedarf auch jüngere Logs.';
                     if (mode === 'size' && !limit) result.textContent += ' Kein Größenlimit gespeichert. Bitte zuerst ein Limit speichern.';
-                    again = mode === 'size' && data.more_pending && data.deleted > 0;
-                    if (again) result.textContent += ' Größenbereinigung läuft weiter …';
+                    again = Boolean(data.more_pending && data.deleted > 0);
+                    if (again) result.textContent += mode === 'size' ? ' Größenbereinigung läuft weiter …' : ' Aufbewahrungsbereinigung läuft weiter …';
                     else if (data.more_pending) result.textContent += ' Ziel noch nicht erreicht. Keine weiteren Logs entfernt; Serverstatus prüfen.';
                 } while (again);
             } catch (error) {
                 result.textContent = `Bereinigung fehlgeschlagen: ${error.message}`;
             } finally { buttons.forEach(button => button.disabled = false); }
+        }
+
+        async function triggerVacuum() {
+            const btn = document.getElementById('btn-vacuum');
+            const result = document.getElementById('vacuum-result');
+            if (!confirm('Datenbankdatei auf Festplatte verkleinern (VACUUM)? Dies gibt ungenutzten Speicherplatz der Datei direkt an das Dateisystem zurück.')) return;
+            btn.disabled = true;
+            result.textContent = 'Komprimierung läuft …';
+            try {
+                const res = await fetch('/api/database/vacuum', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.detail || `Serverfehler (${res.status})`);
+                result.textContent = 'Datenbank erfolgreich komprimiert. Dateigröße wurde verkleinert.';
+                fetchSystemMetrics();
+            } catch (err) {
+                result.textContent = `Komprimierung fehlgeschlagen: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+            }
         }
 
         // Toggle password show/hide
@@ -762,6 +796,8 @@
                 text('system-db-wal', formatBytes(data.database.wal_bytes));
                 text('system-db-shm', formatBytes(data.database.shared_memory_bytes));
                 text('system-db-total', formatBytes(data.database.total_bytes));
+                text('system-db-used', formatBytes(data.storage_policy.used_bytes));
+                text('system-db-reusable', formatBytes(data.storage_policy.reusable_bytes));
                 text('system-db-path', data.database.path);
                 text('system-retention', data.retention_days > 0 ? `${data.retention_days} Tage` : 'Unbegrenzt');
                 text('system-udp', data.receiver.udp_listening ? `Aktiv · Port ${data.receiver.udp_port}` : 'Nicht aktiv');

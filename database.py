@@ -256,7 +256,21 @@ def save_all_settings(settings: Dict[str, Any]) -> None:
         reset_dns_cache()
 
 
-def delete_logs_older_than(days: int) -> int:
+def count_logs_older_than(days: int) -> int:
+    """Checks whether any logs older than the given number of days exist."""
+    if days <= 0:
+        return 0
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    conn = get_db_connection()
+    row = conn.execute(f"SELECT MIN(id) FROM logs WHERE {RECEIPT_SQL} >= julianday(?)", (cutoff,)).fetchone()
+    cutoff_id = row[0] if row and row[0] is not None else None
+    if cutoff_id is not None:
+        return 1 if conn.execute(f"SELECT 1 FROM logs WHERE id < ? OR {RECEIPT_SQL} < julianday(?) LIMIT 1", (cutoff_id, cutoff)).fetchone() else 0
+    return 1 if conn.execute("SELECT 1 FROM logs LIMIT 1").fetchone() else 0
+
+
+def delete_logs_older_than(days: int, max_records: Optional[int] = None) -> int:
     """Deletes logs older than a given number of days. If days <= 0, does nothing."""
     if days <= 0:
         return 0
@@ -265,14 +279,33 @@ def delete_logs_older_than(days: int) -> int:
 
     conn = get_db_connection()
     count = 0
-    # Short commits release SQLite's writer lock between batches. The existing
-    # receipt-time expression index also avoids repeated full-history scans.
+    # Determine the earliest log ID within the retention window.
+    # Any log with an earlier ID was inserted before the cutoff and is eligible for deletion,
+    # which also cleanly removes legacy rows with unparseable timestamps.
+    row = conn.execute(f"SELECT MIN(id) FROM logs WHERE {RECEIPT_SQL} >= julianday(?)", (cutoff,)).fetchone()
+    cutoff_id = row[0] if row and row[0] is not None else None
+
+    batch_size = 5000
     while True:
+        limit = batch_size
+        if max_records is not None:
+            remaining = max_records - count
+            if remaining <= 0:
+                break
+            limit = min(limit, remaining)
+
         with conn:
-            deleted = conn.execute(f"DELETE FROM logs WHERE id IN (SELECT id FROM logs WHERE {RECEIPT_SQL} < julianday(?) LIMIT 1000)", (cutoff,)).rowcount
+            if cutoff_id is not None:
+                subquery = f"SELECT id FROM logs WHERE id < ? OR {RECEIPT_SQL} < julianday(?) LIMIT {limit}"
+                deleted = conn.execute(f"DELETE FROM logs WHERE id IN ({subquery})", (cutoff_id, cutoff)).rowcount
+            else:
+                subquery = f"SELECT id FROM logs LIMIT {limit}"
+                deleted = conn.execute(f"DELETE FROM logs WHERE id IN ({subquery})").rowcount
+
         count += deleted
-        if deleted < 1000:
+        if deleted < limit:
             break
+
     with conn:
         conn.execute("DELETE FROM incidents WHERE julianday(last_seen) < julianday(?)", (cutoff,))
     if count:

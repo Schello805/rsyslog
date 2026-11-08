@@ -55,6 +55,35 @@ class OperationalTests(unittest.TestCase):
                 self.assertEqual(result.json()['storage']['limit_bytes'],0)
                 self.assertEqual((await client.post('/api/database/cleanup',json={'days':-1})).status_code,422)
                 self.assertEqual((await client.post('/api/database/cleanup',json={'days':14},headers={'Origin':'http://other'})).status_code,403)
+
+                # Vacuum API
+                vac_res = await client.post('/api/database/vacuum')
+                self.assertEqual(vac_res.status_code, 200)
+                self.assertTrue(vac_res.json()['success'])
+                self.assertEqual((await client.post('/api/database/vacuum', headers={'Origin': 'http://evil.com'})).status_code, 403)
+        asyncio.run(check())
+
+    def test_save_settings_triggers_immediate_retention_and_cleans_legacy_timestamps(self):
+        conn = database.get_db_connection()
+        with conn:
+            # Insert a legacy unparseable BSD timestamp with empty received_at from long ago
+            conn.execute("INSERT INTO logs(timestamp,received_at,host,app,level,message) VALUES('Jan  1 00:00:00','','host','app','INFO','legacy_old')")
+        # And a recent log
+        database.insert_log('host', 'app', 'INFO', 'current_log')
+        self.assertEqual(database.count_logs_older_than(7), 1)
+
+        import asyncio
+        import httpx
+        import main
+        async def check():
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
+                res = await client.post('/api/settings', json={'retention_days': 7})
+                self.assertEqual(res.status_code, 200)
+                # Verify old log was immediately deleted on save!
+                self.assertEqual(database.count_logs_older_than(7), 0)
+                logs, total = database.get_logs()
+                self.assertEqual(total, 1)
+                self.assertEqual(logs[0]['message'], 'current_log')
         asyncio.run(check())
 
     def test_automatic_cleanup_survives_status_failure(self):
