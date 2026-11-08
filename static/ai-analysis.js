@@ -103,6 +103,7 @@
             const period = byId('filter-period').value;
             if (period !== 'ALL') body.hours = Number(period);
             body.exclude_hosts = Array.from(excludedHosts);
+            if (typeof excludedLevels !== 'undefined') body.exclude_levels = Array.from(excludedLevels);
             body.limit = Number(byId('ai-sample-limit').value);
             const [preview, settings] = await Promise.all([api('preview', body), api('settings')]);
             if (request !== previewRequest) return;

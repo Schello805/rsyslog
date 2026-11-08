@@ -394,6 +394,38 @@ class DashboardTests(unittest.TestCase):
                 self.assertEqual([row['host'] for row in exported.json()], ['quiet-a','quiet-b',"quote'host"])
         asyncio.run(check())
 
+    def test_multiple_level_exclusions_preserve_data_and_pagination(self):
+        for lvl in ('DEBUG', 'INFO', 'NOTICE', 'WARN', 'ERROR', 'CRITICAL'):
+            database.insert_log('host-lvl', 'app', lvl, f'msg {lvl}')
+        rows, total = database.get_logs(host='host-lvl', exclude_levels=['DEBUG', 'INFO'])
+        self.assertEqual(total, 4)
+        levels_present = {r['level'] for r in rows}
+        self.assertNotIn('DEBUG', levels_present)
+        self.assertNotIn('INFO', levels_present)
+        self.assertIn('WARN', levels_present)
+        self.assertIn('ERROR', levels_present)
+
+        rows_no_warn, total_no_warn = database.get_logs(host='host-lvl', exclude_levels=['WARN'])
+        self.assertNotIn('WARN', {r['level'] for r in rows_no_warn})
+
+        rows_no_crit, total_no_crit = database.get_logs(host='host-lvl', exclude_levels=['CRITICAL'])
+        self.assertNotIn('CRITICAL', {r['level'] for r in rows_no_crit})
+
+        import asyncio
+        import httpx
+        import main
+        async def check():
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url='http://test') as client:
+                params = [('host', 'host-lvl'), ('exclude_level', 'DEBUG'), ('exclude_level', 'INFO')]
+                response = await client.get('/api/logs', params=params)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()['total'], 4)
+                exported = await client.get('/api/logs/export', params=params + [('format', 'json')])
+                exported_levels = {row['level'] for row in exported.json()}
+                self.assertNotIn('DEBUG', exported_levels)
+                self.assertNotIn('INFO', exported_levels)
+        asyncio.run(check())
+
     def test_host_names_preserve_identity_and_apply_to_old_logs(self):
         database.insert_log('192.0.2.1', 'app', 'INFO', 'old message')
         database.set_host_alias('192.0.2.1', 'QNAP NAS')

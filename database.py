@@ -487,6 +487,7 @@ def get_logs(
     sort_order: str = "desc",
     exclude_hosts: Optional[List[str]] = None,
     warning_only: bool = False,
+    exclude_levels: Optional[List[str]] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """
     Retrieves filtered logs with pagination.
@@ -520,6 +521,25 @@ def get_logs(
     if excluded:
         conditions.append('host NOT IN (' + ','.join('?' for _ in excluded) + ')')
         params.extend(excluded)
+
+    if exclude_levels:
+        raw_excluded = [item.strip().upper() for item in exclude_levels if item and item.strip()]
+        expanded_levels = set()
+        for elvl in raw_excluded:
+            if elvl in ('WARN', 'WARNING'):
+                expanded_levels.update(['WARN', 'WARNING'])
+            elif elvl in ('CRITICAL', 'CRITICAL_ALL'):
+                expanded_levels.update(['CRITICAL', 'ALERT', 'EMERGENCY'])
+            elif elvl == 'ERROR_CRITICAL':
+                expanded_levels.update(['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY'])
+            elif elvl in ('ALERT', 'EMERGENCY'):
+                expanded_levels.add(elvl)
+            else:
+                expanded_levels.add(elvl)
+        if expanded_levels:
+            sorted_excluded_lvls = sorted(expanded_levels)
+            conditions.append('level NOT IN (' + ','.join('?' for _ in sorted_excluded_lvls) + ')')
+            params.extend(sorted_excluded_lvls)
 
     if app and app.strip() and app.upper() != "ALL":
         conditions.append("app = ?")

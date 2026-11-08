@@ -241,6 +241,7 @@ async def api_get_logs(
     sort_by: Literal['received', 'timestamp', 'level', 'host', 'app', 'message'] = Query('received'),
     sort_order: Literal['asc', 'desc'] = Query('desc'),
     exclude_host: Optional[List[str]] = Query(None, max_length=200),
+    exclude_level: Optional[List[str]] = Query(None, max_length=20),
 ):
     """Retrieves paginated and filtered logs."""
     logs, total = await asyncio.to_thread(get_logs,
@@ -254,6 +255,7 @@ async def api_get_logs(
         sort_by=sort_by,
         sort_order=sort_order,
         exclude_hosts=exclude_host,
+        exclude_levels=exclude_level,
     )
     return {
         "logs": logs,
@@ -414,6 +416,7 @@ async def api_export_logs(
     sort_by: Literal['received', 'timestamp', 'level', 'host', 'app', 'message'] = Query('received'),
     sort_order: Literal['asc', 'desc'] = Query('desc'),
     exclude_host: Optional[List[str]] = Query(None, max_length=200),
+    exclude_level: Optional[List[str]] = Query(None, max_length=20),
 ):
     """Exports matching logs as a downloadable CSV or JSON file."""
     # Retrieve all matching rows (up to 10,000 for export)
@@ -428,6 +431,7 @@ async def api_export_logs(
         sort_by=sort_by,
         sort_order=sort_order,
         exclude_hosts=exclude_host,
+        exclude_levels=exclude_level,
     )
 
     if format == "json":

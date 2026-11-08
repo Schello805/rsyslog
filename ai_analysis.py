@@ -85,6 +85,7 @@ class Filters(BaseModel):
     search: str = Field('', max_length=1000)
     hours: int | None = Field(None, ge=1, le=8760)
     exclude_hosts: list[str] = Field(default_factory=list, max_length=200)
+    exclude_levels: list[str] = Field(default_factory=list, max_length=20)
     limit: Literal[25,50,100] = 100
 
 
@@ -104,7 +105,7 @@ async def preview(body: Filters, request: Request):
         if now - _snapshots[token]['created'] > 600:
             del _snapshots[token]
     rows, total = await asyncio.to_thread(get_logs, per_page=body.limit, level=body.level, host=body.host, app=body.app,
-        search=body.search, hours=body.hours, exclude_hosts=body.exclude_hosts,
+        search=body.search, hours=body.hours, exclude_hosts=body.exclude_hosts, exclude_levels=body.exclude_levels,
         sort_by='received', sort_order='desc', warning_only=True)
     grouped = {}
     for row in rows:
