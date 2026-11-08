@@ -561,10 +561,49 @@ async def api_database_vacuum(request: Request):
     if request.headers.get('sec-fetch-site') == 'cross-site' or (origin and origin.rstrip('/') != str(request.base_url).rstrip('/')):
         raise HTTPException(403, 'Operation bitte aus derselben App starten.')
     def do_vacuum():
-        from database import get_db_connection
+        from database import get_db_connection, close_db_connection
+        import shutil
+        import tempfile
+        import os
+        from pathlib import Path
+        db_path = Path(config.DATABASE_PATH).resolve()
         conn = get_db_connection()
         conn.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-        conn.execute('VACUUM')
+
+        use_tmp_vacuum = False
+        try:
+            db_size = db_path.stat().st_size if db_path.exists() else 0
+            disk = shutil.disk_usage(db_path.parent)
+            tmp_disk = shutil.disk_usage(tempfile.gettempdir())
+            if disk.free < db_size * 1.2 and tmp_disk.free > db_size * 1.2:
+                use_tmp_vacuum = True
+        except Exception:
+            pass
+
+        if use_tmp_vacuum:
+            tmp_fd, tmp_path_str = tempfile.mkstemp(prefix="syslog_vac_", suffix=".db")
+            os.close(tmp_fd)
+            tmp_target = Path(tmp_path_str)
+            try:
+                if tmp_target.exists():
+                    tmp_target.unlink()
+                conn.execute(f"VACUUM INTO '{tmp_target.as_posix()}'")
+                close_db_connection()
+                mode = db_path.stat().st_mode if db_path.exists() else 0o644
+                shutil.copyfile(tmp_target, db_path)
+                try:
+                    os.chmod(db_path, mode)
+                except OSError:
+                    pass
+            finally:
+                if tmp_target.exists():
+                    try:
+                        tmp_target.unlink()
+                    except OSError:
+                        pass
+        else:
+            conn.execute('VACUUM')
+
         invalidate_metrics()
         from storage_policy import status
         return {'success': True, 'storage': status()}

@@ -35,6 +35,16 @@ def get_db_connection() -> sqlite3.Connection:
     return _local.connection
 
 
+def close_db_connection() -> None:
+    """Closes and clears the thread-local SQLite connection if active."""
+    if hasattr(_local, "connection") and _local.connection is not None:
+        try:
+            _local.connection.close()
+        except Exception:
+            pass
+        _local.connection = None
+
+
 def init_db() -> None:
     """Creates tables and indices if they do not exist."""
     conn = get_db_connection()

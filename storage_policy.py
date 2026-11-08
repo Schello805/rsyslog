@@ -25,6 +25,14 @@ def limit_bytes(conn):
 
 
 def can_accept(conn, estimated_bytes):
+    try:
+        db_dir = Path(config.DATABASE_PATH).resolve().parent
+        disk = shutil.disk_usage(db_dir)
+        if disk.free < 250 * 1024 * 1024 or (disk.total > 0 and (disk.free / disk.total) < 0.02):
+            _pressure.set()
+            return False
+    except Exception:
+        pass
     limit = limit_bytes(conn)
     if not limit:
         return True
@@ -44,11 +52,24 @@ def trim_database():
     deadline = time.monotonic() + 2
     target = limit * (.8 if _pressure.is_set() else .9)
     _pressure.clear()
-    while limit and usage(conn)['used_bytes'] > target and time.monotonic() < deadline:
+    disk_tight = False
+    try:
+        db_dir = Path(config.DATABASE_PATH).resolve().parent
+        disk = shutil.disk_usage(db_dir)
+        if disk.free < 1024 * 1024 * 1024 or (disk.total > 0 and (disk.free / disk.total) < 0.05):
+            disk_tight = True
+    except Exception:
+        pass
+
+    while (limit and usage(conn)['used_bytes'] > target) or (disk_tight and deleted < 5000):
+        if time.monotonic() >= deadline:
+            break
         with conn:
             # Count at most 20k index entries, not the entire history. Keep
             # small databases conservative so one batch does not erase all logs.
             available = conn.execute('SELECT COUNT(*) FROM (SELECT id FROM logs LIMIT 20000)').fetchone()[0]
+            if not available:
+                break
             batch = min(1000, max(1, available // 20))
             result = conn.execute('DELETE FROM logs WHERE id IN (SELECT id FROM logs ORDER BY id LIMIT ?)', (batch,))
         deleted += result.rowcount
@@ -71,9 +92,10 @@ def status():
     limit = limit_bytes(conn)
     disk = shutil.disk_usage(Path(config.DATABASE_PATH).resolve().parent)
     disk_percent = 100 * disk.used / disk.total if disk.total else 0
+    disk_free_mb = disk.free / (1024 * 1024)
     warnings = []
-    if disk_percent >= 90:
-        warnings.append(f'Dateisystem zu {disk_percent:.0f} % belegt. Speicherplatz freigeben.')
+    if disk_percent >= 90 or disk_free_mb < 500:
+        warnings.append(f'Dateisystem zu {disk_percent:.0f} % belegt ({disk_free_mb:.0f} MB frei). Speicherplatz freigeben.')
     if limit and size['used_bytes'] >= limit * .8:
         warnings.append('Datenbank nahe der eingestellten Grenze. Älteste Logs werden bei Bedarf automatisch bereinigt.')
-    return dict(size, limit_bytes=limit, warning=bool(warnings), message=' '.join(warnings))
+    return dict(size, limit_bytes=limit, disk_free_mb=round(disk_free_mb, 1), disk_total_mb=round(disk.total / (1024 * 1024), 1), warning=bool(warnings), message=' '.join(warnings))

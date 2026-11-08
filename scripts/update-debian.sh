@@ -154,3 +154,10 @@ PY
 changed=0
 progress complete
 echo "Sicherung der bisherigen Installation: $backup"
+# Prune older backups, keeping only the latest backup to conserve disk space
+backup_dir=$(dirname "$backup")
+find "$backup_dir" -maxdepth 1 -name 'rsyslog-web-*' -type d | sort -r | tail -n +2 | while read -r old_b; do
+    if [[ -n "$old_b" && "$old_b" != "$backup" ]]; then
+        rm -rf "$old_b"
+    fi
+done
